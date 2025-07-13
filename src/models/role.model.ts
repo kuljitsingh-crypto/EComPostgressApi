@@ -35,3 +35,18 @@ Role.init(
   },
 );
 export default Role;
+
+// Role.findAll({
+//   attributes: ['userRole', { column: 'roleId', alias: 'rId' }],
+// }).then((res) => {
+//   console.log(res);
+// });
+
+// Role.create(
+//   {
+//     userRole: roleType.admin,
+//   },
+//   ['userRole', { column: 'roleId', alias: 'rId' }],
+// ).then((res) => {
+//   console.log(res);
+// });

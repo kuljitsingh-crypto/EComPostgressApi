@@ -6,6 +6,8 @@ const PORT = parseInt(process.env.PORT || '3500', 10);
 const app = express();
 addUUIDExtension();
 
+models.RolModel;
+
 app.get('/', (req, res) => {
   res.send('Hello World!');
 });

@@ -85,16 +85,82 @@ type ExtraOptions = {
   references?: Reference[];
 };
 
-export class DBModel {
+type QueryAttributes = string | { column: string; alias: string }; // {columnName:aliasName}
+type QueryParams = {
+  attributes?: QueryAttributes[];
+};
+
+export class DBQuery {
+  static modelName: string = '';
+  static modelFields: Set<string> = new Set();
+  static async findAll(queryParams?: QueryParams) {
+    const { attributes } = queryParams || {};
+    const colStr = DBQuery.#getSelectColumns(this.modelFields, attributes);
+    const findAllQuery = `SELECT ${colStr} FROM "${this.modelName}"`;
+    const result = await query(findAllQuery);
+    return { rows: result.rows, count: result.rowCount };
+  }
+  static async create(
+    fields: Record<string, any>,
+    returnOnly?: QueryAttributes[],
+  ) {
+    const keys: string[] = [];
+    const values: string[] = [];
+    const valuePlaceholder: string[] = [];
+    const returnStr = DBQuery.#getSelectColumns(this.modelFields, returnOnly);
+    Object.entries(fields).forEach((entry, index) => {
+      const [key, value] = entry;
+      keys.push(DBQuery.#FieldQuote(this.modelFields, key));
+      values.push(value);
+      valuePlaceholder.push(`$${index + 1}`);
+    });
+    const createQry = `INSERT INTO "${this.modelName}"(${keys.toString()}) VALUES(${valuePlaceholder.toString()}) RETURNING ${returnStr}`;
+    const result = await query(createQry, values);
+    return { rows: result.rows, count: result.rowCount };
+  }
+
+  static #getSelectColumns(
+    allowedFields: Set<string>,
+    attributes?: QueryAttributes[],
+  ) {
+    if (!Array.isArray(attributes) || attributes.length === 0) return '*';
+    return attributes
+      .map((attr) => {
+        if (typeof attr === 'string') {
+          return DBQuery.#FieldQuote(allowedFields, attr);
+        }
+        return `${DBQuery.#FieldQuote(allowedFields, attr.column)} AS ${DBQuery.#quote(attr.alias)}`;
+      })
+      .join(', ');
+  }
+  static #quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
+  static #validateField(field: string, allowed: Set<string>) {
+    if (!allowed.has(field)) {
+      throw new Error(
+        `Invalid column name ${field}. Allowed Column names are: ${Array.from(allowed).join(', ')}.`,
+      );
+    }
+  }
+  static #FieldQuote = (allowedFields: Set<string>, str: string) => {
+    DBQuery.#validateField(str, allowedFields);
+    return DBQuery.#quote(str);
+  };
+}
+
+export class DBModel extends DBQuery {
   static init(modelObj: DbTable, option: ExtraOptions) {
     const { modelName, references = [] } = option;
+    this.modelName = modelName;
     const primaryKeys: string[] = [];
     const columns: string[] = [];
     const enums: string[] = [];
+    const modelFields: Set<string> = new Set();
     Object.entries(modelObj).forEach((entry) => {
       const [key, value] = entry;
+      modelFields.add(key);
       columns.push(DBModel.#createColumn(key, value, primaryKeys, enums));
     });
+    this.modelFields = modelFields;
     if (primaryKeys.length <= 0) {
       throw new Error(
         `At least one primary key column is required in model ${modelName}.`,
