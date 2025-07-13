@@ -2,12 +2,9 @@ import 'dotenv/config';
 import express from 'express';
 import { addUUIDExtension } from './models/db.config';
 import * as models from './models';
-
 const PORT = parseInt(process.env.PORT || '3500', 10);
 const app = express();
-
 addUUIDExtension();
-models.CurrentUserModel;
 
 app.get('/', (req, res) => {
   res.send('Hello World!');

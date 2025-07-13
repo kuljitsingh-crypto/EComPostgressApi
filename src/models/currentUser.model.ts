@@ -10,6 +10,9 @@ CurrentUser.init(
       defaultValue: dbDefaultValue.uuidV4,
       notNull: true,
     },
+    imageId: {
+      type: DataTypes.uuid,
+    },
     type: {
       type: DataTypes.string(255),
       customDefaultValue: modelTypes.currentUser,
@@ -28,7 +31,17 @@ CurrentUser.init(
     },
     metadata: { type: DataTypes.json },
   },
-  { modelName: 'current_user' },
+  {
+    modelName: 'current_user',
+    references: [
+      {
+        parentModel: 'image',
+        parentColumn: 'id',
+        column: 'imageId',
+        onDelete: 'SET NULL',
+      },
+    ],
+  },
 );
 
 export default CurrentUser;
