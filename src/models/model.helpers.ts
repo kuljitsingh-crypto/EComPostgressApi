@@ -2,6 +2,15 @@ import { query } from './db.config';
 const enumQryPrefix = `DO $$ BEGIN CREATE TYPE`;
 const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
 
+type ORDER_OPTION = 'ASC' | 'DESC';
+type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
+
+type ORDER_BY =
+  | { [key in string]: ORDER_OPTION }
+  | { key: string; order: ORDER_OPTION; nullOption?: NULL_OPTION }[];
+
+type WHERE_TYPE = {};
+
 export type DbTable = {
   [key in string]: {
     type: string;
@@ -67,6 +76,7 @@ const dbKeywords = {
   onUpdate: 'ON UPDATE',
   check: 'CHECK',
   distinct: 'DISTINCT',
+  orderBy: 'ORDER BY',
 };
 
 export const dbDefaultValue = {
@@ -93,16 +103,19 @@ type QueryAttributes = string | { column: string; alias: string }; // {columnNam
 type QueryParams = {
   attributes?: QueryAttributes[];
   isDistinct?: boolean;
+  orderBy?: ORDER_BY;
 };
 
 export class DBQuery {
   static modelName: string = '';
   static modelFields: Set<string> = new Set();
   static async findAll(queryParams?: QueryParams) {
-    const { attributes, isDistinct } = queryParams || {};
+    const { attributes, isDistinct, orderBy } = queryParams || {};
     const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
     const colStr = DBQuery.#getSelectColumns(this.modelFields, attributes);
-    const findAllQuery = `SELECT ${distinctMaybe}${colStr} FROM "${this.modelName}"`;
+    const orderStr = DBQuery.#prepareOrderByStatement(orderBy);
+    const findAllQuery =
+      `SELECT ${distinctMaybe}${colStr} FROM "${this.modelName}" ${orderStr}`.trimEnd();
     const result = await query(findAllQuery);
     return { rows: result.rows, count: result.rowCount };
   }
@@ -151,6 +164,23 @@ export class DBQuery {
     DBQuery.#validateField(str, allowedFields);
     return DBQuery.#quote(str);
   };
+  static #prepareOrderByStatement(orderBy?: ORDER_BY) {
+    if (!orderBy || (Array.isArray(orderBy) && orderBy.length <= 0)) return '';
+    let orderByStatemnt = dbKeywords.orderBy + ' ';
+    if (Array.isArray(orderBy)) {
+      orderByStatemnt += orderBy
+        .map((ord) =>
+          `${ord.key} ${ord.order} ${ord.nullOption || ''}`.trimEnd(),
+        )
+        .join(', ');
+    } else {
+      orderByStatemnt += Object.entries(orderBy)
+        .map(([key, val]) => `${key} ${val}`)
+        .join(', ');
+    }
+
+    return orderByStatemnt;
+  }
 }
 
 export class DBModel extends DBQuery {
