@@ -55,11 +55,7 @@ export const DataTypes = {
   },
 };
 
-export const dbDefaultValue = {
-  currentDate: 'CURRENT_DATE',
-  currentTimestamp: 'CURRENT_TIMESTAMP',
-  currentTime: 'CURRENT_TIME',
-  uuidV4: 'gen_random_uuid()',
+const dbKeywords = {
   notNull: 'NOT NULL',
   unique: 'UNIQUE',
   default: 'DEFAULT',
@@ -70,6 +66,14 @@ export const dbDefaultValue = {
   onDelete: 'ON DELETE',
   onUpdate: 'ON UPDATE',
   check: 'CHECK',
+  distinct: 'DISTINCT',
+};
+
+export const dbDefaultValue = {
+  currentDate: 'CURRENT_DATE',
+  currentTimestamp: 'CURRENT_TIMESTAMP',
+  currentTime: 'CURRENT_TIME',
+  uuidV4: 'gen_random_uuid()',
 };
 
 type Reference = {
@@ -88,15 +92,17 @@ type ExtraOptions = {
 type QueryAttributes = string | { column: string; alias: string }; // {columnName:aliasName}
 type QueryParams = {
   attributes?: QueryAttributes[];
+  isDistinct?: boolean;
 };
 
 export class DBQuery {
   static modelName: string = '';
   static modelFields: Set<string> = new Set();
   static async findAll(queryParams?: QueryParams) {
-    const { attributes } = queryParams || {};
+    const { attributes, isDistinct } = queryParams || {};
+    const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
     const colStr = DBQuery.#getSelectColumns(this.modelFields, attributes);
-    const findAllQuery = `SELECT ${colStr} FROM "${this.modelName}"`;
+    const findAllQuery = `SELECT ${distinctMaybe}${colStr} FROM "${this.modelName}"`;
     const result = await query(findAllQuery);
     return { rows: result.rows, count: result.rowCount };
   }
@@ -204,26 +210,26 @@ export class DBModel extends DBQuery {
           primaryKeys.push(columnName);
           break;
         case 'defaultValue':
-          valueStr += `${dbDefaultValue.default} ${keyVale} `;
+          valueStr += `${dbKeywords.default} ${keyVale} `;
           break;
         case 'unique':
-          valueStr += dbDefaultValue.unique + ' ';
+          valueStr += dbKeywords.unique + ' ';
           break;
         case 'notNull':
-          valueStr += dbDefaultValue.notNull + ' ';
+          valueStr += dbKeywords.notNull + ' ';
           break;
         case 'customDefaultValue':
-          valueStr += `${dbDefaultValue.default} '${keyVale}' `;
+          valueStr += `${dbKeywords.default} '${keyVale}' `;
           break;
         case 'check':
-          valueStr += `${dbDefaultValue.check} (${keyVale}) `;
+          valueStr += `${dbKeywords.check} (${keyVale}) `;
           break;
       }
     });
     return valueStr.trimEnd();
   }
   static #createPrimaryColumn(primaryKeys: string[]) {
-    return `${dbDefaultValue.primaryKey} (${primaryKeys.toString()})`;
+    return `${dbKeywords.primaryKey} (${primaryKeys.toString()})`;
   }
   static #createForeignColumn(ref: Reference) {
     const {
@@ -238,15 +244,15 @@ export class DBModel extends DBQuery {
     const colStr = column.toString();
     const parentColStr = parentColumn.toString();
     if (constraintName) {
-      valueStr += `${dbDefaultValue.constraint} ${constraintName} `;
+      valueStr += `${dbKeywords.constraint} ${constraintName} `;
     }
-    valueStr += `${dbDefaultValue.foreignKey} (${colStr}) `;
-    valueStr += `${dbDefaultValue.references} "${parentModel}" (${parentColStr}) `;
+    valueStr += `${dbKeywords.foreignKey} (${colStr}) `;
+    valueStr += `${dbKeywords.references} "${parentModel}" (${parentColStr}) `;
     if (onDelete) {
-      valueStr += `${dbDefaultValue.onDelete} ${onDelete} `;
+      valueStr += `${dbKeywords.onDelete} ${onDelete} `;
     }
     if (onUpdate) {
-      valueStr += `${dbDefaultValue.onUpdate} ${onUpdate} `;
+      valueStr += `${dbKeywords.onUpdate} ${onUpdate} `;
     }
     return valueStr.trimEnd();
   }
