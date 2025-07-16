@@ -9,8 +9,6 @@ type ORDER_BY =
   | { [key in string]: ORDER_OPTION }
   | { key: string; order: ORDER_OPTION; nullOption?: NULL_OPTION }[];
 
-type WHERE_TYPE = {};
-
 export type DbTable = {
   [key in string]: {
     type: string;
@@ -22,6 +20,47 @@ export type DbTable = {
     check?: string;
   };
 };
+
+const operators = {
+  eq: '=',
+  neq: '!=',
+  lte: '<=',
+  lt: '<',
+  gte: '>=',
+  gt: '>',
+  like: 'LIKE',
+  iLike: 'ILIKE',
+  in: 'IN',
+  between: 'BETWEEN',
+  is: 'IS',
+  not: 'IS NOT',
+  notLike: 'NOT LIKE',
+  notILike: 'NOT ILIKE',
+  notIn: 'NOT IN',
+  notBetween: 'NOT BETWEEN',
+  startsWith: 'LIKE',
+  endsWith: 'LIKE',
+  substring: 'LIKE',
+  and: 'AND',
+  or: 'OR',
+};
+
+type OP_KEYS = keyof typeof operators;
+
+type ARRAY_VALUE_FILTER = { column: string; op: OP_KEYS; value: any[] };
+type SINGLE_VALUE_FILTER = { column: string; op: OP_KEYS; value: any };
+
+type NORMAL_FILTER<key extends OP_KEYS> = key extends 'in'
+  ? key extends 'between'
+    ? ARRAY_VALUE_FILTER
+    : ARRAY_VALUE_FILTER
+  : SINGLE_VALUE_FILTER;
+
+type WHERE_FILTER<key extends OP_KEYS = OP_KEYS> = key extends 'and'
+  ? { column1: NORMAL_FILTER<key>; op: OP_KEYS; column2: NORMAL_FILTER<key> }
+  : key extends 'or'
+    ? { column1: NORMAL_FILTER<key>; op: OP_KEYS; column2: NORMAL_FILTER<key> }
+    : NORMAL_FILTER<key>;
 
 export const foreignKeyActions = {
   noAction: 'NO ACTION',
@@ -104,13 +143,14 @@ type QueryParams = {
   attributes?: QueryAttributes[];
   isDistinct?: boolean;
   orderBy?: ORDER_BY;
+  filters?: WHERE_FILTER[];
 };
 
 export class DBQuery {
   static modelName: string = '';
   static modelFields: Set<string> = new Set();
   static async findAll(queryParams?: QueryParams) {
-    const { attributes, isDistinct, orderBy } = queryParams || {};
+    const { attributes, isDistinct, orderBy, filters } = queryParams || {};
     const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
     const colStr = DBQuery.#getSelectColumns(this.modelFields, attributes);
     const orderStr = DBQuery.#prepareOrderByStatement(orderBy);
@@ -181,6 +221,13 @@ export class DBQuery {
 
     return orderByStatemnt;
   }
+
+  static #prepareWhereStatement(filters?: WHERE_FILTER[]) {
+    if (!filters || (Array.isArray(filters) && filters.length === 0)) return '';
+    let queryStatement = '';
+  }
+
+  // static
 }
 
 export class DBModel extends DBQuery {
