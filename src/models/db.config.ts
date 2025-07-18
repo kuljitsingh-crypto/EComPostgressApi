@@ -14,7 +14,7 @@ export default pool;
 
 export const query = async (text: string, params?: unknown[]) => {
   const result = await pool.query(text, params);
-  console.log('executed query', { query: text, rows: result.rowCount });
+  console.log('executed query', { query: text, rows: result.rowCount, params });
   return result;
 };
 

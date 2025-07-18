@@ -21,7 +21,7 @@ export type DbTable = {
   };
 };
 
-const operators = {
+export const OP = {
   eq: '=',
   neq: '!=',
   lte: '<=',
@@ -32,8 +32,8 @@ const operators = {
   iLike: 'ILIKE',
   in: 'IN',
   between: 'BETWEEN',
-  is: 'IS',
-  not: 'IS NOT',
+  isNull: 'IS',
+  notNull: 'IS NOT',
   notLike: 'NOT LIKE',
   notILike: 'NOT ILIKE',
   notIn: 'NOT IN',
@@ -43,24 +43,46 @@ const operators = {
   substring: 'LIKE',
   and: 'AND',
   or: 'OR',
+} as const;
+
+type OP_KEYS = keyof typeof OP;
+
+type OP_KEYS_WITHOUT_AND_OR = Exclude<OP_KEYS, 'and' | 'or'>;
+
+type ARRAY_VALUE_FILTER<Key extends OP_KEYS> = {
+  column: string;
+  op: Key;
+  value: any[];
+};
+type SINGLE_VALUE_FILTER<Key extends OP_KEYS> = {
+  column: string;
+  op: Key;
+  value: any;
 };
 
-type OP_KEYS = keyof typeof operators;
+type PRESET_VALUE_FILTER<Key extends OP_KEYS> = {
+  column: string;
+  op: Key;
+};
 
-type ARRAY_VALUE_FILTER = { column: string; op: OP_KEYS; value: any[] };
-type SINGLE_VALUE_FILTER = { column: string; op: OP_KEYS; value: any };
+type NORMAL_FILTER<Key extends OP_KEYS> = Key extends 'in'
+  ? ARRAY_VALUE_FILTER<Key>
+  : Key extends 'between'
+    ? ARRAY_VALUE_FILTER<Key>
+    : Key extends 'isNull'
+      ? PRESET_VALUE_FILTER<Key>
+      : Key extends 'notNull'
+        ? PRESET_VALUE_FILTER<Key>
+        : SINGLE_VALUE_FILTER<Key>;
 
-type NORMAL_FILTER<key extends OP_KEYS> = key extends 'in'
-  ? key extends 'between'
-    ? ARRAY_VALUE_FILTER
-    : ARRAY_VALUE_FILTER
-  : SINGLE_VALUE_FILTER;
-
-type WHERE_FILTER<key extends OP_KEYS = OP_KEYS> = key extends 'and'
-  ? { column1: NORMAL_FILTER<key>; op: OP_KEYS; column2: NORMAL_FILTER<key> }
-  : key extends 'or'
-    ? { column1: NORMAL_FILTER<key>; op: OP_KEYS; column2: NORMAL_FILTER<key> }
-    : NORMAL_FILTER<key>;
+type WHERE_FILTER<
+  Key extends OP_KEYS = OP_KEYS,
+  Key2 extends OP_KEYS_WITHOUT_AND_OR = OP_KEYS_WITHOUT_AND_OR,
+> = Key extends 'and'
+  ? { value1: NORMAL_FILTER<Key2>; op: Key; value2: NORMAL_FILTER<Key2> }
+  : Key extends 'or'
+    ? { value1: NORMAL_FILTER<Key2>; op: Key; value2: NORMAL_FILTER<Key2> }
+    : NORMAL_FILTER<Key>;
 
 export const foreignKeyActions = {
   noAction: 'NO ACTION',
@@ -116,7 +138,14 @@ const dbKeywords = {
   check: 'CHECK',
   distinct: 'DISTINCT',
   orderBy: 'ORDER BY',
-};
+  null: 'NULL',
+  where: 'WHERE',
+  select: 'SELECT',
+  from: 'FROM',
+  insertInto: 'INSERT INTO',
+  values: 'VALUES',
+  returning: 'RETURNING',
+} as const;
 
 export const dbDefaultValue = {
   currentDate: 'CURRENT_DATE',
@@ -144,6 +173,7 @@ type QueryParams = {
   isDistinct?: boolean;
   orderBy?: ORDER_BY;
   filters?: WHERE_FILTER[];
+  limit?: { limit: number; offset?: number };
 };
 
 export class DBQuery {
@@ -152,11 +182,14 @@ export class DBQuery {
   static async findAll(queryParams?: QueryParams) {
     const { attributes, isDistinct, orderBy, filters } = queryParams || {};
     const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
-    const colStr = DBQuery.#getSelectColumns(this.modelFields, attributes);
-    const orderStr = DBQuery.#prepareOrderByStatement(orderBy);
+    const allowedFields = this.modelFields;
+    const colStr = DBQuery.#getSelectColumns(allowedFields, attributes);
+    const orderStr = DBQuery.#prepareOrderByStatement(allowedFields, orderBy);
+    const { statement: whereStatement, values } =
+      DBQuery.#prepareWhereStatement(allowedFields, filters);
     const findAllQuery =
-      `SELECT ${distinctMaybe}${colStr} FROM "${this.modelName}" ${orderStr}`.trimEnd();
-    const result = await query(findAllQuery);
+      `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${this.modelName}" ${whereStatement} ${orderStr}`.trimEnd();
+    const result = await query(findAllQuery, values);
     return { rows: result.rows, count: result.rowCount };
   }
   static async create(
@@ -164,20 +197,24 @@ export class DBQuery {
     returnOnly?: QueryAttributes[],
   ) {
     const keys: string[] = [];
-    const values: string[] = [];
+    const values: any[] = [];
     const valuePlaceholder: string[] = [];
-    const returnStr = DBQuery.#getSelectColumns(this.modelFields, returnOnly);
+    const allowedFields = this.modelFields;
+    const returnStr = DBQuery.#getSelectColumns(allowedFields, returnOnly);
     Object.entries(fields).forEach((entry, index) => {
       const [key, value] = entry;
-      keys.push(DBQuery.#FieldQuote(this.modelFields, key));
+      keys.push(DBQuery.#FieldQuote(allowedFields, key));
       values.push(value);
       valuePlaceholder.push(`$${index + 1}`);
     });
-    const createQry = `INSERT INTO "${this.modelName}"(${keys.toString()}) VALUES(${valuePlaceholder.toString()}) RETURNING ${returnStr}`;
+    const columns = keys.toString();
+    const valuePlaceholders = valuePlaceholder.toString();
+    const createQry = `${dbKeywords.insertInto} "${this.modelName}"(${columns}) ${dbKeywords.values}(${valuePlaceholders}) ${dbKeywords.returning} ${returnStr}`;
     const result = await query(createQry, values);
     return { rows: result.rows, count: result.rowCount };
   }
 
+  // Private Methods
   static #getSelectColumns(
     allowedFields: Set<string>,
     attributes?: QueryAttributes[],
@@ -193,6 +230,7 @@ export class DBQuery {
       .join(', ');
   }
   static #quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
+
   static #validateField(field: string, allowed: Set<string>) {
     if (!allowed.has(field)) {
       throw new Error(
@@ -200,34 +238,163 @@ export class DBQuery {
       );
     }
   }
+
   static #FieldQuote = (allowedFields: Set<string>, str: string) => {
     DBQuery.#validateField(str, allowedFields);
     return DBQuery.#quote(str);
   };
-  static #prepareOrderByStatement(orderBy?: ORDER_BY) {
+
+  static #prepareOrderByStatement(
+    allowedFields: Set<string>,
+    orderBy?: ORDER_BY,
+  ) {
     if (!orderBy || (Array.isArray(orderBy) && orderBy.length <= 0)) return '';
     let orderByStatemnt = dbKeywords.orderBy + ' ';
     if (Array.isArray(orderBy)) {
       orderByStatemnt += orderBy
         .map((ord) =>
-          `${ord.key} ${ord.order} ${ord.nullOption || ''}`.trimEnd(),
+          `${DBQuery.#FieldQuote(allowedFields, ord.key)} ${ord.order} ${ord.nullOption || ''}`.trimEnd(),
         )
         .join(', ');
     } else {
       orderByStatemnt += Object.entries(orderBy)
-        .map(([key, val]) => `${key} ${val}`)
+        .map(
+          ([key, val]) => `${DBQuery.#FieldQuote(allowedFields, key)} ${val}`,
+        )
         .join(', ');
     }
 
     return orderByStatemnt;
   }
 
-  static #prepareWhereStatement(filters?: WHERE_FILTER[]) {
-    if (!filters || (Array.isArray(filters) && filters.length === 0)) return '';
-    let queryStatement = '';
+  static #prepareWhereStatement(
+    allowedFields: Set<string>,
+    filters?: WHERE_FILTER[],
+  ) {
+    if (!filters || (Array.isArray(filters) && filters.length === 0))
+      return { statement: '', values: [] };
+    let queryStatement = dbKeywords.where + ' ';
+    const values: any[] = [];
+    const indexAndIncremntBy = { index: 0, incremntBy: 1 };
+    queryStatement += filters
+      .map((filter, indx) => {
+        indexAndIncremntBy.index = indx;
+        return DBQuery.#getQueryStatement(
+          allowedFields,
+          filter,
+          indexAndIncremntBy,
+          values,
+        );
+      })
+      .join(` ${OP.and} `);
+    return { statement: queryStatement, values };
   }
 
-  // static
+  static #getQueryStatement(
+    allowedFields: Set<string>,
+    singleQry: WHERE_FILTER,
+    index: {
+      index: number;
+      incremntBy: number;
+    },
+    valuesArr: any[],
+  ): string {
+    const { op } = singleQry;
+    const operation = OP[op];
+    if (!operation) {
+      throw new Error(
+        `Invalid operator "${op}". Please use following operators: ${Object.keys(OP).join(', ')}. `,
+      );
+    }
+    const preparePlachldrForArray = (values: any[]) => {
+      const placeholderArr = values.map((val, i) => {
+        if (i > 0) {
+          index.incremntBy += 1;
+        }
+        valuesArr.push(val);
+        return `$${index.index + index.incremntBy}`;
+      });
+      return placeholderArr;
+    };
+    const valPlaceholder = `$${index.index + index.incremntBy}`;
+    switch (op) {
+      case 'eq':
+      case 'neq':
+      case 'gt':
+      case 'gte':
+      case 'lt':
+      case 'lte':
+      case 'like':
+      case 'iLike':
+      case 'notLike':
+      case 'notILike': {
+        valuesArr.push(singleQry.value);
+        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${valPlaceholder}`;
+      }
+      case 'notNull':
+      case 'isNull': {
+        index.incremntBy -= 1;
+        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${dbKeywords.null}`;
+      }
+      case 'startsWith': {
+        valuesArr.push(`${singleQry.value}%`);
+        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${valPlaceholder}`;
+      }
+      case 'endsWith': {
+        valuesArr.push(`%${singleQry.value}`);
+        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${valPlaceholder}`;
+      }
+      case 'substring': {
+        valuesArr.push(`%${singleQry.value}%`);
+        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${valPlaceholder}`;
+      }
+      case 'in':
+      case 'notIn': {
+        if (!Array.isArray(singleQry.value)) {
+          throw new Error(`For operator "${op}" value should be array.`);
+        }
+        const placeholders = preparePlachldrForArray(singleQry.value);
+        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} (${placeholders.toString()})`;
+      }
+      case 'between':
+      case 'notBetween': {
+        if (!Array.isArray(singleQry.value)) {
+          throw new Error(`For operator "${op}" value should be array.`);
+        }
+        if (singleQry.value.length !== 2) {
+          throw new Error(`Operator "${op}" requires exactly 2 values.`);
+        }
+        const placeholders = preparePlachldrForArray(singleQry.value);
+        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${placeholders[0]} ${OP.and} ${placeholders[1]}`;
+      }
+      case 'and':
+      case 'or': {
+        if (!singleQry.value1 || !singleQry.value2) {
+          throw new Error(
+            `For operator "${op}" value1 and value2 field is required.`,
+          );
+        }
+        const column1Str = DBQuery.#getQueryStatement(
+          allowedFields,
+          singleQry.value1,
+          index,
+          valuesArr,
+        );
+        index.incremntBy += 1;
+        const column2Str = DBQuery.#getQueryStatement(
+          allowedFields,
+          singleQry.value2,
+          index,
+          valuesArr,
+        );
+        return `${column1Str} ${operation} ${column2Str}`;
+      }
+      default:
+        throw new Error(
+          `Invalid operator "${op}". Please use following operators: ${Object.keys(OP).join(', ')}. `,
+        );
+    }
+  }
 }
 
 export class DBModel extends DBQuery {
