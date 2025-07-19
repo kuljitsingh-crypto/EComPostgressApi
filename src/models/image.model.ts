@@ -23,7 +23,7 @@ Image.init(
       type: DataTypes.string(100),
     },
   },
-  { modelName: 'image' },
+  { tableName: 'image' },
 );
 
 export default Image;

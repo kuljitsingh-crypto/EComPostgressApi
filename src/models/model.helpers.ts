@@ -2,9 +2,31 @@ import { query } from './db.config';
 const enumQryPrefix = `DO $$ BEGIN CREATE TYPE`;
 const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
 
+const tableJoin = {
+  innerJoin: 'INNER JOIN',
+  leftJoin: 'LEFT JOIN',
+  rightJoin: 'RIGHT JOIN',
+  fullOuterJoin: 'FULL OUTER JOIN',
+  selfJoin: 'INNER JOIN',
+  crossJoin: 'CROSS JOIN',
+} as const;
+type TABLE_JOIN_TYPE = keyof typeof tableJoin;
 type ORDER_OPTION = 'ASC' | 'DESC';
 type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
 type PAGINATION = { limit: number; offset?: number };
+type OTHER_JOIN<T extends TABLE_JOIN_TYPE> = {
+  type: T;
+  tableName: string;
+  joinCondition: string;
+};
+
+type SELF_JOIN<T extends TABLE_JOIN_TYPE> = {
+  type: T;
+  joinCondition: string;
+};
+
+type TABLE_JOIN<T extends TABLE_JOIN_TYPE = TABLE_JOIN_TYPE> =
+  T extends 'selfJoin' ? SELF_JOIN<T> : OTHER_JOIN<T>;
 
 type ORDER_BY =
   | { [key in string]: ORDER_OPTION }
@@ -148,6 +170,7 @@ const dbKeywords = {
   returning: 'RETURNING',
   limit: 'LIMIT',
   offset: 'OFFSET',
+  as: 'AS',
 } as const;
 
 export const dbDefaultValue = {
@@ -158,7 +181,7 @@ export const dbDefaultValue = {
 };
 
 type Reference = {
-  parentModel: string;
+  parentTable: string;
   parentColumn: string | string[];
   column: string | string[];
   constraintName?: string;
@@ -166,7 +189,7 @@ type Reference = {
   onUpdate?: ForeignKeyActions;
 };
 type ExtraOptions = {
-  modelName: string;
+  tableName: string;
   references?: Reference[];
 };
 
@@ -177,16 +200,25 @@ type QueryParams = {
   orderBy?: ORDER_BY;
   filters?: WHERE_FILTER[];
   limit?: PAGINATION;
+  tableAlias?: string;
+  joinTableBy: TABLE_JOIN;
 };
 
 export class DBQuery {
-  static modelName: string = '';
-  static modelFields: Set<string> = new Set();
+  static tableName: string = '';
+  static tableColumns: Set<string> = new Set();
   static async findAll(queryParams?: QueryParams) {
-    const { attributes, isDistinct, orderBy, filters, limit } =
-      queryParams || {};
+    const {
+      attributes,
+      isDistinct,
+      orderBy,
+      filters,
+      limit,
+      tableAlias,
+      joinTableBy,
+    } = queryParams || {};
     const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
-    const allowedFields = this.modelFields;
+    const allowedFields = this.tableColumns;
     const colStr = DBQuery.#getSelectColumns(allowedFields, attributes);
     const orderStr = DBQuery.#prepareOrderByStatement(allowedFields, orderBy);
     const { statement: whereStatement, values } =
@@ -197,7 +229,8 @@ export class DBQuery {
       orderStr,
       limitStr,
     );
-    const rawQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${this.modelName}"${variableQry}`;
+    const modelAlias = tableAlias ? ` ${dbKeywords.as} ${tableAlias}` : '';
+    const rawQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${this.tableName}"${modelAlias}${variableQry}`;
     const findAllQuery = `${rawQry.trimEnd()};`;
     const result = await query(findAllQuery, values);
     return { rows: result.rows, count: result.rowCount };
@@ -209,7 +242,7 @@ export class DBQuery {
     const keys: string[] = [];
     const values: any[] = [];
     const valuePlaceholder: string[] = [];
-    const allowedFields = this.modelFields;
+    const allowedFields = this.tableColumns;
     const returnStr = DBQuery.#getSelectColumns(allowedFields, returnOnly);
     Object.entries(fields).forEach((entry, index) => {
       const [key, value] = entry;
@@ -219,7 +252,7 @@ export class DBQuery {
     });
     const columns = keys.toString();
     const valuePlaceholders = valuePlaceholder.toString();
-    const rawQry = `${dbKeywords.insertInto} "${this.modelName}"(${columns}) ${dbKeywords.values}(${valuePlaceholders}) ${dbKeywords.returning} ${returnStr}`;
+    const rawQry = `${dbKeywords.insertInto} "${this.tableName}"(${columns}) ${dbKeywords.values}(${valuePlaceholders}) ${dbKeywords.returning} ${returnStr}`;
     const createQry = `${rawQry.trimEnd()};`;
     const result = await query(createQry, values);
     return { rows: result.rows, count: result.rowCount };
@@ -236,13 +269,16 @@ export class DBQuery {
         if (typeof attr === 'string') {
           return DBQuery.#FieldQuote(allowedFields, attr);
         }
-        return `${DBQuery.#FieldQuote(allowedFields, attr.column)} AS ${DBQuery.#quote(attr.alias)}`;
+        return `${DBQuery.#FieldQuote(allowedFields, attr.column)} ${dbKeywords.as} ${DBQuery.#quote(attr.alias)}`;
       })
       .join(', ');
   }
   static #quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
 
   static #validateField(field: string, allowed: Set<string>) {
+    if (field.includes('.')) {
+      field = field.split('.').slice(-1)[0];
+    }
     if (!allowed.has(field)) {
       throw new Error(
         `Invalid column name ${field}. Allowed Column names are: ${Array.from(allowed).join(', ')}.`,
@@ -435,25 +471,27 @@ export class DBQuery {
     }
     return variableQry;
   }
+
+  static #prepareTableJoin() {}
 }
 
 export class DBModel extends DBQuery {
   static init(modelObj: DbTable, option: ExtraOptions) {
-    const { modelName, references = [] } = option;
-    this.modelName = modelName;
+    const { tableName, references = [] } = option;
+    this.tableName = tableName;
     const primaryKeys: string[] = [];
     const columns: string[] = [];
     const enums: string[] = [];
-    const modelFields: Set<string> = new Set();
+    const tableColumns: Set<string> = new Set();
     Object.entries(modelObj).forEach((entry) => {
       const [key, value] = entry;
-      modelFields.add(key);
+      tableColumns.add(key);
       columns.push(DBModel.#createColumn(key, value, primaryKeys, enums));
     });
-    this.modelFields = modelFields;
+    this.tableColumns = tableColumns;
     if (primaryKeys.length <= 0) {
       throw new Error(
-        `At least one primary key column is required in model ${modelName}.`,
+        `At least one primary key column is required in table ${tableName}.`,
       );
     }
     columns.push(DBModel.#createPrimaryColumn(primaryKeys));
@@ -461,7 +499,7 @@ export class DBModel extends DBQuery {
       columns.push(DBModel.#createForeignColumn(ref));
     });
     const createEnumQryPromise = Promise.all(enums.map((e) => query(e)));
-    const createTableQry = `CREATE TABLE IF NOT EXISTS "${modelName}" (${columns.toString()});`;
+    const createTableQry = `CREATE TABLE IF NOT EXISTS "${tableName}" (${columns.toString()});`;
     createEnumQryPromise.then(() => query(createTableQry));
   }
 
@@ -482,7 +520,7 @@ export class DBModel extends DBQuery {
       switch (key) {
         case 'type': {
           if ((keyVale as any).startsWith('ENUM')) {
-            const enumQry = `${enumQryPrefix} ${colUpr} AS ${keyVale}; ${enumQrySuffix}`;
+            const enumQry = `${enumQryPrefix} ${colUpr} ${dbKeywords.as} ${keyVale}; ${enumQrySuffix}`;
             enums.push(enumQry);
             valueStr += colUpr + ' ';
           } else {
@@ -517,7 +555,7 @@ export class DBModel extends DBQuery {
   }
   static #createForeignColumn(ref: Reference) {
     const {
-      parentModel,
+      parentTable,
       parentColumn,
       column,
       constraintName,
@@ -531,7 +569,7 @@ export class DBModel extends DBQuery {
       valueStr += `${dbKeywords.constraint} ${constraintName} `;
     }
     valueStr += `${dbKeywords.foreignKey} (${colStr}) `;
-    valueStr += `${dbKeywords.references} "${parentModel}" (${parentColStr}) `;
+    valueStr += `${dbKeywords.references} "${parentTable}" (${parentColStr}) `;
     if (onDelete) {
       valueStr += `${dbKeywords.onDelete} ${onDelete} `;
     }

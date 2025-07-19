@@ -32,10 +32,10 @@ CurrentUser.init(
     metadata: { type: DataTypes.json },
   },
   {
-    modelName: 'current_user',
+    tableName: 'current_user',
     references: [
       {
-        parentModel: 'image',
+        parentTable: 'image',
         parentColumn: 'id',
         column: 'imageId',
         onDelete: 'SET NULL',

@@ -21,11 +21,11 @@ Role.init(
     },
   },
   {
-    modelName: 'role',
+    tableName: 'role',
     references: [
       {
         parentColumn: 'id',
-        parentModel: 'current_user',
+        parentTable: 'current_user',
         column: 'roleId',
         constraintName: 'fk_role',
         onDelete: 'CASCADE',
@@ -37,7 +37,7 @@ Role.init(
 export default Role;
 
 Role.findAll({
-  // // attributes: ['userRole', { column: 'roleId', alias: 'rId' }],
+  attributes: ['r.userRole'],
   filters: [
     { column: 'roleId', op: 'isNull' },
     // { op: 'between', column: 'userRole', value: ['admin', 'seller'] },
@@ -56,6 +56,7 @@ Role.findAll({
       value2: { column: 'userRole', op: 'eq', value: 'seller' },
     },
   ],
+  tableAlias: 'r',
   // orderBy: { id: 'ASC' },
   // limit: { limit: 1, offset: 1 },
 }).then((res) => {
