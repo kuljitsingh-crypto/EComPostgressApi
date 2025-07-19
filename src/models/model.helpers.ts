@@ -14,19 +14,35 @@ type TABLE_JOIN_TYPE = keyof typeof tableJoin;
 type ORDER_OPTION = 'ASC' | 'DESC';
 type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
 type PAGINATION = { limit: number; offset?: number };
+type ColumnRef = `${string}.${string}`;
+type JOIN_COND = Array<{ baseColumn: ColumnRef; joinColumn: ColumnRef }>;
+type JOIN_MODEL = {
+  tableName: string;
+
+  on: JOIN_COND;
+  alias?: string;
+};
 type OTHER_JOIN<T extends TABLE_JOIN_TYPE> = {
   type: T;
-  tableName: string;
-  joinCondition: string;
+  models: JOIN_MODEL[];
 };
-
 type SELF_JOIN<T extends TABLE_JOIN_TYPE> = {
   type: T;
-  joinCondition: string;
+  alias?: string;
+  on: JOIN_COND;
+};
+type CROSS_JOIN<T extends TABLE_JOIN_TYPE> = {
+  type: T;
+  alias?: string;
+  tableName: string;
 };
 
 type TABLE_JOIN<T extends TABLE_JOIN_TYPE = TABLE_JOIN_TYPE> =
-  T extends 'selfJoin' ? SELF_JOIN<T> : OTHER_JOIN<T>;
+  T extends 'selfJoin'
+    ? SELF_JOIN<T>
+    : T extends 'crossJoin'
+      ? CROSS_JOIN<T>
+      : OTHER_JOIN<T>;
 
 type ORDER_BY =
   | { [key in string]: ORDER_OPTION }
@@ -201,7 +217,7 @@ type QueryParams = {
   filters?: WHERE_FILTER[];
   limit?: PAGINATION;
   tableAlias?: string;
-  joinTableBy: TABLE_JOIN;
+  include?: TABLE_JOIN;
 };
 
 export class DBQuery {
@@ -215,7 +231,7 @@ export class DBQuery {
       filters,
       limit,
       tableAlias,
-      joinTableBy,
+      include,
     } = queryParams || {};
     const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
     const allowedFields = this.tableColumns;
@@ -269,7 +285,9 @@ export class DBQuery {
         if (typeof attr === 'string') {
           return DBQuery.#FieldQuote(allowedFields, attr);
         }
-        return `${DBQuery.#FieldQuote(allowedFields, attr.column)} ${dbKeywords.as} ${DBQuery.#quote(attr.alias)}`;
+        return `${DBQuery.#FieldQuote(allowedFields, attr.column)} ${
+          dbKeywords.as
+        } ${DBQuery.#quote(attr.alias)}`;
       })
       .join(', ');
   }
@@ -281,7 +299,9 @@ export class DBQuery {
     }
     if (!allowed.has(field)) {
       throw new Error(
-        `Invalid column name ${field}. Allowed Column names are: ${Array.from(allowed).join(', ')}.`,
+        `Invalid column name ${field}. Allowed Column names are: ${Array.from(
+          allowed,
+        ).join(', ')}.`,
       );
     }
   }
@@ -300,7 +320,9 @@ export class DBQuery {
     if (Array.isArray(orderBy)) {
       orderByStatemnt += orderBy
         .map((ord) =>
-          `${DBQuery.#FieldQuote(allowedFields, ord.key)} ${ord.order} ${ord.nullOption || ''}`.trimEnd(),
+          `${DBQuery.#FieldQuote(allowedFields, ord.key)} ${ord.order} ${
+            ord.nullOption || ''
+          }`.trimEnd(),
         )
         .join(', ');
     } else {
@@ -350,7 +372,9 @@ export class DBQuery {
     const operation = OP[op];
     if (!operation) {
       throw new Error(
-        `Invalid operator "${op}". Please use following operators: ${Object.keys(OP).join(', ')}. `,
+        `Invalid operator "${op}". Please use following operators: ${Object.keys(
+          OP,
+        ).join(', ')}. `,
       );
     }
     const preparePlachldrForArray = (values: any[]) => {
@@ -376,24 +400,39 @@ export class DBQuery {
       case 'notLike':
       case 'notILike': {
         valuesArr.push(singleQry.value);
-        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${valPlaceholder}`;
+        return `${DBQuery.#FieldQuote(
+          allowedFields,
+          singleQry.column,
+        )} ${operation} ${valPlaceholder}`;
       }
       case 'notNull':
       case 'isNull': {
         index.incremntBy -= 1;
-        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${dbKeywords.null}`;
+        return `${DBQuery.#FieldQuote(
+          allowedFields,
+          singleQry.column,
+        )} ${operation} ${dbKeywords.null}`;
       }
       case 'startsWith': {
         valuesArr.push(`${singleQry.value}%`);
-        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${valPlaceholder}`;
+        return `${DBQuery.#FieldQuote(
+          allowedFields,
+          singleQry.column,
+        )} ${operation} ${valPlaceholder}`;
       }
       case 'endsWith': {
         valuesArr.push(`%${singleQry.value}`);
-        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${valPlaceholder}`;
+        return `${DBQuery.#FieldQuote(
+          allowedFields,
+          singleQry.column,
+        )} ${operation} ${valPlaceholder}`;
       }
       case 'substring': {
         valuesArr.push(`%${singleQry.value}%`);
-        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${valPlaceholder}`;
+        return `${DBQuery.#FieldQuote(
+          allowedFields,
+          singleQry.column,
+        )} ${operation} ${valPlaceholder}`;
       }
       case 'in':
       case 'notIn': {
@@ -401,7 +440,10 @@ export class DBQuery {
           throw new Error(`For operator "${op}" value should be array.`);
         }
         const placeholders = preparePlachldrForArray(singleQry.value);
-        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} (${placeholders.toString()})`;
+        return `${DBQuery.#FieldQuote(
+          allowedFields,
+          singleQry.column,
+        )} ${operation} (${placeholders.toString()})`;
       }
       case 'between':
       case 'notBetween': {
@@ -412,7 +454,10 @@ export class DBQuery {
           throw new Error(`Operator "${op}" requires exactly 2 values.`);
         }
         const placeholders = preparePlachldrForArray(singleQry.value);
-        return `${DBQuery.#FieldQuote(allowedFields, singleQry.column)} ${operation} ${placeholders[0]} ${OP.and} ${placeholders[1]}`;
+        return `${DBQuery.#FieldQuote(
+          allowedFields,
+          singleQry.column,
+        )} ${operation} ${placeholders[0]} ${OP.and} ${placeholders[1]}`;
       }
       case 'and':
       case 'or': {
@@ -438,7 +483,9 @@ export class DBQuery {
       }
       default:
         throw new Error(
-          `Invalid operator "${op}". Please use following operators: ${Object.keys(OP).join(', ')}. `,
+          `Invalid operator "${op}". Please use following operators: ${Object.keys(
+            OP,
+          ).join(', ')}. `,
         );
     }
   }
@@ -472,7 +519,54 @@ export class DBQuery {
     return variableQry;
   }
 
-  static #prepareTableJoin() {}
+  static #prepareTableJoin(selfModelName: string, include?: TABLE_JOIN) {
+    if (!include || !include.type) {
+      return '';
+    }
+    switch (include.type) {
+      case 'selfJoin': {
+        const { type, on, alias } = include;
+        const updatedInclude = {
+          type,
+          models: [{ tableName: selfModelName, on, alias }],
+        };
+        return DBQuery.#prepareJoinStr(updatedInclude);
+      }
+      case 'innerJoin':
+      case 'fullOuterJoin':
+      case 'leftJoin':
+      case 'rightJoin':
+        return DBQuery.#prepareJoinStr(include);
+      case 'crossJoin':
+        return null;
+      default:
+        throw new Error(
+          `Invalid join type:"${(include as any).type}". Valid join types:${Object.keys(tableJoin).toString()}.`,
+        );
+    }
+  }
+  static #prepareJoinStr<T extends TABLE_JOIN_TYPE>(joinType: OTHER_JOIN<T>) {
+    const { type, models } = joinType;
+    const joinName = tableJoin[type];
+    if (!joinName) {
+      throw new Error(
+        `Invalid join type:"${type}". Valid join types:${Object.keys(tableJoin).toString()}.`,
+      );
+    }
+    const joinStr = models.map((m) => {
+      const { on, tableName, alias } = m;
+      const onStr = on
+        .map(
+          ({ baseColumn, joinColumn }) =>
+            `${baseColumn} ${OP.eq} ${joinColumn}`,
+        )
+        .join(` ${OP.and} `);
+      const aliasMaybe = alias ? ` ${dbKeywords.as} ${alias} ` : ' ';
+      return `${joinName} ${tableName}${aliasMaybe}${onStr}`;
+    });
+
+    return joinStr.join(' ');
+  }
 }
 
 export class DBModel extends DBQuery {
