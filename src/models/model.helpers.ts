@@ -4,6 +4,7 @@ const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
 
 type ORDER_OPTION = 'ASC' | 'DESC';
 type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
+type PAGINATION = { limit: number; offset?: number };
 
 type ORDER_BY =
   | { [key in string]: ORDER_OPTION }
@@ -145,6 +146,8 @@ const dbKeywords = {
   insertInto: 'INSERT INTO',
   values: 'VALUES',
   returning: 'RETURNING',
+  limit: 'LIMIT',
+  offset: 'OFFSET',
 } as const;
 
 export const dbDefaultValue = {
@@ -173,22 +176,29 @@ type QueryParams = {
   isDistinct?: boolean;
   orderBy?: ORDER_BY;
   filters?: WHERE_FILTER[];
-  limit?: { limit: number; offset?: number };
+  limit?: PAGINATION;
 };
 
 export class DBQuery {
   static modelName: string = '';
   static modelFields: Set<string> = new Set();
   static async findAll(queryParams?: QueryParams) {
-    const { attributes, isDistinct, orderBy, filters } = queryParams || {};
+    const { attributes, isDistinct, orderBy, filters, limit } =
+      queryParams || {};
     const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
     const allowedFields = this.modelFields;
     const colStr = DBQuery.#getSelectColumns(allowedFields, attributes);
     const orderStr = DBQuery.#prepareOrderByStatement(allowedFields, orderBy);
     const { statement: whereStatement, values } =
       DBQuery.#prepareWhereStatement(allowedFields, filters);
-    const findAllQuery =
-      `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${this.modelName}" ${whereStatement} ${orderStr}`.trimEnd();
+    const limitStr = DBQuery.#preparePaginationStatement(limit);
+    const variableQry = DBQuery.#prepareVariableQry(
+      whereStatement,
+      orderStr,
+      limitStr,
+    );
+    const rawQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${this.modelName}"${variableQry}`;
+    const findAllQuery = `${rawQry.trimEnd()};`;
     const result = await query(findAllQuery, values);
     return { rows: result.rows, count: result.rowCount };
   }
@@ -209,7 +219,8 @@ export class DBQuery {
     });
     const columns = keys.toString();
     const valuePlaceholders = valuePlaceholder.toString();
-    const createQry = `${dbKeywords.insertInto} "${this.modelName}"(${columns}) ${dbKeywords.values}(${valuePlaceholders}) ${dbKeywords.returning} ${returnStr}`;
+    const rawQry = `${dbKeywords.insertInto} "${this.modelName}"(${columns}) ${dbKeywords.values}(${valuePlaceholders}) ${dbKeywords.returning} ${returnStr}`;
+    const createQry = `${rawQry.trimEnd()};`;
     const result = await query(createQry, values);
     return { rows: result.rows, count: result.rowCount };
   }
@@ -395,6 +406,35 @@ export class DBQuery {
         );
     }
   }
+
+  static #preparePaginationStatement(limit?: PAGINATION) {
+    if (!limit || typeof limit.limit !== 'number') {
+      return '';
+    }
+    const { limit: l, offset: o } = limit;
+    let limitStatement = `${dbKeywords.limit} ${l}`;
+    if (o) {
+      limitStatement += ` ${dbKeywords.offset} ${o}`;
+    }
+    return limitStatement;
+  }
+  static #prepareVariableQry(
+    whereQry?: string,
+    orderbyQry?: string,
+    limitQry?: string,
+  ) {
+    let variableQry = '';
+    if (whereQry) {
+      variableQry += ' ' + whereQry;
+    }
+    if (orderbyQry) {
+      variableQry += ' ' + orderbyQry;
+    }
+    if (limitQry) {
+      variableQry += ' ' + limitQry;
+    }
+    return variableQry;
+  }
 }
 
 export class DBModel extends DBQuery {
@@ -421,7 +461,7 @@ export class DBModel extends DBQuery {
       columns.push(DBModel.#createForeignColumn(ref));
     });
     const createEnumQryPromise = Promise.all(enums.map((e) => query(e)));
-    const createTableQry = `CREATE TABLE IF NOT EXISTS "${modelName}" (${columns.toString()})`;
+    const createTableQry = `CREATE TABLE IF NOT EXISTS "${modelName}" (${columns.toString()});`;
     createEnumQryPromise.then(() => query(createTableQry));
   }
 
