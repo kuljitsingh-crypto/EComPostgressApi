@@ -36,32 +36,32 @@ Role.init(
 );
 export default Role;
 
-Role.findAll({
-  attributes: ['r.userRole'],
-  filters: [
-    { column: 'roleId', op: 'isNull' },
-    // { op: 'between', column: 'userRole', value: ['admin', 'seller'] },
-    {
-      column: 'id',
-      op: 'in',
-      value: [
-        '83fdcb3b-df81-4ffc-b98c-8d57679ada00',
-        '645d1e52-ec00-44b0-837c-89317886e42d',
-      ],
-    },
-    { column: 'type', op: 'eq', value: 'role' },
-    {
-      value1: { column: 'userRole', op: 'eq', value: 'admin' },
-      op: 'or',
-      value2: { column: 'userRole', op: 'eq', value: 'seller' },
-    },
-  ],
-  tableAlias: 'r',
-  // orderBy: { id: 'ASC' },
-  // limit: { limit: 1, offset: 1 },
-}).then((res) => {
-  console.log(res);
-});
+// Role.findAll({
+//   attributes: ['r.userRole'],
+//   filters: [
+//     { column: 'roleId', op: 'isNull' },
+//     // { op: 'between', column: 'userRole', value: ['admin', 'seller'] },
+//     {
+//       column: 'id',
+//       op: 'in',
+//       value: [
+//         '83fdcb3b-df81-4ffc-b98c-8d57679ada00',
+//         '645d1e52-ec00-44b0-837c-89317886e42d',
+//       ],
+//     },
+//     { column: 'type', op: 'eq', value: 'role' },
+//     {
+//       value1: { column: 'userRole', op: 'eq', value: 'admin' },
+//       op: 'or',
+//       value2: { column: 'userRole', op: 'eq', value: 'seller' },
+//     },
+//   ],
+//   tableAlias: 'r',
+//   // orderBy: { id: 'ASC' },
+//   // limit: { limit: 1, offset: 1 },
+// }).then((res) => {
+//   console.log(res);
+// });
 
 // Role.create(
 //   {

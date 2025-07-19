@@ -187,6 +187,7 @@ const dbKeywords = {
   limit: 'LIMIT',
   offset: 'OFFSET',
   as: 'AS',
+  on: 'ON',
 } as const;
 
 export const dbDefaultValue = {
@@ -240,10 +241,12 @@ export class DBQuery {
     const { statement: whereStatement, values } =
       DBQuery.#prepareWhereStatement(allowedFields, filters);
     const limitStr = DBQuery.#preparePaginationStatement(limit);
+    const joinStr = DBQuery.#prepareTableJoin(this.tableName, include);
     const variableQry = DBQuery.#prepareVariableQry(
       whereStatement,
       orderStr,
       limitStr,
+      joinStr,
     );
     const modelAlias = tableAlias ? ` ${dbKeywords.as} ${tableAlias}` : '';
     const rawQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${this.tableName}"${modelAlias}${variableQry}`;
@@ -264,13 +267,42 @@ export class DBQuery {
       const [key, value] = entry;
       keys.push(DBQuery.#FieldQuote(allowedFields, key));
       values.push(value);
-      valuePlaceholder.push(`$${index + 1}`);
+      valuePlaceholder.push(DBQuery.#createPlaceholder(index + 1));
     });
     const columns = keys.toString();
     const valuePlaceholders = valuePlaceholder.toString();
     const rawQry = `${dbKeywords.insertInto} "${this.tableName}"(${columns}) ${dbKeywords.values}(${valuePlaceholders}) ${dbKeywords.returning} ${returnStr}`;
     const createQry = `${rawQry.trimEnd()};`;
     const result = await query(createQry, values);
+    return { rows: result.rows, count: result.rowCount };
+  }
+
+  static async createBulk(
+    columns: Array<string>,
+    values: Array<Array<any>>,
+    returnOnly?: QueryAttributes[],
+  ) {
+    const flatedValues: any[] = [];
+    const allowedFields = this.tableColumns;
+    const returnStr = DBQuery.#getSelectColumns(allowedFields, returnOnly);
+    let incrementBy = 1;
+    const valuePlaceholder = values.map((val, pIndex) => {
+      if (pIndex > 0) {
+        incrementBy += val.length - 1;
+      }
+      flatedValues.push(...val);
+      const placeholder = val
+        .map((_, cIndex) =>
+          DBQuery.#createPlaceholder(pIndex + cIndex + incrementBy),
+        )
+        .join(',');
+      return `(${placeholder})`;
+    });
+    const colStr = columns.toString();
+    const valuePlaceholders = valuePlaceholder.toString();
+    const rawQry = `${dbKeywords.insertInto} "${this.tableName}"(${colStr}) ${dbKeywords.values}${valuePlaceholders} ${dbKeywords.returning} ${returnStr}`;
+    const createQry = `${rawQry.trimEnd()};`;
+    const result = await query(createQry, flatedValues);
     return { rows: result.rows, count: result.rowCount };
   }
 
@@ -383,11 +415,13 @@ export class DBQuery {
           index.incremntBy += 1;
         }
         valuesArr.push(val);
-        return `$${index.index + index.incremntBy}`;
+        return DBQuery.#createPlaceholder(index.index + index.incremntBy);
       });
       return placeholderArr;
     };
-    const valPlaceholder = `$${index.index + index.incremntBy}`;
+    const valPlaceholder = DBQuery.#createPlaceholder(
+      index.index + index.incremntBy,
+    );
     switch (op) {
       case 'eq':
       case 'neq':
@@ -505,8 +539,12 @@ export class DBQuery {
     whereQry?: string,
     orderbyQry?: string,
     limitQry?: string,
+    joinStr?: string,
   ) {
     let variableQry = '';
+    if (joinStr) {
+      variableQry += ' ' + joinStr;
+    }
     if (whereQry) {
       variableQry += ' ' + whereQry;
     }
@@ -537,8 +575,14 @@ export class DBQuery {
       case 'leftJoin':
       case 'rightJoin':
         return DBQuery.#prepareJoinStr(include);
-      case 'crossJoin':
-        return null;
+      case 'crossJoin': {
+        const { type, tableName, alias } = include;
+        const updatedInclude = {
+          type,
+          models: [{ tableName, on: [], alias }],
+        };
+        return DBQuery.#prepareJoinStr(updatedInclude);
+      }
       default:
         throw new Error(
           `Invalid join type:"${(include as any).type}". Valid join types:${Object.keys(tableJoin).toString()}.`,
@@ -555,17 +599,25 @@ export class DBQuery {
     }
     const joinStr = models.map((m) => {
       const { on, tableName, alias } = m;
-      const onStr = on
-        .map(
-          ({ baseColumn, joinColumn }) =>
-            `${baseColumn} ${OP.eq} ${joinColumn}`,
-        )
-        .join(` ${OP.and} `);
-      const aliasMaybe = alias ? ` ${dbKeywords.as} ${alias} ` : ' ';
+      const onStr =
+        type === 'crossJoin'
+          ? 'true'
+          : on
+              .map(
+                ({ baseColumn, joinColumn }) =>
+                  `${baseColumn} ${OP.eq} ${joinColumn}`,
+              )
+              .join(` ${OP.and} `);
+      const aliasMaybe = alias
+        ? ` ${dbKeywords.as} ${alias} ${dbKeywords.on} `
+        : ` ${dbKeywords.on} `;
       return `${joinName} ${tableName}${aliasMaybe}${onStr}`;
     });
 
     return joinStr.join(' ');
+  }
+  static #createPlaceholder(val: number) {
+    return `$${val}`;
   }
 }
 
