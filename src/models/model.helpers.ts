@@ -17,14 +17,23 @@ type PAGINATION = { limit: number; offset?: number };
 type ColumnRef = `${string}.${string}`;
 type JOIN_COND = Array<{ baseColumn: ColumnRef; joinColumn: ColumnRef }>;
 type JOIN_MODEL = {
-  tableName: string;
-
+  model: DBModel;
+  on: JOIN_COND;
+  alias?: string;
+};
+type JOIN_MODEL_INTERNAL = {
+  tableName?: string;
+  model?: DBModel;
   on: JOIN_COND;
   alias?: string;
 };
 type OTHER_JOIN<T extends TABLE_JOIN_TYPE> = {
   type: T;
   models: JOIN_MODEL[];
+};
+type JOIN<T extends TABLE_JOIN_TYPE> = {
+  type: T;
+  models: JOIN_MODEL_INTERNAL[];
 };
 type SELF_JOIN<T extends TABLE_JOIN_TYPE> = {
   type: T;
@@ -34,7 +43,7 @@ type SELF_JOIN<T extends TABLE_JOIN_TYPE> = {
 type CROSS_JOIN<T extends TABLE_JOIN_TYPE> = {
   type: T;
   alias?: string;
-  tableName: string;
+  model: DBModel;
 };
 
 type TABLE_JOIN<T extends TABLE_JOIN_TYPE = TABLE_JOIN_TYPE> =
@@ -235,7 +244,7 @@ export class DBQuery {
       include,
     } = queryParams || {};
     const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
-    const allowedFields = this.tableColumns;
+    const allowedFields = DBQuery.#getAllowedFields(this.tableColumns, include);
     const colStr = DBQuery.#getSelectColumns(allowedFields, attributes);
     const orderStr = DBQuery.#prepareOrderByStatement(allowedFields, orderBy);
     const { statement: whereStatement, values } =
@@ -576,10 +585,10 @@ export class DBQuery {
       case 'rightJoin':
         return DBQuery.#prepareJoinStr(include);
       case 'crossJoin': {
-        const { type, tableName, alias } = include;
+        const { type, model, alias } = include;
         const updatedInclude = {
           type,
-          models: [{ tableName, on: [], alias }],
+          models: [{ model, on: [], alias }],
         };
         return DBQuery.#prepareJoinStr(updatedInclude);
       }
@@ -589,7 +598,7 @@ export class DBQuery {
         );
     }
   }
-  static #prepareJoinStr<T extends TABLE_JOIN_TYPE>(joinType: OTHER_JOIN<T>) {
+  static #prepareJoinStr<T extends TABLE_JOIN_TYPE>(joinType: JOIN<T>) {
     const { type, models } = joinType;
     const joinName = tableJoin[type];
     if (!joinName) {
@@ -598,7 +607,11 @@ export class DBQuery {
       );
     }
     const joinStr = models.map((m) => {
-      const { on, tableName, alias } = m;
+      const { on, model, alias, tableName: name } = m;
+      if (!name && !model) {
+        throw new Error('DBModel instance is required for join.');
+      }
+      const tableName = name || (model as any).tableName;
       const onStr =
         type === 'crossJoin'
           ? 'true'
@@ -618,6 +631,37 @@ export class DBQuery {
   }
   static #createPlaceholder(val: number) {
     return `$${val}`;
+  }
+  static #getAllowedFields(
+    selfAllowedFields: Set<string>,
+    include?: TABLE_JOIN,
+  ) {
+    if (!include || !include.type) {
+      return selfAllowedFields;
+    }
+    const { type } = include;
+    const modelFields: string[] = [...selfAllowedFields];
+    switch (type) {
+      case 'innerJoin':
+      case 'leftJoin':
+      case 'rightJoin':
+      case 'fullOuterJoin': {
+        const { models } = include;
+        DBQuery.#addJoinModelFields(models, modelFields);
+        break;
+      }
+      case 'crossJoin': {
+        const { model } = include;
+        DBQuery.#addJoinModelFields([{ model, on: [] }], modelFields);
+        break;
+      }
+    }
+    return new Set(modelFields);
+  }
+  static #addJoinModelFields(models: JOIN_MODEL[], modelFields: string[]) {
+    models.forEach(({ model }) => {
+      modelFields.push(...(model as any).tableColumns);
+    });
   }
 }
 

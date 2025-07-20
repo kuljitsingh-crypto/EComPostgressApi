@@ -46,7 +46,7 @@ BasketA.findAll({
     type: 'innerJoin',
     models: [
       {
-        tableName: BasketB.tableName,
+        model: BasketB,
         on: [
           { baseColumn: 'basket_a.fruit_a', joinColumn: 'basket_b.fruit_b' },
         ],
