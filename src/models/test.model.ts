@@ -3,6 +3,7 @@ import { DataTypes, DBModel } from './model.helpers';
 export class BasketA extends DBModel {}
 
 export class BasketB extends DBModel {}
+export class BasketC extends DBModel {}
 
 BasketA.init(
   {
@@ -18,6 +19,14 @@ BasketB.init(
     fruit_b: { type: DataTypes.string(100), notNull: true },
   },
   { tableName: 'basket_b' },
+);
+
+BasketC.init(
+  {
+    c: { type: DataTypes.int, isPrimary: true },
+    fruit_c: { type: DataTypes.string(100), notNull: true },
+  },
+  { tableName: 'basket_c' },
 );
 
 // BasketA.createBulk(
@@ -40,18 +49,48 @@ BasketB.init(
 //   ],
 // );
 
+// BasketC.createBulk(
+//   ['c', 'fruit_c'],
+//   [
+//     [1, 'Apple'],
+//     [2, 'Orange'],
+//     [3, 'Watermelon'],
+//     [4, 'Pear'],
+//   ],
+// );
+
 BasketA.findAll({
-  attributes: ['a', 'fruit_a', 'b', 'fruit_b'],
-  include: {
-    type: 'innerJoin',
-    models: [
-      {
-        model: BasketB,
-        on: [
-          { baseColumn: 'basket_a.fruit_a', joinColumn: 'basket_b.fruit_b' },
-        ],
-      },
-    ],
+  //   attributes: { a: { fn: 'count' } },
+  //   where: {
+  //     a: { between: [1, 3], gte: 1 },
+  //     $or: [
+  //       { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
+  //       { fruit_a: { iStartsWith: 'a' } },
+  //     ],
+  //     fruit_a: { iStartsWith: 'a' },
+  //     // fruit_a: 'Apple',
+  //     // a: 1,
+  //   },
+  //   where: {
+  //     'basket_b.fruit_b': 'Orange',
+  //   },
+  //   alias: 'fruit',
+  //   include: {
+  //     type: 'innerJoin',
+  //     models: [
+  //       {
+  //         model: BasketB,
+  //         alias: 'basket_b',
+  //         on: { 'fruit.fruit_a': 'basket_b.fruit_b' },
+  //       },
+  //       //   { model: BasketC, on: { 'basket_a.fruit_a': 'basket_c.fruit_c' } },
+  //     ],
+  //     // alias: 'basket_c',
+  //     // // on: { 'basket_a.fruit_a': 'basket_c.fruit_a' },
+  //   },
+  orderBy: {
+    a: { order: 'DESC' },
+    fruit_a: 'DESC',
   },
 }).then((res) => {
   console.log(res);
