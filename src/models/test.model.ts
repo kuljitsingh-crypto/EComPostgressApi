@@ -88,10 +88,11 @@ BasketA.findAll({
   //     // alias: 'basket_c',
   //     // // on: { 'basket_a.fruit_a': 'basket_c.fruit_a' },
   //   },
-  orderBy: {
-    a: { order: 'DESC' },
-    fruit_a: 'DESC',
-  },
+  //   orderBy: {
+  //     a: { order: 'DESC' },
+  //     fruit_a: 'DESC',
+  //   },
+  groupBy: ['fruit_a', 'a'],
 }).then((res) => {
   console.log(res);
 });

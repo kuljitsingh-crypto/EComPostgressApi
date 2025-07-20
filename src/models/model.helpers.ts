@@ -1,3 +1,4 @@
+import { group } from 'console';
 import { query } from './db.config';
 const enumQryPrefix = `DO $$ BEGIN CREATE TYPE`;
 const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
@@ -209,6 +210,7 @@ const dbKeywords = {
   check: 'CHECK',
   distinct: 'DISTINCT',
   orderBy: 'ORDER BY',
+  groupBy: 'GROUP BY',
   null: 'NULL',
   where: 'WHERE',
   select: 'SELECT',
@@ -266,6 +268,7 @@ type QueryParams = {
   attributes?: FindQueryAttributes;
   isDistinct?: boolean;
   orderBy?: ORDER_BY;
+  groupBy?: string[];
   where?: WhereClause;
   limit?: PAGINATION;
   alias?: string;
@@ -305,8 +308,16 @@ export class DBQuery {
   static tableName: string = '';
   static tableColumns: Set<string> = new Set();
   static async findAll(queryParams?: QueryParams) {
-    const { attributes, isDistinct, orderBy, where, limit, alias, include } =
-      queryParams || {};
+    const {
+      attributes,
+      isDistinct,
+      orderBy,
+      where,
+      limit,
+      alias,
+      include,
+      groupBy,
+    } = queryParams || {};
     const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
     const allowedFields = DBQuery.#getAllowedFields(
       this.tableColumns,
@@ -323,11 +334,13 @@ export class DBQuery {
       allowedFields,
       include,
     );
+    const groupByStr = DBQuery.#prepareGroupByStatement(allowedFields, groupBy);
     const variableQry = DBQuery.#prepareVariableQry(
       whereStatement,
       orderStr,
       limitStr,
       joinStr,
+      groupByStr,
     );
     const tableAlias = alias ? ` ${dbKeywords.as} ${alias}` : '';
     const rawQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${this.tableName}"${tableAlias}${variableQry}`;
@@ -410,6 +423,7 @@ export class DBQuery {
     orderbyQry?: string,
     limitQry?: string,
     joinStr?: string,
+    groupByStr?: string,
   ) {
     let variableQry = '';
     if (joinStr) {
@@ -417,6 +431,9 @@ export class DBQuery {
     }
     if (whereQry) {
       variableQry += ' ' + whereQry;
+    }
+    if (groupByStr) {
+      variableQry += ' ' + groupByStr;
     }
     if (orderbyQry) {
       variableQry += ' ' + orderbyQry;
@@ -495,6 +512,21 @@ export class DBQuery {
       .join(', ');
 
     return orderByStatemnt;
+  }
+
+  static #prepareGroupByStatement(
+    allowedFields: Set<string>,
+    groupBy?: string[],
+  ) {
+    if (!groupBy || (Array.isArray(groupBy) && groupBy.length < 1)) return '';
+    let groupByStatemnt = dbKeywords.groupBy + ' ';
+    groupByStatemnt += groupBy
+      .map((key) => {
+        const validKey = DBQuery.#FieldQuote(allowedFields, key);
+        return validKey;
+      })
+      .join(', ');
+    return groupByStatemnt;
   }
 
   static #prepareWhereStatement(
