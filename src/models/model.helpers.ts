@@ -325,9 +325,9 @@ export class DBQuery {
       include,
     );
     const colStr = DBQuery.#getSelectColumns(allowedFields, attributes);
-    const orderStr = DBQuery.#prepareOrderByStatement(allowedFields, orderBy);
     const { statement: whereStatement, values } =
       DBQuery.#prepareWhereStatement(allowedFields, where);
+    const orderStr = DBQuery.#prepareOrderByStatement(allowedFields, orderBy);
     const limitStr = DBQuery.#preparePaginationStatement(limit);
     const joinStr = DBQuery.#prepareTableJoin(
       this.tableName,
@@ -360,6 +360,7 @@ export class DBQuery {
     const values: any[] = [];
     const valuePlaceholder: string[] = [];
     const allowedFields = DBQuery.#getAllowedFields(this.tableColumns);
+    console.log(allowedFields);
     const returnStr = DBQuery.#getSelectColumns(allowedFields, returnOnly);
     Object.entries(fields).forEach((entry, index) => {
       const [key, value] = entry;
@@ -455,8 +456,10 @@ export class DBQuery {
         if (value === null) {
           return validCol;
         } else if (typeof value === 'string') {
+          allowedFields.add(value);
           return `${validCol} ${dbKeywords.as} ${DBQuery.#quote(value)}`;
         } else if (typeof value.fn === 'string') {
+          value.as && allowedFields.add(value.as);
           return fieldFunctionCreator(validCol, value.fn, value.as);
         }
         return null;
@@ -789,9 +792,6 @@ export class DBQuery {
     alias?: string,
     include?: TABLE_JOIN,
   ) {
-    if (!alias && (!include || !include.type)) {
-      return selfAllowedFields;
-    }
     const modelFields: string[] = [
       ...selfAllowedFields,
       ...DBQuery.#aliasFieldNames(selfAllowedFields, alias),

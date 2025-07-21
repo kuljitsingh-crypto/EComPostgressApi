@@ -60,7 +60,7 @@ BasketC.init(
 // );
 
 BasketA.findAll({
-  //   attributes: { a: { fn: 'count' } },
+  attributes: { a: { fn: 'count', as: 'b' } },
   //   where: {
   //     a: { between: [1, 3], gte: 1 },
   //     $or: [
@@ -88,10 +88,12 @@ BasketA.findAll({
   //     // alias: 'basket_c',
   //     // // on: { 'basket_a.fruit_a': 'basket_c.fruit_a' },
   //   },
-  //   orderBy: {
-  //     a: { order: 'DESC' },
-  //     fruit_a: 'DESC',
-  //   },
+  orderBy: {
+    b: 'ASC',
+    // a: { order: 'DESC' },
+
+    // fruit_a: 'DESC',
+  },
   groupBy: ['fruit_a', 'a'],
 }).then((res) => {
   console.log(res);
