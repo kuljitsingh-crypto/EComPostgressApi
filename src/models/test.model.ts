@@ -1,4 +1,4 @@
-import { DataTypes, DBModel } from './model.helpers';
+import { aggregateFn, DataTypes, DBModel } from './model.helpers';
 
 export class BasketA extends DBModel {}
 
@@ -39,6 +39,8 @@ BasketC.init(
 //   ],
 // );
 
+// BasketA.create({ a: 6, fruit_a: 'Banana' }, { a: 'b' });
+
 // BasketB.createBulk(
 //   ['b', 'fruit_b'],
 //   [
@@ -60,7 +62,7 @@ BasketC.init(
 // );
 
 BasketA.findAll({
-  attributes: { a: { fn: 'count', as: 'b' } },
+  attributes: { [aggregateFn.COUNT('a')]: 'b' },
   //   where: {
   //     a: { between: [1, 3], gte: 1 },
   //     $or: [
@@ -94,7 +96,7 @@ BasketA.findAll({
 
     // fruit_a: 'DESC',
   },
-  groupBy: ['fruit_a', 'a'],
+  // groupBy: ['fruit_a', 'a'],
 }).then((res) => {
   console.log(res);
 });

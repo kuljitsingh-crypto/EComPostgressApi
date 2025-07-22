@@ -1,4 +1,3 @@
-import { group } from 'console';
 import { query } from './db.config';
 const enumQryPrefix = `DO $$ BEGIN CREATE TYPE`;
 const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
@@ -13,11 +12,11 @@ const tableJoin = {
 } as const;
 
 const fieldFunctionName = {
-  min: 'MIN',
-  max: 'MAX',
-  count: 'COUNT',
-  avg: 'AVG',
-  sum: 'SUM',
+  MIN: 'MIN',
+  MAX: 'MAX',
+  COUNT: 'COUNT',
+  AVG: 'AVG',
+  SUM: 'SUM',
 } as const;
 
 type FieldFunctionType = keyof typeof fieldFunctionName;
@@ -244,25 +243,12 @@ type ExtraOptions = {
   references?: Reference[];
 };
 
-type QueryAttribute<key extends 'return' | 'find' = 'find'> =
-  key extends 'return'
-    ? Record<string, null | string>
-    : Record<string, null | string | { as?: string; fn: FieldFunctionType }>;
-
 /**
  * Different Flavours
  * 1. {columnName:null} - return column name as define in columnKey
  * 2.{columnName:aliasName} - return column name as define in columnValue
  */
-type QueryAttributes = QueryAttribute<'return'>;
-
-/**
- * Different Flavours
- * 1. {columnName:null} - return column name as define in columnKey
- * 2.{columnName:aliasName} - return column name as define in columnValue
- * 3.{ string: { as?: string; func: FieldFunctionType } } - return wrap the column with functions and return based on column key or value provided by 'as' keyword
- */
-type FindQueryAttributes = QueryAttribute;
+type FindQueryAttributes = Record<string, null | string>;
 
 type QueryParams = {
   attributes?: FindQueryAttributes;
@@ -303,6 +289,29 @@ const fieldFunctionCreator = (
   const aliasMaybe = alias ? ` ${alias}` : '';
   return `${func}(${field})${aliasMaybe}`;
 };
+
+const fnJoiner = {
+  joinFnAndColumn: (fn: FieldFunctionType, column: string) => `${column},${fn}`,
+  sepFnAndColumn: (fnAndCol: string) => fnAndCol.split(','),
+};
+
+const fieldFunc = (fn: FieldFunctionType, column: string) => {
+  const func = fieldFunctionName[fn];
+  if (!func) {
+    throw new Error(
+      `Invalid function name "${fn}". Valid functions are: ${Object.keys(fieldFunctionName).join(', ')}.`,
+    );
+  }
+  return fnJoiner.joinFnAndColumn(func, column);
+};
+
+export const aggregateFn = Object.freeze({
+  [fieldFunctionName.COUNT]: (column: string) => fieldFunc('COUNT', column),
+  [fieldFunctionName.AVG]: (column: string) => fieldFunc('AVG', column),
+  [fieldFunctionName.MAX]: (column: string) => fieldFunc('MAX', column),
+  [fieldFunctionName.MIN]: (column: string) => fieldFunc('MIN', column),
+  [fieldFunctionName.SUM]: (column: string) => fieldFunc('SUM', column),
+});
 
 export class DBQuery {
   static tableName: string = '';
@@ -354,14 +363,17 @@ export class DBQuery {
   }
   static async create(
     fields: Record<string, any>,
-    returnOnly?: QueryAttributes,
+    returnOnly?: FindQueryAttributes,
   ) {
     const keys: string[] = [];
     const values: any[] = [];
     const valuePlaceholder: string[] = [];
     const allowedFields = DBQuery.#getAllowedFields(this.tableColumns);
-    console.log(allowedFields);
-    const returnStr = DBQuery.#getSelectColumns(allowedFields, returnOnly);
+    const returnStr = DBQuery.#getSelectColumns(
+      allowedFields,
+      returnOnly,
+      false,
+    );
     Object.entries(fields).forEach((entry, index) => {
       const [key, value] = entry;
       keys.push(DBQuery.#FieldQuote(allowedFields, key));
@@ -383,11 +395,15 @@ export class DBQuery {
   static async createBulk(
     columns: Array<string>,
     values: Array<Array<any>>,
-    returnOnly?: QueryAttributes,
+    returnOnly?: FindQueryAttributes,
   ) {
     const flatedValues: any[] = [];
     const allowedFields = DBQuery.#getAllowedFields(this.tableColumns);
-    const returnStr = DBQuery.#getSelectColumns(allowedFields, returnOnly);
+    const returnStr = DBQuery.#getSelectColumns(
+      allowedFields,
+      returnOnly,
+      false,
+    );
     let incrementBy = 1;
     const valuePlaceholder = values.map((val, pIndex) => {
       if (val.length !== columns.length) {
@@ -446,21 +462,28 @@ export class DBQuery {
   }
   static #getSelectColumns(
     allowedFields: Set<string>,
-    attributes?: QueryAttribute,
+    attributes?: FindQueryAttributes,
+    isAggregateAllowed = true,
   ) {
     if (!attributes || Object.keys(attributes).length < 1) return '*';
     return Object.entries(attributes)
       .map((attr) => {
         const [col, value] = attr;
-        const validCol = DBQuery.#FieldQuote(allowedFields, col);
+        const [column, fn] = fnJoiner.sepFnAndColumn(col);
+        let validCol = DBQuery.#FieldQuote(allowedFields, column);
+        if (!isAggregateAllowed && fn) {
+          throw new Error(
+            `Aggregate functions are not allowed in this context. Found "${fn}" for column "${column}".`,
+          );
+        }
+        if (fn) {
+          validCol = fieldFunctionCreator(validCol, fn as FieldFunctionType);
+        }
         if (value === null) {
           return validCol;
         } else if (typeof value === 'string') {
           allowedFields.add(value);
           return `${validCol} ${dbKeywords.as} ${DBQuery.#quote(value)}`;
-        } else if (typeof value.fn === 'string') {
-          value.as && allowedFields.add(value.as);
-          return fieldFunctionCreator(validCol, value.fn, value.as);
         }
         return null;
       })
