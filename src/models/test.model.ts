@@ -62,17 +62,20 @@ BasketC.init(
 // );
 
 BasketA.findAll({
-  attributes: { [aggregateFn.COUNT('a')]: 'b' },
-  //   where: {
-  //     a: { between: [1, 3], gte: 1 },
-  //     $or: [
-  //       { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
-  //       { fruit_a: { iStartsWith: 'a' } },
-  //     ],
-  //     fruit_a: { iStartsWith: 'a' },
-  //     // fruit_a: 'Apple',
-  //     // a: 1,
-  //   },
+  attributes: { [aggregateFn.COUNT('a')]: null },
+  where: {
+    fruit_a: { iStartsWith: 'a' },
+  },
+  // where: {
+  //   a: { between: [1, 3], gte: 1 },
+  //   $or: [
+  //     { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
+  //     { fruit_a: { iStartsWith: 'a' } },
+  //   ],
+  //   fruit_a: { iStartsWith: 'a' },
+  //   // fruit_a: 'Apple',
+  //   // a: 1,
+  // },
   //   where: {
   //     'basket_b.fruit_b': 'Orange',
   //   },
@@ -90,13 +93,17 @@ BasketA.findAll({
   //     // alias: 'basket_c',
   //     // // on: { 'basket_a.fruit_a': 'basket_c.fruit_a' },
   //   },
-  orderBy: {
-    b: 'ASC',
-    // a: { order: 'DESC' },
+  // orderBy: {
+  //   b: 'ASC',
+  //   // a: { order: 'DESC' },
 
-    // fruit_a: 'DESC',
-  },
+  //   // fruit_a: 'DESC',
+  // },
   // groupBy: ['fruit_a', 'a'],
+  // groupBy: ['a'],
+  having: {
+    [aggregateFn.COUNT('a')]: { gt: 5 },
+  },
 }).then((res) => {
   console.log(res);
 });

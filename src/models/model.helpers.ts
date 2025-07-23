@@ -221,6 +221,7 @@ const dbKeywords = {
   offset: 'OFFSET',
   as: 'AS',
   on: 'ON',
+  having: 'HAVING',
 } as const;
 
 export const dbDefaultValue = {
@@ -259,6 +260,7 @@ type QueryParams = {
   limit?: PAGINATION;
   alias?: string;
   include?: TABLE_JOIN;
+  having?: WhereClause;
 };
 const isPrimitiveValue = (value: any) => {
   return (
@@ -271,7 +273,6 @@ const isPrimitiveValue = (value: any) => {
 const errorHandler = (query: string, error: Error) => {
   const msg = `Error executing query: "${query}". Error: ${error.message}`;
   const err = new Error(msg);
-  err.stack = error.stack;
   throw err;
 };
 
@@ -316,6 +317,7 @@ export const aggregateFn = Object.freeze({
 export class DBQuery {
   static tableName: string = '';
   static tableColumns: Set<string> = new Set();
+  static #groupByFields: Set<string> = new Set();
   static async findAll(queryParams?: QueryParams) {
     const {
       attributes,
@@ -326,6 +328,7 @@ export class DBQuery {
       alias,
       include,
       groupBy,
+      having,
     } = queryParams || {};
     const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
     const allowedFields = DBQuery.#getAllowedFields(
@@ -334,8 +337,8 @@ export class DBQuery {
       include,
     );
     const colStr = DBQuery.#getSelectColumns(allowedFields, attributes);
-    const { statement: whereStatement, values } =
-      DBQuery.#prepareWhereStatement(allowedFields, where);
+    const { statement: whereStatement, values: whereValues } =
+      DBQuery.#prepareFilterStatement(allowedFields, where);
     const orderStr = DBQuery.#prepareOrderByStatement(allowedFields, orderBy);
     const limitStr = DBQuery.#preparePaginationStatement(limit);
     const joinStr = DBQuery.#prepareTableJoin(
@@ -344,17 +347,24 @@ export class DBQuery {
       include,
     );
     const groupByStr = DBQuery.#prepareGroupByStatement(allowedFields, groupBy);
+    const { statement: havingStatement, values: havingValues } =
+      DBQuery.#prepareFilterStatement(allowedFields, having, {
+        initialIndex: whereValues.length,
+        isHavingFilter: true,
+      });
     const variableQry = DBQuery.#prepareVariableQry(
       whereStatement,
       orderStr,
       limitStr,
       joinStr,
       groupByStr,
+      havingStatement,
     );
     const tableAlias = alias ? ` ${dbKeywords.as} ${alias}` : '';
     const rawQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${this.tableName}"${tableAlias}${variableQry}`;
     const findAllQuery = `${rawQry.trimEnd()};`;
     try {
+      const values = [...whereValues, ...havingValues];
       const result = await query(findAllQuery, values);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {
@@ -441,6 +451,7 @@ export class DBQuery {
     limitQry?: string,
     joinStr?: string,
     groupByStr?: string,
+    havingStatement?: string,
   ) {
     let variableQry = '';
     if (joinStr) {
@@ -451,6 +462,9 @@ export class DBQuery {
     }
     if (groupByStr) {
       variableQry += ' ' + groupByStr;
+    }
+    if (havingStatement) {
+      variableQry += ' ' + havingStatement;
     }
     if (orderbyQry) {
       variableQry += ' ' + orderbyQry;
@@ -544,33 +558,39 @@ export class DBQuery {
     allowedFields: Set<string>,
     groupBy?: string[],
   ) {
+    DBQuery.#groupByFields.clear();
     if (!groupBy || (Array.isArray(groupBy) && groupBy.length < 1)) return '';
     let groupByStatemnt = dbKeywords.groupBy + ' ';
     groupByStatemnt += groupBy
       .map((key) => {
         const validKey = DBQuery.#FieldQuote(allowedFields, key);
+        DBQuery.#groupByFields.add(validKey);
         return validKey;
       })
       .join(', ');
     return groupByStatemnt;
   }
 
-  static #prepareWhereStatement(
+  static #prepareFilterStatement(
     allowedFields: Set<string>,
     filter?: WhereClause,
+    options?: { initialIndex?: number; isHavingFilter?: boolean },
   ) {
     if (!filter) return { statement: '', values: [] };
-    let queryStatement = dbKeywords.where + ' ';
+    const { initialIndex = 0, isHavingFilter = false } = options || {};
+    let queryStatement =
+      (isHavingFilter ? dbKeywords.having : dbKeywords.where) + ' ';
     const values: any[] = [];
     const indexAndIncremntBy = { index: 0, incremntBy: 1 };
     queryStatement += Object.entries(filter)
       .map((filter, indx) => {
-        indexAndIncremntBy.index = indx;
+        indexAndIncremntBy.index = indx + initialIndex;
         return DBQuery.#getQueryStatement(
           allowedFields,
           filter,
           indexAndIncremntBy,
           values,
+          isHavingFilter,
         );
       })
       .join(` ${OP.$and} `);
@@ -582,6 +602,7 @@ export class DBQuery {
     singleQry: [WhereClauseKeys, any],
     index: PlaceholderRef,
     valuesArr: any[],
+    isHavingFilter: boolean,
   ): string {
     const key = singleQry[0];
     let value = singleQry[1];
@@ -611,6 +632,7 @@ export class DBQuery {
               filter,
               index,
               valuesArr,
+              isHavingFilter,
             );
           });
         })
@@ -623,6 +645,7 @@ export class DBQuery {
         valuesArr,
         allowedFields,
         index,
+        isHavingFilter,
       );
     }
   }
@@ -633,8 +656,23 @@ export class DBQuery {
     valuesArr: any[],
     allowedFields: Set<string>,
     index: PlaceholderRef,
+    isHavingFilter: boolean,
   ) {
-    const validKey = DBQuery.#FieldQuote(allowedFields, key);
+    let validKey: string;
+    if (isHavingFilter) {
+      const [k, fn] = fnJoiner.sepFnAndColumn(key);
+      if (!fn && !DBQuery.#groupByFields.has(k)) {
+        throw new Error(
+          `Invalid column "${k}" for HAVING clause. Column should be part of GROUP BY or an aggregate function.`,
+        );
+      }
+      validKey = DBQuery.#FieldQuote(allowedFields, k);
+      if (fn) {
+        validKey = fieldFunctionCreator(validKey, fn as FieldFunctionType);
+      }
+    } else {
+      validKey = DBQuery.#FieldQuote(allowedFields, key);
+    }
     const preparePlachldrForArray = (values: any[]) => {
       const placeholderArr = values.map((val, i) => {
         if (i > 0) {
