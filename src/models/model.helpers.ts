@@ -1,14 +1,16 @@
 import { query } from './db.config';
+
+//============================================= CONSTANTS ===================================================//
 const enumQryPrefix = `DO $$ BEGIN CREATE TYPE`;
 const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
 
 const tableJoin = {
-  innerJoin: 'INNER JOIN',
-  leftJoin: 'LEFT JOIN',
-  rightJoin: 'RIGHT JOIN',
-  fullOuterJoin: 'FULL OUTER JOIN',
-  selfJoin: 'INNER JOIN',
-  crossJoin: 'INNER JOIN',
+  INNER: 'INNER JOIN',
+  LEFT: 'LEFT JOIN',
+  RIGHT: 'RIGHT JOIN',
+  FULLOUTER: 'FULL OUTER JOIN',
+  SELF: 'INNER JOIN',
+  CROSS: 'INNER JOIN',
 } as const;
 
 const fieldFunctionName = {
@@ -18,153 +20,6 @@ const fieldFunctionName = {
   AVG: 'AVG',
   SUM: 'SUM',
 } as const;
-
-type FieldFunctionType = keyof typeof fieldFunctionName;
-
-type TABLE_JOIN_TYPE = keyof typeof tableJoin;
-type Primitive = string | number | boolean | null;
-
-type PlaceholderRef = {
-  index: number;
-  incremntBy: number;
-};
-
-type ORDER_OPTION = 'ASC' | 'DESC';
-type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
-type PAGINATION = { limit: number; offset?: number };
-type ColumnRef = `${string}.${string}`;
-type JOIN_COND = Record<ColumnRef, ColumnRef>;
-type JOIN_MODEL = {
-  model: DBModel;
-  /**
-   * {baseColumn:joinColumn} or {baseColumn:joinColumn, baseColumn2:joinColumn2}
-   */
-  on: JOIN_COND;
-  alias?: string;
-};
-type JOIN_MODEL_INTERNAL = {
-  tableName?: string;
-  model?: DBModel;
-  on: JOIN_COND;
-  alias?: string;
-};
-type OTHER_JOIN<T extends TABLE_JOIN_TYPE> = {
-  type: T;
-  models: JOIN_MODEL[];
-};
-type JOIN<T extends TABLE_JOIN_TYPE> = {
-  type: T;
-  models: JOIN_MODEL_INTERNAL[];
-};
-type SELF_JOIN<T extends TABLE_JOIN_TYPE> = {
-  type: T;
-  alias?: string;
-  on: JOIN_COND;
-};
-type CROSS_JOIN<T extends TABLE_JOIN_TYPE> = {
-  type: T;
-  alias?: string;
-  model: DBModel;
-};
-
-type TABLE_JOIN<T extends TABLE_JOIN_TYPE = TABLE_JOIN_TYPE> =
-  T extends 'selfJoin'
-    ? SELF_JOIN<T>
-    : T extends 'crossJoin'
-      ? CROSS_JOIN<T>
-      : OTHER_JOIN<T>;
-
-type ORDER_BY = Record<
-  string,
-  | ORDER_OPTION
-  | { order: ORDER_OPTION; nullOption?: NULL_OPTION; fn?: FieldFunctionType }
->;
-
-export type DbTable = {
-  [key in string]: {
-    type: string;
-    isPrimary?: boolean;
-    defaultValue?: string;
-    unique?: boolean;
-    notNull?: boolean;
-    customDefaultValue?: string;
-    check?: string;
-  };
-};
-
-export const OP = {
-  eq: '=',
-  neq: '!=',
-  lte: '<=',
-  lt: '<',
-  gte: '>=',
-  gt: '>',
-  like: 'LIKE',
-  iLike: 'ILIKE',
-  in: 'IN',
-  between: 'BETWEEN',
-  isNull: 'IS',
-  notNull: 'IS NOT',
-  notLike: 'NOT LIKE',
-  notILike: 'NOT ILIKE',
-  notIn: 'NOT IN',
-  notBetween: 'NOT BETWEEN',
-  startsWith: 'LIKE',
-  endsWith: 'LIKE',
-  substring: 'LIKE',
-  iStartsWith: 'ILIKE',
-  iEndsWith: 'ILIKE',
-  iSubstring: 'ILIKE',
-  $and: 'AND',
-  $or: 'OR',
-} as const;
-
-const validOperations = Object.keys(OP).join(', ');
-type OP_KEYS = keyof typeof OP;
-
-type OP_KEYS_WITHOUT_AND_OR = Exclude<OP_KEYS, '$and' | '$or'>;
-
-type Condition<Key extends OP_KEYS_WITHOUT_AND_OR = OP_KEYS_WITHOUT_AND_OR> =
-  Key extends 'in'
-    ? { in: Primitive[] }
-    : Key extends 'between'
-      ? { between: Primitive[] }
-      : Key extends 'isNull'
-        ? { isNull: null }
-        : Key extends 'notNull'
-          ? { notNull: null }
-          :
-              | {
-                  [key in Exclude<
-                    OP_KEYS_WITHOUT_AND_OR,
-                    'in' | 'between' | 'isNull' | 'notNull'
-                  >]?: Primitive;
-                }
-              | Primitive;
-
-type WhereClause =
-  | {
-      [column: string]: Condition;
-    }
-  | {
-      $and: WhereClause[];
-    }
-  | {
-      $or: WhereClause[];
-    };
-
-type WhereClauseKeys = '$and' | '$or' | string;
-
-export const foreignKeyActions = {
-  noAction: 'NO ACTION',
-  cascade: 'CASCADE',
-  restrict: 'RESTRICT',
-  null: 'SET NULL',
-  default: 'SET DEFAULT',
-} as const;
-
-type ForeignKeyActions =
-  (typeof foreignKeyActions)[keyof typeof foreignKeyActions];
 
 export const DataTypes = {
   boolean: 'BOOLEAN',
@@ -231,6 +86,165 @@ export const dbDefaultValue = {
   uuidV4: 'gen_random_uuid()',
 };
 
+export const OP = {
+  eq: '=',
+  neq: '!=',
+  lte: '<=',
+  lt: '<',
+  gte: '>=',
+  gt: '>',
+  like: 'LIKE',
+  iLike: 'ILIKE',
+  in: 'IN',
+  between: 'BETWEEN',
+  isNull: 'IS',
+  notNull: 'IS NOT',
+  notLike: 'NOT LIKE',
+  notILike: 'NOT ILIKE',
+  notIn: 'NOT IN',
+  notBetween: 'NOT BETWEEN',
+  startsWith: 'LIKE',
+  endsWith: 'LIKE',
+  substring: 'LIKE',
+  iStartsWith: 'ILIKE',
+  iEndsWith: 'ILIKE',
+  iSubstring: 'ILIKE',
+  $and: 'AND',
+  $or: 'OR',
+} as const;
+const validOperations = Object.keys(OP).join(', ');
+
+export const foreignKeyActions = {
+  noAction: 'NO ACTION',
+  cascade: 'CASCADE',
+  restrict: 'RESTRICT',
+  null: 'SET NULL',
+  default: 'SET DEFAULT',
+} as const;
+
+const fnJoiner = {
+  joinFnAndColumn: (fn: FieldFunctionType, column: string) => `${column},${fn}`,
+  sepFnAndColumn: (fnAndCol: string) => fnAndCol.split(','),
+};
+
+export const aggregateFn = Object.freeze({
+  [fieldFunctionName.COUNT]: (column: string) => fieldFunc('COUNT', column),
+  [fieldFunctionName.AVG]: (column: string) => fieldFunc('AVG', column),
+  [fieldFunctionName.MAX]: (column: string) => fieldFunc('MAX', column),
+  [fieldFunctionName.MIN]: (column: string) => fieldFunc('MIN', column),
+  [fieldFunctionName.SUM]: (column: string) => fieldFunc('SUM', column),
+});
+
+//============================================= CONSTANTS ===================================================//
+
+//============================================= TYPES ======================================================//
+
+type FieldFunctionType = keyof typeof fieldFunctionName;
+
+type TABLE_JOIN_TYPE = keyof typeof tableJoin;
+type Primitive = string | number | boolean | null;
+
+type PlaceholderRef = {
+  index: number;
+  incremntBy: number;
+};
+
+type ORDER_OPTION = 'ASC' | 'DESC';
+type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
+type PAGINATION = { limit: number; offset?: number };
+type ColumnRef = `${string}.${string}`;
+type BaseColumn = ColumnRef;
+type TargetColumn = ColumnRef;
+type JOIN_COND = Record<BaseColumn, TargetColumn>;
+type OTHER_JOIN<T extends TABLE_JOIN_TYPE> = {
+  type: T;
+  model: DBModel;
+  /**
+   * {baseColumn:joinColumn} or {baseColumn:joinColumn, baseColumn2:joinColumn2}
+   */
+  on: JOIN_COND;
+  alias?: string;
+};
+type JOIN<T extends TABLE_JOIN_TYPE> = {
+  type: T;
+  tableName?: string;
+  model?: DBModel;
+  on: JOIN_COND;
+  alias?: string;
+};
+type SELF_JOIN<T extends TABLE_JOIN_TYPE> = {
+  type: T;
+  alias?: string;
+  on: JOIN_COND;
+};
+type CROSS_JOIN<T extends TABLE_JOIN_TYPE> = {
+  type: T;
+  alias?: string;
+  model: DBModel;
+};
+
+type TABLE_JOIN<T extends TABLE_JOIN_TYPE = TABLE_JOIN_TYPE> = T extends 'SELF'
+  ? SELF_JOIN<T>
+  : T extends 'CROSS'
+    ? CROSS_JOIN<T>
+    : OTHER_JOIN<T>;
+
+type ORDER_BY = Record<
+  string,
+  | ORDER_OPTION
+  | { order: ORDER_OPTION; nullOption?: NULL_OPTION; fn?: FieldFunctionType }
+>;
+
+export type DbTable = {
+  [key in string]: {
+    type: string;
+    isPrimary?: boolean;
+    defaultValue?: string;
+    unique?: boolean;
+    notNull?: boolean;
+    customDefaultValue?: string;
+    check?: string;
+  };
+};
+
+type OP_KEYS = keyof typeof OP;
+
+type OP_KEYS_WITHOUT_AND_OR = Exclude<OP_KEYS, '$and' | '$or'>;
+
+type Condition<Key extends OP_KEYS_WITHOUT_AND_OR = OP_KEYS_WITHOUT_AND_OR> =
+  Key extends 'in'
+    ? { in: Primitive[] }
+    : Key extends 'between'
+      ? { between: Primitive[] }
+      : Key extends 'isNull'
+        ? { isNull: null }
+        : Key extends 'notNull'
+          ? { notNull: null }
+          :
+              | {
+                  [key in Exclude<
+                    OP_KEYS_WITHOUT_AND_OR,
+                    'in' | 'between' | 'isNull' | 'notNull'
+                  >]?: Primitive;
+                }
+              | Primitive;
+
+type WhereClause =
+  | {
+      [column: string]: Condition;
+    }
+  | {
+      $and: WhereClause[];
+    }
+  | {
+      $or: WhereClause[];
+    };
+
+type WhereClauseKeys = '$and' | '$or' | string;
+
+type ForeignKeyActions =
+  (typeof foreignKeyActions)[keyof typeof foreignKeyActions];
+
 type Reference = {
   parentTable: string;
   parentColumn: string | string[];
@@ -259,10 +273,15 @@ type QueryParams = {
   where?: WhereClause;
   limit?: PAGINATION;
   alias?: string;
-  include?: TABLE_JOIN;
+  join?: TABLE_JOIN[];
   having?: WhereClause;
 };
-const isPrimitiveValue = (value: any) => {
+
+//============================================= TYPES ======================================================//
+
+//============================================= HELPERS ===================================================//
+
+const isPrimitiveValue = (value: Primitive) => {
   return (
     typeof value === 'string' ||
     typeof value === 'number' ||
@@ -291,11 +310,6 @@ const fieldFunctionCreator = (
   return `${func}(${field})${aliasMaybe}`;
 };
 
-const fnJoiner = {
-  joinFnAndColumn: (fn: FieldFunctionType, column: string) => `${column},${fn}`,
-  sepFnAndColumn: (fnAndCol: string) => fnAndCol.split(','),
-};
-
 const fieldFunc = (fn: FieldFunctionType, column: string) => {
   const func = fieldFunctionName[fn];
   if (!func) {
@@ -306,18 +320,59 @@ const fieldFunc = (fn: FieldFunctionType, column: string) => {
   return fnJoiner.joinFnAndColumn(func, column);
 };
 
-export const aggregateFn = Object.freeze({
-  [fieldFunctionName.COUNT]: (column: string) => fieldFunc('COUNT', column),
-  [fieldFunctionName.AVG]: (column: string) => fieldFunc('AVG', column),
-  [fieldFunctionName.MAX]: (column: string) => fieldFunc('MAX', column),
-  [fieldFunctionName.MIN]: (column: string) => fieldFunc('MIN', column),
-  [fieldFunctionName.SUM]: (column: string) => fieldFunc('SUM', column),
-});
+const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
+
+const validateField = (field: string, allowed: Set<string>) => {
+  if (!allowed.has(field)) {
+    throw new Error(
+      `Invalid column name ${field}. Allowed Column names are: ${Array.from(
+        allowed,
+      ).join(', ')}.`,
+    );
+  }
+};
+
+const FieldQuote = (allowedFields: Set<string>, str: string) => {
+  validateField(str, allowedFields);
+  return quote(str);
+};
+
+const aliasFieldNames = (names: Set<string>, alias?: string) => {
+  if (!alias) return [];
+  return Array.from(names).map((name) => `${alias}.${name}`);
+};
+
+const addJoinModelFields = <T extends TABLE_JOIN_TYPE>(
+  joinType: OTHER_JOIN<T>,
+  modelFields: string[],
+) => {
+  const { model, alias } = joinType;
+  const tableNames = (model as any).tableColumns;
+  const aliasTableNames = aliasFieldNames(tableNames, alias);
+  modelFields.push(...tableNames, ...aliasTableNames);
+};
+
+const createPlaceholder = (val: number) => {
+  return `$${val}`;
+};
+
+const joinTableCond = (cond: JOIN_COND, allowedFields: Set<string>) =>
+  Object.entries(cond)
+    .map(
+      ([baseColumn, joinColumn]) =>
+        `${FieldQuote(allowedFields, baseColumn)} ${OP.eq} ${FieldQuote(allowedFields, joinColumn)}`,
+    )
+    .join(` ${OP.$and} `);
+
+//============================================= HELPERS ===================================================//
+
+//============================================= DBQuery ===================================================//
 
 export class DBQuery {
   static tableName: string = '';
   static tableColumns: Set<string> = new Set();
   static #groupByFields: Set<string> = new Set();
+
   static async findAll(queryParams?: QueryParams) {
     const {
       attributes,
@@ -326,7 +381,7 @@ export class DBQuery {
       where,
       limit,
       alias,
-      include,
+      join,
       groupBy,
       having,
     } = queryParams || {};
@@ -334,7 +389,7 @@ export class DBQuery {
     const allowedFields = DBQuery.#getAllowedFields(
       this.tableColumns,
       alias,
-      include,
+      join,
     );
     const colStr = DBQuery.#getSelectColumns(allowedFields, attributes);
     const { statement: whereStatement, values: whereValues } =
@@ -344,7 +399,7 @@ export class DBQuery {
     const joinStr = DBQuery.#prepareTableJoin(
       this.tableName,
       allowedFields,
-      include,
+      join,
     );
     const groupByStr = DBQuery.#prepareGroupByStatement(allowedFields, groupBy);
     const { statement: havingStatement, values: havingValues } =
@@ -371,12 +426,13 @@ export class DBQuery {
       return errorHandler(findAllQuery, error as Error);
     }
   }
+
   static async create(
-    fields: Record<string, any>,
+    fields: Record<string, Primitive>,
     returnOnly?: FindQueryAttributes,
   ) {
     const keys: string[] = [];
-    const values: any[] = [];
+    const values: Primitive[] = [];
     const valuePlaceholder: string[] = [];
     const allowedFields = DBQuery.#getAllowedFields(this.tableColumns);
     const returnStr = DBQuery.#getSelectColumns(
@@ -386,9 +442,9 @@ export class DBQuery {
     );
     Object.entries(fields).forEach((entry, index) => {
       const [key, value] = entry;
-      keys.push(DBQuery.#FieldQuote(allowedFields, key));
+      keys.push(FieldQuote(allowedFields, key));
       values.push(value);
-      valuePlaceholder.push(DBQuery.#createPlaceholder(index + 1));
+      valuePlaceholder.push(createPlaceholder(index + 1));
     });
     const columns = keys.toString();
     const valuePlaceholders = valuePlaceholder.toString();
@@ -404,10 +460,10 @@ export class DBQuery {
 
   static async createBulk(
     columns: Array<string>,
-    values: Array<Array<any>>,
+    values: Array<Array<Primitive>>,
     returnOnly?: FindQueryAttributes,
   ) {
-    const flatedValues: any[] = [];
+    const flatedValues: Primitive[] = [];
     const allowedFields = DBQuery.#getAllowedFields(this.tableColumns);
     const returnStr = DBQuery.#getSelectColumns(
       allowedFields,
@@ -426,9 +482,7 @@ export class DBQuery {
       }
       flatedValues.push(...val);
       const placeholder = val
-        .map((_, cIndex) =>
-          DBQuery.#createPlaceholder(pIndex + cIndex + incrementBy),
-        )
+        .map((_, cIndex) => createPlaceholder(pIndex + cIndex + incrementBy))
         .join(',');
       return `(${placeholder})`;
     });
@@ -484,7 +538,7 @@ export class DBQuery {
       .map((attr) => {
         const [col, value] = attr;
         const [column, fn] = fnJoiner.sepFnAndColumn(col);
-        let validCol = DBQuery.#FieldQuote(allowedFields, column);
+        let validCol = FieldQuote(allowedFields, column);
         if (!isAggregateAllowed && fn) {
           throw new Error(
             `Aggregate functions are not allowed in this context. Found "${fn}" for column "${column}".`,
@@ -497,30 +551,13 @@ export class DBQuery {
           return validCol;
         } else if (typeof value === 'string') {
           allowedFields.add(value);
-          return `${validCol} ${dbKeywords.as} ${DBQuery.#quote(value)}`;
+          return `${validCol} ${dbKeywords.as} ${quote(value)}`;
         }
         return null;
       })
       .filter(Boolean)
       .join(', ');
   }
-  static #quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
-
-  static #validateField(field: string, allowed: Set<string>) {
-    if (!allowed.has(field)) {
-      throw new Error(
-        `Invalid column name ${field}. Allowed Column names are: ${Array.from(
-          allowed,
-        ).join(', ')}.`,
-      );
-    }
-  }
-
-  static #FieldQuote = (allowedFields: Set<string>, str: string) => {
-    DBQuery.#validateField(str, allowedFields);
-    return DBQuery.#quote(str);
-  };
-
   static #prepareOrderByStatement(
     allowedFields: Set<string>,
     orderBy?: ORDER_BY,
@@ -529,7 +566,7 @@ export class DBQuery {
     let orderByStatemnt = dbKeywords.orderBy + ' ';
     orderByStatemnt += Object.entries(orderBy)
       .map(([key, val]) => {
-        const validKey = DBQuery.#FieldQuote(allowedFields, key);
+        const validKey = FieldQuote(allowedFields, key);
         if (typeof val === 'string') {
           return `${validKey} ${val}`;
         }
@@ -563,7 +600,7 @@ export class DBQuery {
     let groupByStatemnt = dbKeywords.groupBy + ' ';
     groupByStatemnt += groupBy
       .map((key) => {
-        const validKey = DBQuery.#FieldQuote(allowedFields, key);
+        const validKey = FieldQuote(allowedFields, key);
         DBQuery.#groupByFields.add(validKey);
         return validKey;
       })
@@ -580,7 +617,7 @@ export class DBQuery {
     const { initialIndex = 0, isHavingFilter = false } = options || {};
     let queryStatement =
       (isHavingFilter ? dbKeywords.having : dbKeywords.where) + ' ';
-    const values: any[] = [];
+    const values: Primitive[] = [];
     const indexAndIncremntBy = { index: 0, incremntBy: 1 };
     queryStatement += Object.entries(filter)
       .map((filter, indx) => {
@@ -601,7 +638,7 @@ export class DBQuery {
     allowedFields: Set<string>,
     singleQry: [WhereClauseKeys, any],
     index: PlaceholderRef,
-    valuesArr: any[],
+    valuesArr: Primitive[],
     isHavingFilter: boolean,
   ): string {
     const key = singleQry[0];
@@ -653,7 +690,7 @@ export class DBQuery {
   static #buildCondition(
     key: string,
     value: Record<OP_KEYS_WITHOUT_AND_OR, Primitive>,
-    valuesArr: any[],
+    valuesArr: Primitive[],
     allowedFields: Set<string>,
     index: PlaceholderRef,
     isHavingFilter: boolean,
@@ -666,20 +703,20 @@ export class DBQuery {
           `Invalid column "${k}" for HAVING clause. Column should be part of GROUP BY or an aggregate function.`,
         );
       }
-      validKey = DBQuery.#FieldQuote(allowedFields, k);
+      validKey = FieldQuote(allowedFields, k);
       if (fn) {
         validKey = fieldFunctionCreator(validKey, fn as FieldFunctionType);
       }
     } else {
-      validKey = DBQuery.#FieldQuote(allowedFields, key);
+      validKey = FieldQuote(allowedFields, key);
     }
-    const preparePlachldrForArray = (values: any[]) => {
+    const preparePlachldrForArray = (values: Primitive[]) => {
       const placeholderArr = values.map((val, i) => {
         if (i > 0) {
           index.incremntBy += 1;
         }
         valuesArr.push(val);
-        return DBQuery.#createPlaceholder(index.index + index.incremntBy);
+        return createPlaceholder(index.index + index.incremntBy);
       });
       return placeholderArr;
     };
@@ -694,9 +731,7 @@ export class DBQuery {
       if (i > 0) {
         index.incremntBy += 1;
       }
-      const valPlaceholder = DBQuery.#createPlaceholder(
-        index.index + index.incremntBy,
-      );
+      const valPlaceholder = createPlaceholder(index.index + index.incremntBy);
       switch (op) {
         case 'eq':
         case 'neq':
@@ -778,117 +813,103 @@ export class DBQuery {
   static #prepareTableJoin(
     selfModelName: string,
     allowedFields: Set<string>,
-    include?: TABLE_JOIN,
+    include?: TABLE_JOIN[],
   ) {
-    if (!include || !include.type) {
+    if (!include || include.length < 1) {
       return '';
     }
-    switch (include.type) {
-      case 'selfJoin': {
-        const { type, on, alias } = include;
-        const updatedInclude = {
-          type,
-          models: [{ tableName: selfModelName, on, alias }],
-        };
-        return DBQuery.#prepareJoinStr(allowedFields, updatedInclude);
+    const joins = include.map((joinType) => {
+      switch (joinType.type) {
+        case 'SELF': {
+          const { type, on, alias } = joinType;
+          const updatedInclude = {
+            type,
+            tableName: selfModelName,
+            on,
+            alias,
+          };
+          return DBQuery.#prepareJoinStr(allowedFields, updatedInclude);
+        }
+        case 'INNER':
+        case 'FULLOUTER':
+        case 'LEFT':
+        case 'RIGHT':
+          return DBQuery.#prepareJoinStr(allowedFields, joinType);
+        case 'CROSS': {
+          const { type, model, alias } = joinType;
+          const updatedInclude = {
+            type,
+            model,
+            on: {},
+            alias,
+          };
+          return DBQuery.#prepareJoinStr(allowedFields, updatedInclude);
+        }
+        default:
+          throw new Error(
+            `Invalid join type:"${(include as any).type}". Valid join types:${Object.keys(tableJoin).toString()}.`,
+          );
       }
-      case 'innerJoin':
-      case 'fullOuterJoin':
-      case 'leftJoin':
-      case 'rightJoin':
-        return DBQuery.#prepareJoinStr(allowedFields, include);
-      case 'crossJoin': {
-        const { type, model, alias } = include;
-        const updatedInclude = {
-          type,
-          models: [{ model, on: {}, alias }],
-        };
-        return DBQuery.#prepareJoinStr(allowedFields, updatedInclude);
-      }
-      default:
-        throw new Error(
-          `Invalid join type:"${(include as any).type}". Valid join types:${Object.keys(tableJoin).toString()}.`,
-        );
-    }
+    });
+    return joins.join(' ');
   }
   static #prepareJoinStr<T extends TABLE_JOIN_TYPE>(
     allowedFields: Set<string>,
     joinType: JOIN<T>,
   ) {
-    const { type, models } = joinType;
+    const { type, model, on, tableName: name, alias } = joinType;
     const joinName = tableJoin[type];
     if (!joinName) {
       throw new Error(
         `Invalid join type:"${type}". Valid join types:${Object.keys(tableJoin).toString()}.`,
       );
     }
-    const joinStr = models.map((m) => {
-      const { on, model, alias, tableName: name } = m;
-      if (!name && !model) {
-        throw new Error('DBModel child is required for join.');
-      }
-      const tableName = name || (model as any).tableName;
-      const onStr =
-        type === 'crossJoin'
-          ? 'true'
-          : Object.entries(on)
-              .map(
-                ([baseColumn, joinColumn]) =>
-                  `${DBQuery.#FieldQuote(allowedFields, baseColumn)} ${OP.eq} ${DBQuery.#FieldQuote(allowedFields, joinColumn)}`,
-              )
-              .join(` ${OP.$and} `);
-      const aliasMaybe = alias
-        ? ` ${dbKeywords.as} ${alias} ${dbKeywords.on} `
-        : ` ${dbKeywords.on} `;
-      return `${joinName} ${tableName}${aliasMaybe}${onStr}`;
-    });
+    if (!name && !model) {
+      throw new Error('DBModel child is required for join.');
+    }
+    const tableName = name || (model as any).tableName;
+    const onStr = type === 'CROSS' ? 'true' : joinTableCond(on, allowedFields);
+    const aliasMaybe = alias
+      ? ` ${dbKeywords.as} ${alias} ${dbKeywords.on} `
+      : ` ${dbKeywords.on} `;
+    return `${joinName} ${tableName}${aliasMaybe}${onStr}`;
+  }
 
-    return joinStr.join(' ');
-  }
-  static #createPlaceholder(val: number) {
-    return `$${val}`;
-  }
   static #getAllowedFields(
     selfAllowedFields: Set<string>,
     alias?: string,
-    include?: TABLE_JOIN,
+    include?: TABLE_JOIN[],
   ) {
     const modelFields: string[] = [
       ...selfAllowedFields,
-      ...DBQuery.#aliasFieldNames(selfAllowedFields, alias),
+      ...aliasFieldNames(selfAllowedFields, alias),
     ];
-    if (include && include.type) {
-      const { type } = include;
-      switch (type) {
-        case 'innerJoin':
-        case 'leftJoin':
-        case 'rightJoin':
-        case 'fullOuterJoin': {
-          const { models } = include;
-          DBQuery.#addJoinModelFields(models, modelFields);
-          break;
+    if (include && Array.isArray(include) && include.length > 0) {
+      include.forEach((joinType) => {
+        const { type } = joinType;
+        switch (type) {
+          case 'INNER':
+          case 'LEFT':
+          case 'RIGHT':
+          case 'FULLOUTER': {
+            addJoinModelFields(joinType, modelFields);
+            break;
+          }
+          case 'CROSS': {
+            const { model, alias } = joinType;
+            addJoinModelFields({ model, on: {}, alias, type }, modelFields);
+            break;
+          }
         }
-        case 'crossJoin': {
-          const { model, alias } = include;
-          DBQuery.#addJoinModelFields([{ model, on: {}, alias }], modelFields);
-          break;
-        }
-      }
+      });
     }
     return new Set(modelFields);
   }
-  static #addJoinModelFields(models: JOIN_MODEL[], modelFields: string[]) {
-    models.forEach(({ model, alias }) => {
-      const tableNames = (model as any).tableColumns;
-      const aliasTableNames = DBQuery.#aliasFieldNames(tableNames, alias);
-      modelFields.push(...tableNames, ...aliasTableNames);
-    });
-  }
-  static #aliasFieldNames(names: Set<string>, alias?: string) {
-    if (!alias) return [];
-    return Array.from(names).map((name) => `${alias}.${name}`);
-  }
 }
+
+//============================================= DBQuery ===================================================//
+
+//============================================= DBModel ===================================================//
 
 export class DBModel extends DBQuery {
   static init(modelObj: DbTable, option: ExtraOptions) {
