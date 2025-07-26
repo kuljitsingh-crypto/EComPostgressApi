@@ -1,3 +1,4 @@
+import CurrentUser from './currentUser.model';
 import { DataTypes, dbDefaultValue, DBModel } from './model.helpers';
 import { modelTypes, roleType } from './modelConstants';
 
@@ -22,16 +23,15 @@ Role.init(
   },
   {
     tableName: 'role',
-    references: [
-      {
+    reference: {
+      [CurrentUser.tableName]: {
         parentColumn: 'id',
-        parentTable: 'current_user',
         column: 'roleId',
         constraintName: 'fk_role',
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE',
       },
-    ],
+    },
   },
 );
 export default Role;

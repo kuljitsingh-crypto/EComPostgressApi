@@ -62,41 +62,63 @@ BasketC.init(
 // );
 
 BasketA.findAll({
-  // attributes: { [aggregateFn.COUNT('a')]: null },
+  // columns: { a: null },
   // where: {
   //   fruit_a: { iStartsWith: 'a' },
   // },
-  // where: {
-  //   a: { between: [1, 3], gte: 1 },
-  //   $or: [
-  //     { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
-  //     { fruit_a: { iStartsWith: 'a' } },
-  //   ],
-  //   fruit_a: { iStartsWith: 'a' },
-  //   // fruit_a: 'Apple',
-  //   // a: 1,
-  // },
+  where: {
+    // a: { between: [1, 3], gte: 1 },
+    $and: [
+      {
+        $exists: {
+          model: BasketB,
+          alias: 'b',
+          where: { 'b.fruit_b': { iStartsWith: 'a' } },
+        },
+      },
+      {
+        $exists: {
+          model: BasketB,
+          alias: 'b',
+          where: { 'b.fruit_b': { iStartsWith: 'o' } },
+        },
+      },
+    ],
+    // $or: [
+    //   { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
+    //   { fruit_a: { iStartsWith: 'a' } },
+    // ],
+    // fruit_a: { iStartsWith: 'a' },
+    // $notExists: {
+    //   model: BasketB,
+    //   alias: 'b',
+    //   where: { 'b.fruit_b': { iStartsWith: 'x' } },
+    // },
+    // $exist:{tableName:'sf',where:{a:'5'}}
+    // fruit_a: 'Apple',
+    // a: 1,
+  },
   //   where: {
   //     'basket_b.fruit_b': 'Orange',
   //   },
-  alias: 'fruit',
-  join: [
-    {
-      type: 'INNER',
-      model: BasketB,
-      alias: 'basket_b',
-      on: { 'fruit.fruit_a': 'basket_b.fruit_b', 'fruit.a': 'basket_b.b' },
-      //   { model: BasketC, on: { 'basket_a.fruit_a': 'basket_c.fruit_c' } },
-      // alias: 'basket_c',
-      // // on: { 'basket_a.fruit_a': 'basket_c.fruit_a' },
-    },
-    {
-      type: 'LEFT',
-      model: BasketC,
-      alias: 'basket_c',
-      on: { 'fruit.fruit_a': 'basket_c.fruit_c' },
-    },
-  ],
+  // alias: 'fruit',
+  // join: [
+  //   {
+  //     type: 'INNER',
+  //     model: BasketB,
+  //     alias: 'basket_b',
+  //     on: { 'fruit.fruit_a': 'basket_b.fruit_b', 'fruit.a': 'basket_b.b' },
+  //     //   { model: BasketC, on: { 'basket_a.fruit_a': 'basket_c.fruit_c' } },
+  //     // alias: 'basket_c',
+  //     // // on: { 'basket_a.fruit_a': 'basket_c.fruit_a' },
+  //   },
+  //   {
+  //     type: 'LEFT',
+  //     model: BasketC,
+  //     alias: 'basket_c',
+  //     on: { 'fruit.fruit_a': 'basket_c.fruit_c' },
+  //   },
+  // ],
   // orderBy: {
   //   b: 'ASC',
   //   // a: { order: 'DESC' },
@@ -108,6 +130,8 @@ BasketA.findAll({
   // having: {
   //   [aggregateFn.COUNT('a')]: { gt: 5 },
   // },
+  // limit: 1,
+  // offset: 1,
 }).then((res) => {
   console.log(res);
 });

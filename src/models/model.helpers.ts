@@ -46,7 +46,7 @@ export const DataTypes = {
     return `NUMERIC(${precision}, ${scale})`;
   },
   enum(values: string[]) {
-    const valueStr = values.map((v) => `'${v}'`).toString();
+    const valueStr = attachArrayWithComaSep(values.map((v) => `'${v}'`));
     return `ENUM(${valueStr})`;
   },
 };
@@ -109,10 +109,15 @@ export const OP = {
   iStartsWith: 'ILIKE',
   iEndsWith: 'ILIKE',
   iSubstring: 'ILIKE',
+  $exists: 'EXISTS',
+  $notExists: 'NOT EXISTS',
   $and: 'AND',
   $or: 'OR',
 } as const;
 const validOperations = Object.keys(OP).join(', ');
+
+const conditionalOperator = new Set(['$or', '$and'] as const);
+const subqueryOperator = new Set(['$exists', '$notExists'] as const);
 
 export const foreignKeyActions = {
   noAction: 'NO ACTION',
@@ -139,15 +144,12 @@ export const aggregateFn = Object.freeze({
 
 //============================================= TYPES ======================================================//
 
+type Primitive = string | number | boolean | null;
+type PreparedValues = { index: number; values: Primitive[] };
+
 type FieldFunctionType = keyof typeof fieldFunctionName;
 
 type TABLE_JOIN_TYPE = keyof typeof tableJoin;
-type Primitive = string | number | boolean | null;
-
-type PlaceholderRef = {
-  index: number;
-  incremntBy: number;
-};
 
 type ORDER_OPTION = 'ASC' | 'DESC';
 type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
@@ -209,25 +211,31 @@ export type DbTable = {
 
 type OP_KEYS = keyof typeof OP;
 
-type OP_KEYS_WITHOUT_AND_OR = Exclude<OP_KEYS, '$and' | '$or'>;
+type SIMPLE_OP_KEYS = Exclude<
+  OP_KEYS,
+  '$and' | '$or' | '$exists' | '$notExists'
+>;
 
-type Condition<Key extends OP_KEYS_WITHOUT_AND_OR = OP_KEYS_WITHOUT_AND_OR> =
-  Key extends 'in'
-    ? { in: Primitive[] }
-    : Key extends 'between'
-      ? { between: Primitive[] }
-      : Key extends 'isNull'
-        ? { isNull: null }
-        : Key extends 'notNull'
-          ? { notNull: null }
-          :
-              | {
-                  [key in Exclude<
-                    OP_KEYS_WITHOUT_AND_OR,
-                    'in' | 'between' | 'isNull' | 'notNull'
-                  >]?: Primitive;
-                }
-              | Primitive;
+type NormalOperators =
+  | {
+      [key in Exclude<
+        SIMPLE_OP_KEYS,
+        'in' | 'between' | 'isNull' | 'notNull'
+      >]?: Primitive;
+    }
+  | Primitive;
+
+type tableNameAndAlias = { model: DBQuery; alias?: string };
+
+type Condition<Key extends SIMPLE_OP_KEYS = SIMPLE_OP_KEYS> = Key extends 'in'
+  ? { in: Primitive[] }
+  : Key extends 'between'
+    ? { between: Primitive[] }
+    : Key extends 'isNull'
+      ? { isNull: null }
+      : Key extends 'notNull'
+        ? { notNull: null }
+        : NormalOperators;
 
 type WhereClause =
   | {
@@ -238,24 +246,48 @@ type WhereClause =
     }
   | {
       $or: WhereClause[];
-    };
+    }
+  | { $exists: tableNameAndAlias & Subquery<'WhereReq'> }
+  | { $notExists: tableNameAndAlias & Subquery<'WhereReq'> };
+
+type Subquery<T extends 'WhereReq' | 'WhereNotReq' = 'WhereNotReq'> =
+  (T extends 'WhereReq'
+    ? { where: WhereClause }
+    : {
+        where?: WhereClause;
+      }) & {
+    groupBy?: string[];
+    limit?: PAGINATION['limit'];
+    offset?: PAGINATION['offset'];
+    join?: TABLE_JOIN[];
+    having?: WhereClause;
+  };
+
+type SelectQuery = {
+  columns?: FindQueryAttributes;
+  isDistinct?: boolean;
+  alias?: string;
+};
 
 type WhereClauseKeys = '$and' | '$or' | string;
 
 type ForeignKeyActions =
   (typeof foreignKeyActions)[keyof typeof foreignKeyActions];
 
-type Reference = {
-  parentTable: string;
+type ReferenceTable = {
   parentColumn: string | string[];
   column: string | string[];
   constraintName?: string;
   onDelete?: ForeignKeyActions;
   onUpdate?: ForeignKeyActions;
 };
+
+type Reference = {
+  [parentTable in string]: ReferenceTable;
+};
 type ExtraOptions = {
   tableName: string;
-  references?: Reference[];
+  reference?: Reference;
 };
 
 /**
@@ -265,17 +297,10 @@ type ExtraOptions = {
  */
 type FindQueryAttributes = Record<string, null | string>;
 
-type QueryParams = {
-  attributes?: FindQueryAttributes;
-  isDistinct?: boolean;
-  orderBy?: ORDER_BY;
-  groupBy?: string[];
-  where?: WhereClause;
-  limit?: PAGINATION;
-  alias?: string;
-  join?: TABLE_JOIN[];
-  having?: WhereClause;
-};
+type QueryParams = SelectQuery &
+  Subquery & {
+    orderBy?: ORDER_BY;
+  };
 
 //============================================= TYPES ======================================================//
 
@@ -288,6 +313,21 @@ const isPrimitiveValue = (value: Primitive) => {
     typeof value === 'boolean'
   );
 };
+
+const attachArrayWithSep = (array: Array<Primitive>, sep: string) =>
+  array.join(sep);
+
+const attachArrayWithSpaceSep = (array: Array<Primitive>) =>
+  attachArrayWithSep(array, ' ');
+
+const attachArrayWithComaSep = (array: Array<Primitive>) =>
+  attachArrayWithSep(array, ',');
+
+const attachArrayWithAndSep = (array: Array<Primitive>) =>
+  attachArrayWithSep(array, ` ${OP.$and} `);
+
+const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
+  attachArrayWithSep(array, ', ');
 
 const errorHandler = (query: string, error: Error) => {
   const msg = `Error executing query: "${query}". Error: ${error.message}`;
@@ -303,7 +343,7 @@ const fieldFunctionCreator = (
   const func = fieldFunctionName[functionName];
   if (!func) {
     throw new Error(
-      `Invalid function name "${functionName}". Valid functions are: ${Object.keys(fieldFunctionName).join(', ')}.`,
+      `Invalid function name "${functionName}". Valid functions are: ${attachArrayWithComaAndSpaceSep(Object.keys(fieldFunctionName))}.`,
     );
   }
   const aliasMaybe = alias ? ` ${alias}` : '';
@@ -314,7 +354,7 @@ const fieldFunc = (fn: FieldFunctionType, column: string) => {
   const func = fieldFunctionName[fn];
   if (!func) {
     throw new Error(
-      `Invalid function name "${fn}". Valid functions are: ${Object.keys(fieldFunctionName).join(', ')}.`,
+      `Invalid function name "${fn}". Valid functions are: ${attachArrayWithComaAndSpaceSep(Object.keys(fieldFunctionName))}.`,
     );
   }
   return fnJoiner.joinFnAndColumn(func, column);
@@ -325,9 +365,9 @@ const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
 const validateField = (field: string, allowed: Set<string>) => {
   if (!allowed.has(field)) {
     throw new Error(
-      `Invalid column name ${field}. Allowed Column names are: ${Array.from(
-        allowed,
-      ).join(', ')}.`,
+      `Invalid column name ${field}. Allowed Column names are: ${attachArrayWithComaAndSpaceSep(
+        Array.from(allowed),
+      )}.`,
     );
   }
 };
@@ -357,12 +397,46 @@ const createPlaceholder = (val: number) => {
 };
 
 const joinTableCond = (cond: JOIN_COND, allowedFields: Set<string>) =>
-  Object.entries(cond)
-    .map(
+  attachArrayWithAndSep(
+    Object.entries(cond).map(
       ([baseColumn, joinColumn]) =>
         `${FieldQuote(allowedFields, baseColumn)} ${OP.eq} ${FieldQuote(allowedFields, joinColumn)}`,
-    )
-    .join(` ${OP.$and} `);
+    ),
+  );
+
+const getPreparedValues = (
+  preparedValues: PreparedValues,
+  value: Primitive,
+) => {
+  const placeholder = createPlaceholder(preparedValues.index + 1);
+  preparedValues.values[preparedValues.index] = value;
+  preparedValues.index++;
+  return placeholder;
+};
+
+const prepareColumnForHavingClause = (
+  key: string,
+  groupByFields: Set<string>,
+  allowedFields: Set<string>,
+  isHavingFilter: boolean,
+) => {
+  let validKey: string;
+  if (isHavingFilter) {
+    const [k, fn] = fnJoiner.sepFnAndColumn(key);
+    if (!fn && !groupByFields.has(k)) {
+      throw new Error(
+        `Invalid column "${k}" for HAVING clause. Column should be part of GROUP BY or an aggregate function.`,
+      );
+    }
+    validKey = FieldQuote(allowedFields, k);
+    if (fn) {
+      validKey = fieldFunctionCreator(validKey, fn as FieldFunctionType);
+    }
+  } else {
+    validKey = FieldQuote(allowedFields, key);
+  }
+  return validKey;
+};
 
 //============================================= HELPERS ===================================================//
 
@@ -374,53 +448,32 @@ export class DBQuery {
   static #groupByFields: Set<string> = new Set();
 
   static async findAll(queryParams?: QueryParams) {
-    const {
-      attributes,
-      isDistinct,
-      orderBy,
-      where,
-      limit,
-      alias,
-      join,
-      groupBy,
-      having,
-    } = queryParams || {};
-    const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
+    const { columns, isDistinct, orderBy, alias, ...rest } = queryParams || {};
+    const preparedValues: PreparedValues = { index: 0, values: [] };
     const allowedFields = DBQuery.#getAllowedFields(
       this.tableColumns,
       alias,
-      join,
+      rest.join,
     );
-    const colStr = DBQuery.#getSelectColumns(allowedFields, attributes);
-    const { statement: whereStatement, values: whereValues } =
-      DBQuery.#prepareFilterStatement(allowedFields, where);
-    const orderStr = DBQuery.#prepareOrderByStatement(allowedFields, orderBy);
-    const limitStr = DBQuery.#preparePaginationStatement(limit);
-    const joinStr = DBQuery.#prepareTableJoin(
+    const selectQry = DBQuery.#prepareSelectQuery(
       this.tableName,
       allowedFields,
-      join,
+      {
+        columns,
+        isDistinct,
+        alias,
+      },
     );
-    const groupByStr = DBQuery.#prepareGroupByStatement(allowedFields, groupBy);
-    const { statement: havingStatement, values: havingValues } =
-      DBQuery.#prepareFilterStatement(allowedFields, having, {
-        initialIndex: whereValues.length,
-        isHavingFilter: true,
-      });
-    const variableQry = DBQuery.#prepareVariableQry(
-      whereStatement,
-      orderStr,
-      limitStr,
-      joinStr,
-      groupByStr,
-      havingStatement,
+    const subQry = DBQuery.#prepareSubquery(
+      allowedFields,
+      preparedValues,
+      rest,
+      orderBy,
     );
-    const tableAlias = alias ? ` ${dbKeywords.as} ${alias}` : '';
-    const rawQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${this.tableName}"${tableAlias}${variableQry}`;
+    const rawQry = `${selectQry} ${subQry}`;
     const findAllQuery = `${rawQry.trimEnd()};`;
     try {
-      const values = [...whereValues, ...havingValues];
-      const result = await query(findAllQuery, values);
+      const result = await query(findAllQuery, preparedValues.values);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {
       return errorHandler(findAllQuery, error as Error);
@@ -432,7 +485,6 @@ export class DBQuery {
     returnOnly?: FindQueryAttributes,
   ) {
     const keys: string[] = [];
-    const values: Primitive[] = [];
     const valuePlaceholder: string[] = [];
     const allowedFields = DBQuery.#getAllowedFields(this.tableColumns);
     const returnStr = DBQuery.#getSelectColumns(
@@ -440,18 +492,25 @@ export class DBQuery {
       returnOnly,
       false,
     );
-    Object.entries(fields).forEach((entry, index) => {
+    const preparedValues: PreparedValues = { index: 0, values: [] };
+    Object.entries(fields).forEach((entry) => {
       const [key, value] = entry;
       keys.push(FieldQuote(allowedFields, key));
-      values.push(value);
-      valuePlaceholder.push(createPlaceholder(index + 1));
+      const placeholder = getPreparedValues(preparedValues, value);
+      valuePlaceholder.push(placeholder);
     });
-    const columns = keys.toString();
-    const valuePlaceholders = valuePlaceholder.toString();
-    const rawQry = `${dbKeywords.insertInto} "${this.tableName}"(${columns}) ${dbKeywords.values}(${valuePlaceholders}) ${dbKeywords.returning} ${returnStr}`;
-    const createQry = `${rawQry.trimEnd()};`;
+    const columns = attachArrayWithComaSep(keys);
+    const valuePlaceholders = attachArrayWithComaSep(valuePlaceholder);
+    const insertClause = `${dbKeywords.insertInto} "${this.tableName}"(${columns})`;
+    const valuesClause = `${dbKeywords.values}${valuePlaceholders}`;
+    const returningClause = `${dbKeywords.returning} ${returnStr}`;
+    const createQry = attachArrayWithSpaceSep([
+      insertClause,
+      valuesClause,
+      returningClause,
+    ]);
     try {
-      const result = await query(createQry, values);
+      const result = await query(createQry, preparedValues.values);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {
       return errorHandler(createQry, error as Error);
@@ -481,15 +540,24 @@ export class DBQuery {
         incrementBy += val.length - 1;
       }
       flatedValues.push(...val);
-      const placeholder = val
-        .map((_, cIndex) => createPlaceholder(pIndex + cIndex + incrementBy))
-        .join(',');
+      const placeholder = attachArrayWithComaSep(
+        val.map((_, cIndex) =>
+          createPlaceholder(pIndex + cIndex + incrementBy),
+        ),
+      );
+
       return `(${placeholder})`;
     });
-    const colStr = columns.toString();
-    const valuePlaceholders = valuePlaceholder.toString();
-    const rawQry = `${dbKeywords.insertInto} "${this.tableName}"(${colStr}) ${dbKeywords.values}${valuePlaceholders} ${dbKeywords.returning} ${returnStr}`;
-    const createQry = `${rawQry.trimEnd()};`;
+    const colStr = attachArrayWithComaSep(columns);
+    const valuePlaceholders = attachArrayWithComaSep(valuePlaceholder);
+    const insertClause = `${dbKeywords.insertInto} "${this.tableName}"(${colStr})`;
+    const valuesClause = `${dbKeywords.values}${valuePlaceholders}`;
+    const returningClause = `${dbKeywords.returning} ${returnStr}`;
+    const createQry = attachArrayWithSpaceSep([
+      insertClause,
+      valuesClause,
+      returningClause,
+    ]);
     try {
       const result = await query(createQry, flatedValues);
       return { rows: result.rows, count: result.rowCount };
@@ -499,42 +567,101 @@ export class DBQuery {
   }
 
   // Private Methods
-  static #prepareVariableQry(
-    whereQry?: string,
-    orderbyQry?: string,
-    limitQry?: string,
-    joinStr?: string,
-    groupByStr?: string,
-    havingStatement?: string,
-  ) {
-    let variableQry = '';
-    if (joinStr) {
-      variableQry += ' ' + joinStr;
+  static #prepareVariableQry(params: {
+    whereQry?: string;
+    orderbyQry?: string;
+    limitQry?: string;
+    joinQry?: string;
+    groupByQry?: string;
+    havingQry?: string;
+  }) {
+    const { whereQry, orderbyQry, limitQry, joinQry, groupByQry, havingQry } =
+      params;
+    const variableQry: string[] = [];
+    if (joinQry) {
+      variableQry.push(joinQry);
     }
     if (whereQry) {
-      variableQry += ' ' + whereQry;
+      variableQry.push(whereQry);
     }
-    if (groupByStr) {
-      variableQry += ' ' + groupByStr;
+    if (groupByQry) {
+      variableQry.push(groupByQry);
     }
-    if (havingStatement) {
-      variableQry += ' ' + havingStatement;
+    if (havingQry) {
+      variableQry.push(havingQry);
     }
     if (orderbyQry) {
-      variableQry += ' ' + orderbyQry;
+      variableQry.push(orderbyQry);
     }
     if (limitQry) {
-      variableQry += ' ' + limitQry;
+      variableQry.push(limitQry);
     }
-    return variableQry;
+    return attachArrayWithSpaceSep(variableQry);
   }
+
+  static #prepareSubquery(
+    allowedFields: Set<string>,
+    preparedValues: PreparedValues,
+    subQuery: Subquery,
+    orderBy?: ORDER_BY,
+  ) {
+    const { where, groupBy, limit, offset, join, having } = subQuery || {};
+    const whereStatement = DBQuery.#prepareFilterStatement(
+      allowedFields,
+      preparedValues,
+      where,
+    );
+    const limitStr = DBQuery.#preparePaginationStatement(
+      preparedValues,
+      limit,
+      offset,
+    );
+    const joinStr = DBQuery.#prepareTableJoin(
+      this.tableName,
+      allowedFields,
+      join,
+    );
+    const groupByStr = DBQuery.#prepareGroupByStatement(allowedFields, groupBy);
+    const orderStr = DBQuery.#prepareOrderByStatement(allowedFields, orderBy);
+    const havingStatement = DBQuery.#prepareFilterStatement(
+      allowedFields,
+      preparedValues,
+      having,
+      {
+        isHavingFilter: true,
+      },
+    );
+    const finalSubQry = DBQuery.#prepareVariableQry({
+      whereQry: whereStatement,
+      limitQry: limitStr,
+      joinQry: joinStr,
+      groupByQry: groupByStr,
+      havingQry: havingStatement,
+      orderbyQry: orderStr,
+    });
+    return finalSubQry;
+  }
+
+  static #prepareSelectQuery(
+    tableName: string,
+    allowedFields: Set<string>,
+    selectQuery: SelectQuery,
+  ) {
+    const { isDistinct, columns, alias } = selectQuery;
+    const tableAlias = alias ? ` ${dbKeywords.as} ${alias}` : '';
+    const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
+    const colStr = DBQuery.#getSelectColumns(allowedFields, columns);
+    const selectQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${tableName}"${tableAlias}`;
+    return selectQry;
+  }
+
   static #getSelectColumns(
     allowedFields: Set<string>,
-    attributes?: FindQueryAttributes,
+    columns?: FindQueryAttributes,
     isAggregateAllowed = true,
   ) {
-    if (!attributes || Object.keys(attributes).length < 1) return '*';
-    return Object.entries(attributes)
+    if (!columns || Object.keys(columns).length < 1) return '*';
+    return Object.entries(columns)
       .map((attr) => {
         const [col, value] = attr;
         const [column, fn] = fnJoiner.sepFnAndColumn(col);
@@ -558,13 +685,14 @@ export class DBQuery {
       .filter(Boolean)
       .join(', ');
   }
+
   static #prepareOrderByStatement(
     allowedFields: Set<string>,
     orderBy?: ORDER_BY,
   ) {
     if (!orderBy || Object.keys(orderBy).length < 1) return '';
-    let orderByStatemnt = dbKeywords.orderBy + ' ';
-    orderByStatemnt += Object.entries(orderBy)
+    const orderStatement: string[] = [dbKeywords.orderBy];
+    const qry = Object.entries(orderBy)
       .map(([key, val]) => {
         const validKey = FieldQuote(allowedFields, key);
         if (typeof val === 'string') {
@@ -587,8 +715,8 @@ export class DBQuery {
       })
       .filter(Boolean)
       .join(', ');
-
-    return orderByStatemnt;
+    orderStatement.push(qry);
+    return attachArrayWithSpaceSep(orderStatement);
   }
 
   static #prepareGroupByStatement(
@@ -597,56 +725,58 @@ export class DBQuery {
   ) {
     DBQuery.#groupByFields.clear();
     if (!groupBy || (Array.isArray(groupBy) && groupBy.length < 1)) return '';
-    let groupByStatemnt = dbKeywords.groupBy + ' ';
-    groupByStatemnt += groupBy
-      .map((key) => {
+    const groupStatements: string[] = [dbKeywords.groupBy];
+    const qry = attachArrayWithComaSep(
+      groupBy.map((key) => {
         const validKey = FieldQuote(allowedFields, key);
         DBQuery.#groupByFields.add(validKey);
         return validKey;
-      })
-      .join(', ');
-    return groupByStatemnt;
+      }),
+    );
+    groupStatements.push(qry);
+    return attachArrayWithSpaceSep(groupStatements);
   }
 
   static #prepareFilterStatement(
     allowedFields: Set<string>,
+    preparedValues: PreparedValues,
     filter?: WhereClause,
-    options?: { initialIndex?: number; isHavingFilter?: boolean },
+    options?: { isHavingFilter?: boolean },
   ) {
-    if (!filter) return { statement: '', values: [] };
-    const { initialIndex = 0, isHavingFilter = false } = options || {};
-    let queryStatement =
-      (isHavingFilter ? dbKeywords.having : dbKeywords.where) + ' ';
-    const values: Primitive[] = [];
-    const indexAndIncremntBy = { index: 0, incremntBy: 1 };
-    queryStatement += Object.entries(filter)
-      .map((filter, indx) => {
-        indexAndIncremntBy.index = indx + initialIndex;
+    if (!filter) return '';
+    const { isHavingFilter = false } = options || {};
+    const filterStatements: string[] = [];
+    if (isHavingFilter) {
+      filterStatements.push(dbKeywords.having);
+    } else {
+      filterStatements.push(dbKeywords.where);
+    }
+    const qry = attachArrayWithAndSep(
+      Object.entries(filter).map((filter) => {
         return DBQuery.#getQueryStatement(
           allowedFields,
           filter,
-          indexAndIncremntBy,
-          values,
+          preparedValues,
           isHavingFilter,
         );
-      })
-      .join(` ${OP.$and} `);
-    return { statement: queryStatement, values };
+      }),
+    );
+    filterStatements.push(qry);
+    return attachArrayWithSpaceSep(filterStatements);
   }
 
   static #getQueryStatement(
     allowedFields: Set<string>,
     singleQry: [WhereClauseKeys, any],
-    index: PlaceholderRef,
-    valuesArr: Primitive[],
+    preparedValues: PreparedValues,
     isHavingFilter: boolean,
   ): string {
-    const key = singleQry[0];
+    const key = singleQry[0] as OP_KEYS;
     let value = singleQry[1];
     if (isPrimitiveValue(value)) {
       value = { eq: value };
     }
-    if (key === '$and' || key === '$or') {
+    if (conditionalOperator.has(key as any)) {
       if (!Array.isArray(value)) {
         throw new Error(
           `For operator "${key}" value should be an array of conditions.`,
@@ -657,31 +787,61 @@ export class DBQuery {
           `For operator "${key}" at least 2 conditions are required.`,
         );
       }
+      const sep = ` ${OP[key]} `;
       const cond = value
         .map((v, i) => {
           const entries = Object.entries(v);
-          if (i > 0) {
-            index.incremntBy += 1;
-          }
           return entries.map((filter) => {
             return DBQuery.#getQueryStatement(
               allowedFields,
               filter,
-              index,
-              valuesArr,
+              preparedValues,
               isHavingFilter,
             );
           });
         })
-        .join(` ${OP[key]} `);
+        .join(sep);
       return cond ? `(${cond})` : '';
+    } else if (subqueryOperator.has(key as any)) {
+      const { model, alias, ...rest } = value as tableNameAndAlias &
+        Subquery<'WhereReq'>;
+      if (!model) {
+        throw new Error(
+          `DBQuery Model is required for subquery operator "${key}".`,
+        );
+      }
+      if (!rest.where) {
+        throw new Error(
+          `Where clause is required for subquery operator "${key}".`,
+        );
+      }
+      const tableName = (model as any).tableName;
+      const tableColumns = new Set((model as any).tableColumns) as Set<string>;
+      tableColumns.add('1');
+      const subQryAllowedFields = DBQuery.#getAllowedFields(
+        tableColumns,
+        alias,
+        rest.join,
+      );
+      const selectQry = DBQuery.#prepareSelectQuery(
+        tableName,
+        subQryAllowedFields,
+        { columns: { '1': null }, alias },
+      );
+      const subquery = DBQuery.#prepareSubquery(
+        subQryAllowedFields,
+        preparedValues,
+        rest,
+      );
+      const operator = OP[key];
+      const finalSubQuery = `${operator} (${selectQry} ${subquery})`;
+      return finalSubQuery;
     } else {
       return DBQuery.#buildCondition(
         key,
         value,
-        valuesArr,
         allowedFields,
-        index,
+        preparedValues,
         isHavingFilter,
       );
     }
@@ -689,49 +849,33 @@ export class DBQuery {
 
   static #buildCondition(
     key: string,
-    value: Record<OP_KEYS_WITHOUT_AND_OR, Primitive>,
-    valuesArr: Primitive[],
+    value: Record<SIMPLE_OP_KEYS, Primitive>,
     allowedFields: Set<string>,
-    index: PlaceholderRef,
+    preparedValues: PreparedValues,
     isHavingFilter: boolean,
   ) {
-    let validKey: string;
-    if (isHavingFilter) {
-      const [k, fn] = fnJoiner.sepFnAndColumn(key);
-      if (!fn && !DBQuery.#groupByFields.has(k)) {
-        throw new Error(
-          `Invalid column "${k}" for HAVING clause. Column should be part of GROUP BY or an aggregate function.`,
-        );
-      }
-      validKey = FieldQuote(allowedFields, k);
-      if (fn) {
-        validKey = fieldFunctionCreator(validKey, fn as FieldFunctionType);
-      }
-    } else {
-      validKey = FieldQuote(allowedFields, key);
-    }
+    const validKey = prepareColumnForHavingClause(
+      key,
+      DBQuery.#groupByFields,
+      allowedFields,
+      isHavingFilter,
+    );
     const preparePlachldrForArray = (values: Primitive[]) => {
-      const placeholderArr = values.map((val, i) => {
-        if (i > 0) {
-          index.incremntBy += 1;
-        }
-        valuesArr.push(val);
-        return createPlaceholder(index.index + index.incremntBy);
+      const placeholderArr = values.map((val) => {
+        const placeholder = getPreparedValues(preparedValues, val);
+        return placeholder;
       });
       return placeholderArr;
     };
     const prepareQry = (entry: [string, Primitive], i: number) => {
-      const [op, val] = entry as [OP_KEYS_WITHOUT_AND_OR, Primitive];
+      const [op, val] = entry as [SIMPLE_OP_KEYS, Primitive];
       const operation = OP[op];
       if (!operation) {
         throw new Error(
           `Invalid operator "${op}". Please use following operators: ${validOperations}. `,
         );
       }
-      if (i > 0) {
-        index.incremntBy += 1;
-      }
-      const valPlaceholder = createPlaceholder(index.index + index.incremntBy);
+
       switch (op) {
         case 'eq':
         case 'neq':
@@ -743,27 +887,29 @@ export class DBQuery {
         case 'iLike':
         case 'notLike':
         case 'notILike': {
-          valuesArr.push(val);
+          const valPlaceholder = getPreparedValues(preparedValues, val);
           return `${validKey} ${operation} ${valPlaceholder}`;
         }
         case 'notNull':
         case 'isNull': {
-          index.incremntBy -= 1;
           return `${key} ${operation} ${dbKeywords.null}`;
         }
         case 'startsWith':
         case 'iStartsWith': {
-          valuesArr.push(`${val}%`);
+          const valStr = `${val}%`;
+          const valPlaceholder = getPreparedValues(preparedValues, valStr);
           return `${validKey} ${operation} ${valPlaceholder}`;
         }
         case 'endsWith':
         case 'iEndsWith': {
-          valuesArr.push(`%${val}`);
+          const valStr = `%${val}`;
+          const valPlaceholder = getPreparedValues(preparedValues, valStr);
           return `${validKey} ${operation} ${valPlaceholder}`;
         }
         case 'substring':
         case 'iSubstring': {
-          valuesArr.push(`%${val}%`);
+          const valStr = `%${val}%`;
+          const valPlaceholder = getPreparedValues(preparedValues, valStr);
           return `${validKey} ${operation} ${valPlaceholder}`;
         }
         case 'in':
@@ -775,7 +921,7 @@ export class DBQuery {
             throw new Error(`Operator "${op}" requires at least 1 value.`);
           }
           const placeholders = preparePlachldrForArray(val);
-          return `${validKey} ${operation} (${placeholders.toString()})`;
+          return `${validKey} ${operation} (${attachArrayWithComaSep(placeholders)})`;
         }
         case 'between':
         case 'notBetween': {
@@ -794,20 +940,26 @@ export class DBQuery {
           );
       }
     };
-    const cond = Object.entries(value).map(prepareQry).join(` ${OP.$and} `);
+    const cond = attachArrayWithAndSep(Object.entries(value).map(prepareQry));
     return cond ? `(${cond})` : '';
   }
 
-  static #preparePaginationStatement(limit?: PAGINATION) {
-    if (!limit || typeof limit.limit !== 'number') {
+  static #preparePaginationStatement(
+    preparedValues: PreparedValues,
+    limit?: PAGINATION['limit'],
+    offset?: PAGINATION['offset'],
+  ) {
+    if (!limit || typeof limit !== 'number') {
       return '';
     }
-    const { limit: l, offset: o } = limit;
-    let limitStatement = `${dbKeywords.limit} ${l}`;
-    if (o) {
-      limitStatement += ` ${dbKeywords.offset} ${o}`;
+
+    const limitPlaceholder = getPreparedValues(preparedValues, limit);
+    const limitStatements = [`${dbKeywords.limit} ${limitPlaceholder}`];
+    if (offset && typeof offset === 'number') {
+      const offsetPlaceholder = getPreparedValues(preparedValues, offset);
+      limitStatements.push(`${dbKeywords.offset} ${offsetPlaceholder}`);
     }
-    return limitStatement;
+    return attachArrayWithSpaceSep(limitStatements);
   }
 
   static #prepareTableJoin(
@@ -847,11 +999,11 @@ export class DBQuery {
         }
         default:
           throw new Error(
-            `Invalid join type:"${(include as any).type}". Valid join types:${Object.keys(tableJoin).toString()}.`,
+            `Invalid join type:"${(include as any).type}". Valid join types:${attachArrayWithComaSep(Object.keys(tableJoin))}.`,
           );
       }
     });
-    return joins.join(' ');
+    return attachArrayWithSpaceSep(joins);
   }
   static #prepareJoinStr<T extends TABLE_JOIN_TYPE>(
     allowedFields: Set<string>,
@@ -861,7 +1013,7 @@ export class DBQuery {
     const joinName = tableJoin[type];
     if (!joinName) {
       throw new Error(
-        `Invalid join type:"${type}". Valid join types:${Object.keys(tableJoin).toString()}.`,
+        `Invalid join type:"${type}". Valid join types:${attachArrayWithComaSep(Object.keys(tableJoin))}.`,
       );
     }
     if (!name && !model) {
@@ -913,7 +1065,7 @@ export class DBQuery {
 
 export class DBModel extends DBQuery {
   static init(modelObj: DbTable, option: ExtraOptions) {
-    const { tableName, references = [] } = option;
+    const { tableName, reference = {} } = option;
     this.tableName = tableName;
     const primaryKeys: string[] = [];
     const columns: string[] = [];
@@ -931,11 +1083,11 @@ export class DBModel extends DBQuery {
       );
     }
     columns.push(DBModel.#createPrimaryColumn(primaryKeys));
-    references.forEach((ref) => {
-      columns.push(DBModel.#createForeignColumn(ref));
+    Object.entries(reference).forEach(([key, ref]) => {
+      columns.push(DBModel.#createForeignColumn(key, ref));
     });
     const createEnumQryPromise = Promise.all(enums.map((e) => query(e)));
-    const createTableQry = `CREATE TABLE IF NOT EXISTS "${tableName}" (${columns.toString()});`;
+    const createTableQry = `CREATE TABLE IF NOT EXISTS "${tableName}" (${attachArrayWithComaSep(columns)});`;
     createEnumQryPromise.then(() => query(createTableQry));
   }
 
@@ -945,7 +1097,7 @@ export class DBModel extends DBQuery {
     primaryKeys: string[],
     enums: string[],
   ) {
-    let valueStr = `${columnName} `;
+    const values: (string | boolean)[] = [columnName];
     const colUpr = columnName.toUpperCase();
     Object.entries(value).forEach((entry) => {
       const [key, keyVale] = entry as [
@@ -958,9 +1110,9 @@ export class DBModel extends DBQuery {
           if ((keyVale as any).startsWith('ENUM')) {
             const enumQry = `${enumQryPrefix} ${colUpr} ${dbKeywords.as} ${keyVale}; ${enumQrySuffix}`;
             enums.push(enumQry);
-            valueStr += colUpr + ' ';
+            values.push(colUpr);
           } else {
-            valueStr += keyVale + ' ';
+            values.push(keyVale);
           }
           break;
         }
@@ -968,50 +1120,47 @@ export class DBModel extends DBQuery {
           primaryKeys.push(columnName);
           break;
         case 'defaultValue':
-          valueStr += `${dbKeywords.default} ${keyVale} `;
+          values.push(`${dbKeywords.default} ${keyVale}`);
           break;
         case 'unique':
-          valueStr += dbKeywords.unique + ' ';
+          values.push(dbKeywords.unique);
           break;
         case 'notNull':
-          valueStr += dbKeywords.notNull + ' ';
+          values.push(dbKeywords.notNull);
           break;
         case 'customDefaultValue':
-          valueStr += `${dbKeywords.default} '${keyVale}' `;
+          values.push(`${dbKeywords.default} '${keyVale}'`);
           break;
         case 'check':
-          valueStr += `${dbKeywords.check} (${keyVale}) `;
+          values.push(`${dbKeywords.check} (${keyVale})`);
           break;
       }
     });
-    return valueStr.trimEnd();
+    return attachArrayWithSpaceSep(values);
   }
   static #createPrimaryColumn(primaryKeys: string[]) {
-    return `${dbKeywords.primaryKey} (${primaryKeys.toString()})`;
+    return `${dbKeywords.primaryKey} (${attachArrayWithComaSep(primaryKeys)})`;
   }
-  static #createForeignColumn(ref: Reference) {
-    const {
-      parentTable,
-      parentColumn,
-      column,
-      constraintName,
-      onDelete,
-      onUpdate,
-    } = ref;
-    let valueStr = '';
-    const colStr = column.toString();
-    const parentColStr = parentColumn.toString();
+  static #createForeignColumn(parentTable: string, ref: ReferenceTable) {
+    const { parentColumn, column, constraintName, onDelete, onUpdate } = ref;
+    const colStr = Array.isArray(column)
+      ? attachArrayWithComaSep(column)
+      : column;
+    const parentColStr = Array.isArray(parentColumn)
+      ? attachArrayWithComaSep(parentColumn)
+      : parentColumn;
+    const values: string[] = [];
     if (constraintName) {
-      valueStr += `${dbKeywords.constraint} ${constraintName} `;
+      values.push(`${dbKeywords.constraint} ${constraintName}`);
     }
-    valueStr += `${dbKeywords.foreignKey} (${colStr}) `;
-    valueStr += `${dbKeywords.references} "${parentTable}" (${parentColStr}) `;
+    values.push(`${dbKeywords.foreignKey} (${colStr})`);
+    values.push(`${dbKeywords.references} "${parentTable}" (${parentColStr})`);
     if (onDelete) {
-      valueStr += `${dbKeywords.onDelete} ${onDelete} `;
+      values.push(`${dbKeywords.onDelete} ${onDelete}`);
     }
     if (onUpdate) {
-      valueStr += `${dbKeywords.onUpdate} ${onUpdate} `;
+      values.push(`${dbKeywords.onUpdate} ${onUpdate}`);
     }
-    return valueStr.trimEnd();
+    return attachArrayWithSpaceSep(values);
   }
 }
