@@ -68,22 +68,28 @@ BasketA.findAll({
   // },
   where: {
     // a: { between: [1, 3], gte: 1 },
-    $and: [
-      {
-        $exists: {
-          model: BasketB,
-          alias: 'b',
-          where: { 'b.fruit_b': { iStartsWith: 'a' } },
-        },
+    a: {
+      eq: {
+        ANY: { model: BasketB, column: 'b', where: { b: { gt: 2 } } },
       },
-      {
-        $exists: {
-          model: BasketB,
-          alias: 'b',
-          where: { 'b.fruit_b': { iStartsWith: 'o' } },
-        },
-      },
-    ],
+    },
+    fruit_a: 'Apple',
+    // $and: [
+    //   {
+    //     $exists: {
+    //       model: BasketB,
+    //       alias: 'b',
+    //       where: { 'b.fruit_b': { iStartsWith: 'a' } },
+    //     },
+    //   },
+    //   {
+    //     $exists: {
+    //       model: BasketB,
+    //       alias: 'b',
+    //       where: { 'b.fruit_b': { iStartsWith: 'o' } },
+    //     },
+    //   },
+    // ],
     // $or: [
     //   { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
     //   { fruit_a: { iStartsWith: 'a' } },

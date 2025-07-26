@@ -25,7 +25,7 @@ export const DataTypes = {
   boolean: 'BOOLEAN',
   true: 'TRUE',
   false: 'FALSE',
-  text: 'VARCHAR',
+  text: 'TEXT',
   float: 'DOUBLE PRECISION',
   real: 'REAL',
   smallInt: 'SMALLINT',
@@ -77,6 +77,9 @@ const dbKeywords = {
   as: 'AS',
   on: 'ON',
   having: 'HAVING',
+  any: 'ANY',
+  array: 'ARRAY',
+  all: 'ALL',
 } as const;
 
 export const dbDefaultValue = {
@@ -216,16 +219,26 @@ type SIMPLE_OP_KEYS = Exclude<
   '$and' | '$or' | '$exists' | '$notExists'
 >;
 
+type SubQueryFilterKey = (typeof dbKeywords)['any' | 'all'];
+type SubQueryFilterRecord = {
+  [key in SubQueryFilterKey]?: Array<Primitive> | SubQueryFilter;
+};
+type FilterColumnValue = Primitive | SubQueryFilterRecord;
+
 type NormalOperators =
   | {
       [key in Exclude<
         SIMPLE_OP_KEYS,
         'in' | 'between' | 'isNull' | 'notNull'
-      >]?: Primitive;
+      >]?: FilterColumnValue;
     }
-  | Primitive;
+  | FilterColumnValue;
 
-type tableNameAndAlias = { model: DBQuery; alias?: string };
+type ExistsFilter = { model: DBQuery; alias?: string } & Subquery<'WhereReq'>;
+type SubQueryFilter = ExistsFilter & {
+  orderBy?: ORDER_BY;
+  column: string;
+};
 
 type Condition<Key extends SIMPLE_OP_KEYS = SIMPLE_OP_KEYS> = Key extends 'in'
   ? { in: Primitive[] }
@@ -247,8 +260,8 @@ type WhereClause =
   | {
       $or: WhereClause[];
     }
-  | { $exists: tableNameAndAlias & Subquery<'WhereReq'> }
-  | { $notExists: tableNameAndAlias & Subquery<'WhereReq'> };
+  | { $exists: ExistsFilter }
+  | { $notExists: ExistsFilter };
 
 type Subquery<T extends 'WhereReq' | 'WhereNotReq' = 'WhereNotReq'> =
   (T extends 'WhereReq'
@@ -310,7 +323,8 @@ const isPrimitiveValue = (value: Primitive) => {
   return (
     typeof value === 'string' ||
     typeof value === 'number' ||
-    typeof value === 'boolean'
+    typeof value === 'boolean' ||
+    value === null
   );
 };
 
@@ -436,6 +450,18 @@ const prepareColumnForHavingClause = (
     validKey = FieldQuote(allowedFields, key);
   }
   return validKey;
+};
+const getArrayDataType = (value: Primitive[]) => {
+  const firstValue = value[0];
+  if (typeof firstValue === 'number') {
+    return DataTypes.int;
+  } else if (typeof firstValue === 'string') {
+    return DataTypes.text;
+  } else if (typeof firstValue === 'boolean') {
+    return DataTypes.boolean;
+  } else {
+    throw new Error(`Unsupported data type for array: ${typeof firstValue}`);
+  }
 };
 
 //============================================= HELPERS ===================================================//
@@ -765,6 +791,86 @@ export class DBQuery {
     return attachArrayWithSpaceSep(filterStatements);
   }
 
+  static #otherModelSubqueryBuilder<T extends SubQueryFilter>(
+    key: string,
+    preparedValues: PreparedValues,
+    value: T,
+    isExistsFilter: boolean = true,
+  ) {
+    const { model, alias, column, orderBy, ...rest } = value as SubQueryFilter;
+    if (!model) {
+      throw new Error(
+        `DBQuery Model is required for subquery operator "${key}".`,
+      );
+    }
+    if (!rest.where) {
+      throw new Error(
+        `Where clause is required for subquery operator "${key}".`,
+      );
+    }
+    const tableName = (model as any).tableName;
+    const tableColumns = new Set((model as any).tableColumns) as Set<string>;
+    if (isExistsFilter) {
+      tableColumns.add('1');
+    }
+    const selectQuery = isExistsFilter
+      ? { columns: { '1': null }, alias }
+      : { columns: { [column]: null }, alias };
+
+    const subQryAllowedFields = DBQuery.#getAllowedFields(
+      tableColumns,
+      alias,
+      rest.join,
+    );
+    const selectQry = DBQuery.#prepareSelectQuery(
+      tableName,
+      subQryAllowedFields,
+      selectQuery,
+    );
+    const subquery = DBQuery.#prepareSubquery(
+      subQryAllowedFields,
+      preparedValues,
+      rest,
+    );
+    const operator = isExistsFilter ? OP[key as OP_KEYS] : key;
+    const finalSubQuery = `${operator} (${selectQry} ${subquery})`;
+    return finalSubQuery;
+  }
+
+  static #andOrFilterBuilder(
+    key: OP_KEYS,
+    allowedFields: Set<string>,
+    preparedValues: PreparedValues,
+    value: any,
+    isHavingFilter: boolean,
+  ) {
+    if (!Array.isArray(value)) {
+      throw new Error(
+        `For operator "${key}" value should be an array of conditions.`,
+      );
+    }
+    if (value.length < 2) {
+      throw new Error(
+        `For operator "${key}" at least 2 conditions are required.`,
+      );
+    }
+    const sep = ` ${OP[key]} `;
+    const cond = value
+      .map((v) => {
+        const entries = Object.entries(v);
+        return entries.map((filter) => {
+          return DBQuery.#getQueryStatement(
+            allowedFields,
+            filter,
+            preparedValues,
+            isHavingFilter,
+          );
+        });
+      })
+      .join(sep);
+    return cond ? `(${cond})` : '';
+  }
+
   static #getQueryStatement(
     allowedFields: Set<string>,
     singleQry: [WhereClauseKeys, any],
@@ -777,64 +883,21 @@ export class DBQuery {
       value = { eq: value };
     }
     if (conditionalOperator.has(key as any)) {
-      if (!Array.isArray(value)) {
-        throw new Error(
-          `For operator "${key}" value should be an array of conditions.`,
-        );
-      }
-      if (value.length < 2) {
-        throw new Error(
-          `For operator "${key}" at least 2 conditions are required.`,
-        );
-      }
-      const sep = ` ${OP[key]} `;
-      const cond = value
-        .map((v, i) => {
-          const entries = Object.entries(v);
-          return entries.map((filter) => {
-            return DBQuery.#getQueryStatement(
-              allowedFields,
-              filter,
-              preparedValues,
-              isHavingFilter,
-            );
-          });
-        })
-        .join(sep);
-      return cond ? `(${cond})` : '';
-    } else if (subqueryOperator.has(key as any)) {
-      const { model, alias, ...rest } = value as tableNameAndAlias &
-        Subquery<'WhereReq'>;
-      if (!model) {
-        throw new Error(
-          `DBQuery Model is required for subquery operator "${key}".`,
-        );
-      }
-      if (!rest.where) {
-        throw new Error(
-          `Where clause is required for subquery operator "${key}".`,
-        );
-      }
-      const tableName = (model as any).tableName;
-      const tableColumns = new Set((model as any).tableColumns) as Set<string>;
-      tableColumns.add('1');
-      const subQryAllowedFields = DBQuery.#getAllowedFields(
-        tableColumns,
-        alias,
-        rest.join,
-      );
-      const selectQry = DBQuery.#prepareSelectQuery(
-        tableName,
-        subQryAllowedFields,
-        { columns: { '1': null }, alias },
-      );
-      const subquery = DBQuery.#prepareSubquery(
-        subQryAllowedFields,
+      const cond = DBQuery.#andOrFilterBuilder(
+        key,
+        allowedFields,
         preparedValues,
-        rest,
+        value,
+        isHavingFilter,
       );
-      const operator = OP[key];
-      const finalSubQuery = `${operator} (${selectQry} ${subquery})`;
+      return cond;
+    } else if (subqueryOperator.has(key as any)) {
+      const finalSubQuery = DBQuery.#otherModelSubqueryBuilder(
+        key,
+        preparedValues,
+        value,
+        true,
+      );
       return finalSubQuery;
     } else {
       return DBQuery.#buildCondition(
@@ -867,8 +930,8 @@ export class DBQuery {
       });
       return placeholderArr;
     };
-    const prepareQry = (entry: [string, Primitive], i: number) => {
-      const [op, val] = entry as [SIMPLE_OP_KEYS, Primitive];
+    const prepareQry = (entry: [string, FilterColumnValue], i: number) => {
+      const [op, val] = entry as [SIMPLE_OP_KEYS, FilterColumnValue];
       const operation = OP[op];
       if (!operation) {
         throw new Error(
@@ -882,12 +945,57 @@ export class DBQuery {
         case 'gt':
         case 'gte':
         case 'lt':
-        case 'lte':
+        case 'lte': {
+          if (isPrimitiveValue(val as any)) {
+            const valPlaceholder = getPreparedValues(
+              preparedValues,
+              val as Primitive,
+            );
+            return `${validKey} ${operation} ${valPlaceholder}`;
+          }
+          if (typeof val !== 'object' || val === null) {
+            throw new Error(
+              `For operator "${op}" with ANY/ALL, value must be an object containing 'any' or 'all' property.`,
+            );
+          }
+          const arrayKeyword = dbKeywords.array;
+          const hasAny = (val as any).hasOwnProperty(dbKeywords.any);
+          const hasAll = (val as any).hasOwnProperty(dbKeywords.all);
+          if (!hasAny && !hasAll) {
+            throw new Error(
+              `For subquery operations, value must contain "${dbKeywords.any}" or "${dbKeywords.all}" property`,
+            );
+          }
+          const subqueryKeyword = hasAll ? dbKeywords.all : dbKeywords.any;
+          const subqueryVal: Array<Primitive> | SubQueryFilter = (val as any)[
+            subqueryKeyword
+          ];
+          if (Array.isArray(subqueryVal)) {
+            const placeholders = preparePlachldrForArray(subqueryVal);
+            const dataType = getArrayDataType(subqueryVal);
+            return `${validKey} ${operation} ${subqueryKeyword}(${arrayKeyword}[${attachArrayWithComaSep(placeholders)}]::${dataType}[])`;
+          }
+          const subQry = DBQuery.#otherModelSubqueryBuilder(
+            subqueryKeyword,
+            preparedValues,
+            subqueryVal,
+            false,
+          );
+          return `${validKey} ${operation} ${subQry}`;
+        }
         case 'like':
         case 'iLike':
         case 'notLike':
         case 'notILike': {
-          const valPlaceholder = getPreparedValues(preparedValues, val);
+          if (!isPrimitiveValue(val as any)) {
+            throw new Error(
+              `For operator "${op}" value should be a primitive type.`,
+            );
+          }
+          const valPlaceholder = getPreparedValues(
+            preparedValues,
+            val as Primitive,
+          );
           return `${validKey} ${operation} ${valPlaceholder}`;
         }
         case 'notNull':
