@@ -149,6 +149,7 @@ export const aggregateFn = Object.freeze({
 
 type Primitive = string | number | boolean | null;
 type PreparedValues = { index: number; values: Primitive[] };
+type SubqueryWhereReq = 'WhereReq' | 'WhereNotReq';
 
 type FieldFunctionType = keyof typeof fieldFunctionName;
 
@@ -234,11 +235,15 @@ type NormalOperators =
     }
   | FilterColumnValue;
 
-type ExistsFilter = { model: DBQuery; alias?: string } & Subquery<'WhereReq'>;
-type SubQueryFilter = ExistsFilter & {
-  orderBy?: ORDER_BY;
-  column: string;
-};
+type ExistsFilter<T extends SubqueryWhereReq = 'WhereNotReq'> = {
+  model: DBQuery;
+  alias?: string;
+} & Subquery<T>;
+type SubQueryFilter<T extends SubqueryWhereReq = 'WhereNotReq'> =
+  ExistsFilter<T> & {
+    orderBy?: ORDER_BY;
+    column: string;
+  };
 
 type Condition<Key extends SIMPLE_OP_KEYS = SIMPLE_OP_KEYS> = Key extends 'in'
   ? { in: Primitive[] }
@@ -260,10 +265,10 @@ type WhereClause =
   | {
       $or: WhereClause[];
     }
-  | { $exists: ExistsFilter }
-  | { $notExists: ExistsFilter };
+  | { $exists: ExistsFilter<'WhereReq'> }
+  | { $notExists: ExistsFilter<'WhereReq'> };
 
-type Subquery<T extends 'WhereReq' | 'WhereNotReq' = 'WhereNotReq'> =
+type Subquery<T extends SubqueryWhereReq = 'WhereNotReq'> =
   (T extends 'WhereReq'
     ? { where: WhereClause }
     : {
@@ -281,6 +286,11 @@ type SelectQuery = {
   isDistinct?: boolean;
   alias?: string;
 };
+type SetOperationFilter = {
+  model: DBQuery;
+  alias?: string;
+  columns?: FindQueryAttributes;
+} & Subquery<'WhereNotReq'>;
 
 type WhereClauseKeys = '$and' | '$or' | string;
 
@@ -803,7 +813,7 @@ export class DBQuery {
         `DBQuery Model is required for subquery operator "${key}".`,
       );
     }
-    if (!rest.where) {
+    if (!rest.where && isExistsFilter) {
       throw new Error(
         `Where clause is required for subquery operator "${key}".`,
       );

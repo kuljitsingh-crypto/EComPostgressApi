@@ -70,10 +70,10 @@ BasketA.findAll({
     // a: { between: [1, 3], gte: 1 },
     a: {
       eq: {
-        ANY: { model: BasketB, column: 'b', where: { b: { gt: 2 } } },
+        ANY: { model: BasketB, column: 'b' },
       },
     },
-    fruit_a: 'Apple',
+    // fruit_a: 'Apple',
     // $and: [
     //   {
     //     $exists: {
@@ -95,7 +95,7 @@ BasketA.findAll({
     //   { fruit_a: { iStartsWith: 'a' } },
     // ],
     // fruit_a: { iStartsWith: 'a' },
-    // $notExists: {
+    // $exists: {
     //   model: BasketB,
     //   alias: 'b',
     //   where: { 'b.fruit_b': { iStartsWith: 'x' } },
