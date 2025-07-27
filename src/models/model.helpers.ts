@@ -519,6 +519,16 @@ const preparePlachldrForArray = (
   return placeholderArr;
 };
 
+const prepareQryForPrimitiveOp = (
+  preparedValues: PreparedValues,
+  key: string,
+  operation: string,
+  value: Primitive,
+) => {
+  const valPlaceholder = getPreparedValues(preparedValues, value);
+  return `${key} ${operation} ${valPlaceholder}`;
+};
+
 //============================================= HELPERS ===================================================//
 
 //============================================= DBQuery ===================================================//
@@ -833,17 +843,23 @@ export class DBQuery {
       filterStatements.push(dbKeywords.where);
     }
     const qry = attachArrayWithAndSep(
-      Object.entries(filter).map((filter) => {
-        return DBQuery.#getQueryStatement(
-          allowedFields,
-          filter,
-          preparedValues,
-          isHavingFilter,
-        );
-      }),
+      Object.entries(filter)
+        .map((filter) => {
+          return DBQuery.#getQueryStatement(
+            allowedFields,
+            filter,
+            preparedValues,
+            isHavingFilter,
+          );
+        })
+        .filter(Boolean),
     );
-    filterStatements.push(qry);
-    return attachArrayWithSpaceSep(filterStatements);
+    if (qry) {
+      filterStatements.push(qry);
+    }
+    return filterStatements.length > 1
+      ? attachArrayWithSpaceSep(filterStatements)
+      : '';
   }
 
   static #otherModelSubqueryBuilder<T extends InOperationSubQuery>(
@@ -1016,7 +1032,7 @@ export class DBQuery {
       isHavingFilter,
     );
 
-    const prepareQry = (entry: [string, FilterColumnValue], i: number) => {
+    const prepareQry = (entry: [string, FilterColumnValue]) => {
       const [op, val] = entry as [SIMPLE_OP_KEYS, FilterColumnValue];
       const operation = OP[op];
       if (!operation) {
@@ -1033,11 +1049,12 @@ export class DBQuery {
         case 'lt':
         case 'lte': {
           if (isPrimitiveValue(val as any)) {
-            const valPlaceholder = getPreparedValues(
+            return prepareQryForPrimitiveOp(
               preparedValues,
+              validKey,
+              operation,
               val as Primitive,
             );
-            return `${validKey} ${operation} ${valPlaceholder}`;
           }
           const { key, value } = getAnyAndAllFilterValue(val, op);
           const subQry = DBQuery.#buildQueryForSubQryOperator(
@@ -1055,11 +1072,12 @@ export class DBQuery {
         case 'notLike':
         case 'notILike': {
           checkPrimitiveValueForOp(op, val as any);
-          const valPlaceholder = getPreparedValues(
+          return prepareQryForPrimitiveOp(
             preparedValues,
+            validKey,
+            operation,
             val as Primitive,
           );
-          return `${validKey} ${operation} ${valPlaceholder}`;
         }
         case 'notNull':
         case 'isNull': {
@@ -1069,22 +1087,34 @@ export class DBQuery {
         case 'iStartsWith': {
           checkPrimitiveValueForOp(op, val as any);
           const valStr = `${val}%`;
-          const valPlaceholder = getPreparedValues(preparedValues, valStr);
-          return `${validKey} ${operation} ${valPlaceholder}`;
+          return prepareQryForPrimitiveOp(
+            preparedValues,
+            validKey,
+            operation,
+            valStr,
+          );
         }
         case 'endsWith':
         case 'iEndsWith': {
           checkPrimitiveValueForOp(op, val as any);
           const valStr = `%${val}`;
-          const valPlaceholder = getPreparedValues(preparedValues, valStr);
-          return `${validKey} ${operation} ${valPlaceholder}`;
+          return prepareQryForPrimitiveOp(
+            preparedValues,
+            validKey,
+            operation,
+            valStr,
+          );
         }
         case 'substring':
         case 'iSubstring': {
           checkPrimitiveValueForOp(op, val as any);
           const valStr = `%${val}%`;
-          const valPlaceholder = getPreparedValues(preparedValues, valStr);
-          return `${validKey} ${operation} ${valPlaceholder}`;
+          return prepareQryForPrimitiveOp(
+            preparedValues,
+            validKey,
+            operation,
+            valStr,
+          );
         }
         case 'in':
         case 'notIn': {

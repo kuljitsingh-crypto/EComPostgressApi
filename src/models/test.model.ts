@@ -68,12 +68,12 @@ BasketA.findAll({
   // },
   where: {
     // a: { between: [1, 3], gte: 1 },
-    a: {
-      // eq: {
-      //   ANY: { model: BasketB, column: 'b' },
-      // },
-      // in: { model: BasketB, column: 'b' },
-    },
+    // a: {
+    // eq: {
+    //   ANY: { model: BasketB, column: 'b' },
+    // },
+    // in: { model: BasketB, column: 'b' },
+    // },
     // a:{in:{}}
     // fruit_a: 'Apple',
     // $and: [
@@ -92,10 +92,11 @@ BasketA.findAll({
     //     },
     //   },
     // ],
-    // $or: [
-    //   { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
-    //   { fruit_a: { iStartsWith: 'a' } },
-    // ],
+    a: {},
+    $or: [
+      { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
+      { fruit_a: { iStartsWith: 'a' } },
+    ],
     // fruit_a: { iStartsWith: 'a' },
     // $exists: {
     //   model: BasketB,
