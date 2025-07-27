@@ -69,10 +69,12 @@ BasketA.findAll({
   where: {
     // a: { between: [1, 3], gte: 1 },
     a: {
-      eq: {
-        ANY: { model: BasketB, column: 'b' },
-      },
+      // eq: {
+      //   ANY: { model: BasketB, column: 'b' },
+      // },
+      // in: { model: BasketB, column: 'b' },
     },
+    // a:{in:{}}
     // fruit_a: 'Apple',
     // $and: [
     //   {
