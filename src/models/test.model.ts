@@ -4,6 +4,7 @@ export class BasketA extends DBModel {}
 
 export class BasketB extends DBModel {}
 export class BasketC extends DBModel {}
+export class BasketD extends DBModel {}
 
 BasketA.init(
   {
@@ -29,6 +30,14 @@ BasketC.init(
   { tableName: 'basket_c' },
 );
 
+BasketD.init(
+  {
+    d: { type: DataTypes.int, isPrimary: true },
+    fruit_d: { type: DataTypes.string(100), notNull: true },
+  },
+  { tableName: 'basket_d' },
+);
+
 // BasketA.createBulk(
 //   ['a', 'fruit_a'],
 //   [
@@ -51,8 +60,8 @@ BasketC.init(
 //   ],
 // );
 
-// BasketC.createBulk(
-//   ['c', 'fruit_c'],
+// BasketD.createBulk(
+//   ['d', 'fruit_d'],
 //   [
 //     [1, 'Apple'],
 //     [2, 'Orange'],
@@ -62,12 +71,12 @@ BasketC.init(
 // );
 
 BasketA.findAll({
-  // columns: { a: null },
+  columns: { a: null },
   // where: {
   //   fruit_a: { iStartsWith: 'a' },
   // },
   where: {
-    // a: { between: [1, 3], gte: 1 },
+    a: { between: [1, 3], gte: 1 },
     // a: {
     // eq: {
     //   ANY: { model: BasketB, column: 'b' },
@@ -92,11 +101,11 @@ BasketA.findAll({
     //     },
     //   },
     // ],
-    a: {},
-    $or: [
-      { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
-      { fruit_a: { iStartsWith: 'a' } },
-    ],
+    // a: {},
+    // $or: [
+    //   { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
+    //   { fruit_a: { iStartsWith: 'a' } },
+    // ],
     // fruit_a: { iStartsWith: 'a' },
     // $exists: {
     //   model: BasketB,
@@ -141,6 +150,17 @@ BasketA.findAll({
   // },
   // limit: 1,
   // offset: 1,
+  set: {
+    type: 'UNION',
+    model: BasketB,
+    columns: { b: null },
+    set: {
+      type: 'INTERSECT',
+      model: BasketC,
+      columns: { c: null },
+      set: { type: 'UNION_ALL', model: BasketD, columns: { d: null } },
+    },
+  },
 }).then((res) => {
   console.log(res);
 });

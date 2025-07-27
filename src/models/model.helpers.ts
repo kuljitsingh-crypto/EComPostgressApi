@@ -13,6 +13,12 @@ const tableJoin = {
   CROSS: 'INNER JOIN',
 } as const;
 
+const setOperation = {
+  UNION: 'UNION',
+  UNION_ALL: 'UNION ALL',
+  INTERSECT: 'INTERSECT',
+  EXCEPT: 'EXCEPT',
+} as const;
 const fieldFunctionName = {
   MIN: 'MIN',
   MAX: 'MAX',
@@ -292,13 +298,16 @@ type SelectQuery = {
   isDistinct?: boolean;
   alias?: string;
 };
+type SetQuery = { type: SetOperationType } & SetOperationFilter;
 type SetOperationFilter = {
   model: DBQuery;
   alias?: string;
-  columns?: FindQueryAttributes;
+  columns: FindQueryAttributes;
   orderBy?: ORDER_BY;
+  set?: SetQuery;
 } & Subquery<'WhereNotReq'>;
 
+type SetOperationType = keyof typeof setOperation;
 type WhereClauseKeys = '$and' | '$or' | string;
 
 type ForeignKeyActions =
@@ -330,6 +339,7 @@ type FindQueryAttributes = Record<string, null | string>;
 type QueryParams = SelectQuery &
   Subquery & {
     orderBy?: ORDER_BY;
+    set?: SetQuery;
   };
 
 //============================================= TYPES ======================================================//
@@ -539,7 +549,8 @@ export class DBQuery {
   static #groupByFields: Set<string> = new Set();
 
   static async findAll(queryParams?: QueryParams) {
-    const { columns, isDistinct, orderBy, alias, ...rest } = queryParams || {};
+    const { columns, isDistinct, orderBy, alias, set, ...rest } =
+      queryParams || {};
     const preparedValues: PreparedValues = { index: 0, values: [] };
     const allowedFields = DBQuery.#getAllowedFields(
       this.tableColumns,
@@ -561,7 +572,8 @@ export class DBQuery {
       rest,
       orderBy,
     );
-    const rawQry = `${selectQry} ${subQry}`;
+    const setQry = DBQuery.#prepareSetQuery(preparedValues, set);
+    const rawQry = `${selectQry} ${setQry} ${subQry}`;
     const findAllQuery = `${rawQry.trimEnd()};`;
     try {
       const result = await query(findAllQuery, preparedValues.values);
@@ -744,6 +756,49 @@ export class DBQuery {
     const colStr = DBQuery.#getSelectColumns(allowedFields, columns);
     const selectQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${tableName}"${tableAlias}`;
     return selectQry;
+  }
+
+  static #prepareSetQuery(preparedValues: PreparedValues, setQry?: SetQuery) {
+    if (!setQry) {
+      return '';
+    }
+    if (typeof setQry !== 'object' || setQry === null) {
+      throw new Error(`For Set Query Operation, value must be object.`);
+    }
+    if (!setQry.type || !setQry.model || !setQry.columns) {
+      throw new Error(
+        `Set Query Operation must contain at least "type", "model", and "columns" keys.`,
+      );
+    }
+    const { type, columns, model, orderBy, alias, set, ...rest } = setQry;
+    const queries: string[] = [setOperation[type]];
+    const tableName = (model as any).tableName;
+    const tableColumns = (model as any).tableColumns;
+    const allowedFields = DBQuery.#getAllowedFields(
+      tableColumns,
+      alias,
+      rest.join,
+    );
+    const selectQry = DBQuery.#prepareSelectQuery(tableName, allowedFields, {
+      columns,
+      alias,
+    });
+    const subQry = DBQuery.#prepareSubquery(
+      allowedFields,
+      preparedValues,
+      rest,
+      orderBy,
+    );
+    const setSubqry = DBQuery.#prepareSetQuery(preparedValues, set);
+    const rawQries = [selectQry, subQry, setSubqry].filter(Boolean);
+    let q;
+    if (rawQries.length > 1) {
+      q = `(${attachArrayWithSpaceSep(rawQries)})`;
+    } else {
+      q = attachArrayWithSpaceSep(rawQries);
+    }
+    queries.push(q);
+    return attachArrayWithSpaceSep(queries);
   }
 
   static #getSelectColumns(
