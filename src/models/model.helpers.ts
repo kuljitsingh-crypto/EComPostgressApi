@@ -302,7 +302,7 @@ type SetQuery = { type: SetOperationType } & SetOperationFilter;
 type SetOperationFilter = {
   model: DBQuery;
   alias?: string;
-  columns: FindQueryAttributes;
+  columns?: FindQueryAttributes;
   orderBy?: ORDER_BY;
   set?: SetQuery;
 } & Subquery<'WhereNotReq'>;
@@ -539,6 +539,26 @@ const prepareQryForPrimitiveOp = (
   return `${key} ${operation} ${valPlaceholder}`;
 };
 
+const prepareFinalFindQry = (
+  selectQry: string,
+  setQry?: string,
+  subQry?: string,
+) => {
+  const rowQueries: string[] = [];
+  if (setQry && subQry) {
+    const firstQry = `${dbKeywords.select} * ${dbKeywords.from} (${selectQry} ${setQry}) ${dbKeywords.as} results`;
+    rowQueries.push(firstQry);
+    rowQueries.push(subQry);
+  } else if (setQry && !subQry) {
+    rowQueries.push(selectQry);
+    rowQueries.push(setQry);
+  } else if (!setQry && subQry) {
+    rowQueries.push(selectQry);
+    rowQueries.push(subQry);
+  }
+  return attachArrayWithSpaceSep(rowQueries);
+};
+
 //============================================= HELPERS ===================================================//
 
 //============================================= DBQuery ===================================================//
@@ -573,8 +593,7 @@ export class DBQuery {
       orderBy,
     );
     const setQry = DBQuery.#prepareSetQuery(preparedValues, set);
-    const rawQry = `${selectQry} ${setQry} ${subQry}`;
-    const findAllQuery = `${rawQry.trimEnd()};`;
+    const findAllQuery = prepareFinalFindQry(selectQry, setQry, subQry);
     try {
       const result = await query(findAllQuery, preparedValues.values);
       return { rows: result.rows, count: result.rowCount };
@@ -765,7 +784,7 @@ export class DBQuery {
     if (typeof setQry !== 'object' || setQry === null) {
       throw new Error(`For Set Query Operation, value must be object.`);
     }
-    if (!setQry.type || !setQry.model || !setQry.columns) {
+    if (!setQry.type || !setQry.model) {
       throw new Error(
         `Set Query Operation must contain at least "type", "model", and "columns" keys.`,
       );

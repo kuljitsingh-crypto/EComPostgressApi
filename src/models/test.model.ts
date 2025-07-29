@@ -71,12 +71,14 @@ BasketD.init(
 // );
 
 BasketA.findAll({
-  columns: { a: null },
+  // columns: { a: null },
   // where: {
   //   fruit_a: { iStartsWith: 'a' },
   // },
   where: {
-    a: { between: [1, 3], gte: 1 },
+    // a: { between: [1, 3], gte: 1 },
+    // where: { a: { gt: 1 } },
+    // a: { gt: 1 },
     // a: {
     // eq: {
     //   ANY: { model: BasketB, column: 'b' },
@@ -151,14 +153,22 @@ BasketA.findAll({
   // limit: 1,
   // offset: 1,
   set: {
-    type: 'UNION',
+    type: 'EXCEPT',
     model: BasketB,
-    columns: { b: null },
+    // columns: { b: null },
+    where: { b: 1 },
+
     set: {
-      type: 'INTERSECT',
+      type: 'UNION',
       model: BasketC,
-      columns: { c: null },
-      set: { type: 'UNION_ALL', model: BasketD, columns: { d: null } },
+      // where: { c: 1 },
+      // columns: { c: null },
+
+      // set: {
+      //   type: 'UNION_ALL',
+      //   model: BasketD,
+      //   columns: { d: null },
+      // },
     },
   },
 }).then((res) => {
