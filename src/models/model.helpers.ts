@@ -296,12 +296,13 @@ type Subquery<T extends SubqueryWhereReq = 'WhereNotReq'> =
 type SelectQuery = {
   columns?: FindQueryAttributes;
   isDistinct?: boolean;
-  alias?: string;
+  alias?: AliasSubType;
 };
 type SetQuery = { type: SetOperationType } & SetOperationFilter;
+type AliasSubType = string | ({ as: string } & SetOperationFilter);
 type SetOperationFilter = {
   model: DBQuery;
-  alias?: string;
+  alias?: AliasSubType;
   columns?: FindQueryAttributes;
   orderBy?: ORDER_BY;
   set?: SetQuery;
@@ -418,7 +419,9 @@ const FieldQuote = (allowedFields: Set<string>, str: string) => {
   return quote(str);
 };
 
-const aliasFieldNames = (names: Set<string>, alias?: string) => {
+const aliasFieldNames = (names: Set<string>, alias?: AliasSubType) => {
+  alias =
+    typeof alias === 'object' && alias !== null && alias.as ? alias.as : alias;
   if (!alias) return [];
   return Array.from(names).map((name) => `${alias}.${name}`);
 };
@@ -1307,7 +1310,7 @@ export class DBQuery {
 
   static #getAllowedFields(
     selfAllowedFields: Set<string>,
-    alias?: string,
+    alias?: AliasSubType,
     include?: TABLE_JOIN[],
   ) {
     const modelFields: string[] = [
