@@ -299,7 +299,10 @@ type SelectQuery = {
   alias?: AliasSubType;
 };
 type SetQuery = { type: SetOperationType } & SetOperationFilter;
-type AliasSubType = string | ({ as: string } & SetOperationFilter);
+type AliasFilter = SetOperationFilter & {
+  isDistinct?: boolean;
+};
+type AliasSubType = string | ({ as?: string } & AliasFilter);
 type SetOperationFilter = {
   model: DBQuery;
   alias?: AliasSubType;
@@ -347,7 +350,7 @@ type QueryParams = SelectQuery &
 
 //============================================= HELPERS ===================================================//
 
-const isPrimitiveValue = (value: Primitive) => {
+const isPrimitiveValue = (value: Primitive | undefined) => {
   return (
     typeof value === 'string' ||
     typeof value === 'number' ||
@@ -385,7 +388,9 @@ const fieldFunctionCreator = (
   const func = fieldFunctionName[functionName];
   if (!func) {
     throw new Error(
-      `Invalid function name "${functionName}". Valid functions are: ${attachArrayWithComaAndSpaceSep(Object.keys(fieldFunctionName))}.`,
+      `Invalid function name "${functionName}". Valid functions are: ${attachArrayWithComaAndSpaceSep(
+        Object.keys(fieldFunctionName),
+      )}.`,
     );
   }
   const aliasMaybe = alias ? ` ${alias}` : '';
@@ -396,7 +401,9 @@ const fieldFunc = (fn: FieldFunctionType, column: string) => {
   const func = fieldFunctionName[fn];
   if (!func) {
     throw new Error(
-      `Invalid function name "${fn}". Valid functions are: ${attachArrayWithComaAndSpaceSep(Object.keys(fieldFunctionName))}.`,
+      `Invalid function name "${fn}". Valid functions are: ${attachArrayWithComaAndSpaceSep(
+        Object.keys(fieldFunctionName),
+      )}.`,
     );
   }
   return fnJoiner.joinFnAndColumn(func, column);
@@ -419,9 +426,16 @@ const FieldQuote = (allowedFields: Set<string>, str: string) => {
   return quote(str);
 };
 
+const getAliasName = (alias?: AliasSubType): string | undefined => {
+  const aliasStr =
+    typeof alias === 'object' && alias !== null && alias.as
+      ? alias.as
+      : (alias as string);
+  return aliasStr;
+};
+
 const aliasFieldNames = (names: Set<string>, alias?: AliasSubType) => {
-  alias =
-    typeof alias === 'object' && alias !== null && alias.as ? alias.as : alias;
+  alias = getAliasName(alias);
   if (!alias) return [];
   return Array.from(names).map((name) => `${alias}.${name}`);
 };
@@ -444,7 +458,10 @@ const joinTableCond = (cond: JOIN_COND, allowedFields: Set<string>) =>
   attachArrayWithAndSep(
     Object.entries(cond).map(
       ([baseColumn, joinColumn]) =>
-        `${FieldQuote(allowedFields, baseColumn)} ${OP.eq} ${FieldQuote(allowedFields, joinColumn)}`,
+        `${FieldQuote(allowedFields, baseColumn)} ${OP.eq} ${FieldQuote(
+          allowedFields,
+          joinColumn,
+        )}`,
     ),
   );
 
@@ -558,6 +575,8 @@ const prepareFinalFindQry = (
   } else if (!setQry && subQry) {
     rowQueries.push(selectQry);
     rowQueries.push(subQry);
+  } else {
+    rowQueries.push(selectQry);
   }
   return attachArrayWithSpaceSep(rowQueries);
 };
@@ -583,6 +602,7 @@ export class DBQuery {
     const selectQry = DBQuery.#prepareSelectQuery(
       this.tableName,
       allowedFields,
+      preparedValues,
       {
         columns,
         isDistinct,
@@ -770,14 +790,77 @@ export class DBQuery {
   static #prepareSelectQuery(
     tableName: string,
     allowedFields: Set<string>,
+    preparedValues: PreparedValues,
     selectQuery: SelectQuery,
   ) {
     const { isDistinct, columns, alias } = selectQuery;
-    const tableAlias = alias ? ` ${dbKeywords.as} ${alias}` : '';
-    const distinctMaybe = isDistinct ? `${dbKeywords.distinct} ` : '';
+    const distinctMaybe = isDistinct ? `${dbKeywords.distinct}` : '';
     const colStr = DBQuery.#getSelectColumns(allowedFields, columns);
-    const selectQry = `${dbKeywords.select} ${distinctMaybe}${colStr} ${dbKeywords.from} "${tableName}"${tableAlias}`;
+    const tableAlias = DBQuery.#prepareAliasSubQuery(
+      tableName,
+      allowedFields,
+      preparedValues,
+      alias,
+    );
+    const queries = [
+      dbKeywords.select,
+      distinctMaybe,
+      colStr,
+      dbKeywords.from,
+      tableAlias,
+    ].filter(Boolean);
+    const selectQry = attachArrayWithSpaceSep(queries);
     return selectQry;
+  }
+
+  static #prepareAliasSubQuery(
+    tableName: string,
+    allowedFields: Set<string>,
+    preparedValues: PreparedValues,
+    alias?: AliasSubType,
+  ): string {
+    const aliasStr = getAliasName(alias);
+    const isPrimitiveAlias =
+      isPrimitiveValue(alias as any) || typeof aliasStr === 'undefined';
+    if (isPrimitiveAlias) {
+      if (!aliasStr) {
+        return tableName;
+      }
+      return attachArrayWithSpaceSep([tableName, dbKeywords.as, aliasStr]);
+    }
+    const {
+      model,
+      columns,
+      alias: as,
+      orderBy,
+      set,
+      isDistinct,
+      ...rest
+    } = alias as AliasFilter;
+    const tablName = (model as any).tableName;
+    const selectQry = DBQuery.#prepareSelectQuery(
+      tablName,
+      allowedFields,
+      preparedValues,
+      {
+        columns,
+        isDistinct,
+        alias: as,
+      },
+    );
+    const subQry = DBQuery.#prepareSubquery(
+      allowedFields,
+      preparedValues,
+      rest,
+      orderBy,
+    );
+    const setQry = DBQuery.#prepareSetQuery(preparedValues, set);
+    const findAllQuery = `( ${prepareFinalFindQry(selectQry, setQry, subQry)} )`;
+    const queries = [findAllQuery];
+    if (aliasStr) {
+      queries.push(dbKeywords.as, aliasStr);
+    }
+    return attachArrayWithSpaceSep(queries);
   }
 
   static #prepareSetQuery(preparedValues: PreparedValues, setQry?: SetQuery) {
@@ -801,10 +884,15 @@ export class DBQuery {
       alias,
       rest.join,
     );
-    const selectQry = DBQuery.#prepareSelectQuery(tableName, allowedFields, {
-      columns,
-      alias,
-    });
+    const selectQry = DBQuery.#prepareSelectQuery(
+      tableName,
+      allowedFields,
+      preparedValues,
+      {
+        columns,
+        alias,
+      },
+    );
     const subQry = DBQuery.#prepareSubquery(
       allowedFields,
       preparedValues,
@@ -973,6 +1061,7 @@ export class DBQuery {
     const selectQry = DBQuery.#prepareSelectQuery(
       tableName,
       subQryAllowedFields,
+      preparedValues,
       selectQuery,
     );
     const subquery = DBQuery.#prepareSubquery(
@@ -1077,7 +1166,9 @@ export class DBQuery {
       const placeholders = preparePlachldrForArray(value, preparedValues);
       const dataType = getArrayDataType(value);
       const arrayQry = isArrayKeywordReq
-        ? ` (${arrayKeyword}[${attachArrayWithComaSep(placeholders)}]::${dataType}[])`
+        ? ` (${arrayKeyword}[${attachArrayWithComaSep(
+            placeholders,
+          )}]::${dataType}[])`
         : `(${attachArrayWithComaSep(placeholders)})`;
       return `${key} ${baseOperation} ${subQryOperation}${arrayQry}`;
     }
@@ -1280,7 +1371,11 @@ export class DBQuery {
         }
         default:
           throw new Error(
-            `Invalid join type:"${(include as any).type}". Valid join types:${attachArrayWithComaSep(Object.keys(tableJoin))}.`,
+            `Invalid join type:"${
+              (include as any).type
+            }". Valid join types:${attachArrayWithComaSep(
+              Object.keys(tableJoin),
+            )}.`,
           );
       }
     });
@@ -1294,7 +1389,9 @@ export class DBQuery {
     const joinName = tableJoin[type];
     if (!joinName) {
       throw new Error(
-        `Invalid join type:"${type}". Valid join types:${attachArrayWithComaSep(Object.keys(tableJoin))}.`,
+        `Invalid join type:"${type}". Valid join types:${attachArrayWithComaSep(
+          Object.keys(tableJoin),
+        )}.`,
       );
     }
     if (!name && !model) {
@@ -1368,7 +1465,9 @@ export class DBModel extends DBQuery {
       columns.push(DBModel.#createForeignColumn(key, ref));
     });
     const createEnumQryPromise = Promise.all(enums.map((e) => query(e)));
-    const createTableQry = `CREATE TABLE IF NOT EXISTS "${tableName}" (${attachArrayWithComaSep(columns)});`;
+    const createTableQry = `CREATE TABLE IF NOT EXISTS "${tableName}" (${attachArrayWithComaSep(
+      columns,
+    )});`;
     createEnumQryPromise.then(() => query(createTableQry));
   }
 

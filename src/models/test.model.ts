@@ -75,10 +75,11 @@ BasketA.findAll({
   // where: {
   //   fruit_a: { iStartsWith: 'a' },
   // },
+  alias: { as: 'ac', model: BasketB },
   where: {
     // a: { between: [1, 3], gte: 1 },
     // where: { a: { gt: 1 } },
-    a: { gt: 1 },
+    b: { gt: 1 },
     // a: {
     // eq: {
     //   ANY: { model: BasketB, column: 'b' },
@@ -152,26 +153,26 @@ BasketA.findAll({
   // },
   // limit: 1,
   // offset: 1,
-  set: {
-    type: 'EXCEPT',
-    model: BasketB,
-    // columns: { b: null },
-    // where: { b: 1 },
+  // set: {
+  //   type: 'EXCEPT',
+  //   model: BasketB,
+  //   // columns: { b: null },
+  //   // where: { b: 1 },
 
-    set: {
-      type: 'UNION',
-      model: BasketC,
-      where: { c: 1 },
-      // columns: { c: null },
+  //   set: {
+  //     type: 'UNION',
+  //     model: BasketC,
+  //     where: { c: 1 },
+  //     // columns: { c: null },
 
-      set: {
-        type: 'UNION_ALL',
-        model: BasketD,
-        // where: { d: 1 },
-        // columns: { d: null },
-      },
-    },
-  },
+  //     set: {
+  //       type: 'UNION_ALL',
+  //       model: BasketD,
+  //       // where: { d: 1 },
+  //       // columns: { d: null },
+  //     },
+  //   },
+  // },
 }).then((res) => {
   console.log(res);
 });
