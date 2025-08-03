@@ -26,6 +26,10 @@ export const OP = {
   $and: 'AND',
   $or: 'OR',
 } as const;
+
+export const conditionalOperator = new Set(['$or', '$and'] as const);
+export const subqueryOperator = new Set(['$exists', '$notExists'] as const);
+
 export const validOperations = Object.keys(OP).join(', ');
 
 export type OP_KEYS = keyof typeof OP;

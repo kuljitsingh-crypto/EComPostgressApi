@@ -77,10 +77,7 @@ export const prepareColumnForHavingClause = (
     }
     validKey = FieldQuote(allowedFields, k);
     if (fn) {
-      validKey = fieldFunctionCreator(
-        validKey,
-        fn as FieldFunctionType,
-      ) as string;
+      validKey = fieldFunctionCreator(validKey, fn as FieldFunctionType);
     }
   } else {
     validKey = FieldQuote(allowedFields, key);

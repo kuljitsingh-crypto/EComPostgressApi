@@ -3,9 +3,11 @@ import { DB_KEYWORDS, DB_KEYWORDS_TYPE } from './constants/dbkeywords';
 import { FieldFunctionType } from './constants/fieldFunctions';
 import { ReferenceTable } from './constants/foreignkeyActions';
 import {
+  conditionalOperator,
   OP,
   OP_KEYS,
   SIMPLE_OP_KEYS,
+  subqueryOperator,
   validOperations,
 } from './constants/operators';
 import { setOperation } from './constants/setOperations';
@@ -33,6 +35,7 @@ import {
   WhereClause,
   WhereClauseKeys,
 } from './internalTypes';
+import { errorHandler, throwError } from './methods/errorHelper';
 import {
   attachArrayWith,
   fieldFunctionCreator,
@@ -84,9 +87,6 @@ export const dbDefaultValue = {
   uuidV4: 'gen_random_uuid()',
 };
 
-const conditionalOperator = new Set(['$or', '$and'] as const);
-const subqueryOperator = new Set(['$exists', '$notExists'] as const);
-
 //============================================= CONSTANTS ===================================================//
 
 //============================================= TYPES ======================================================//
@@ -115,12 +115,6 @@ const isPrimitiveValue = (value: Primitive | undefined) => {
     typeof value === 'undefined' ||
     value === null
   );
-};
-
-const errorHandler = (query: string, error: Error) => {
-  const msg = `Error executing query: "${query}". Error: ${error.message}`;
-  const err = new Error(msg);
-  throw err;
 };
 
 const getAliasName = <Model>(alias?: AliasSubType<Model>): string | null => {
@@ -201,7 +195,7 @@ const getArrayDataType = (value: Primitive[]) => {
   } else if (typeof firstValue === 'boolean') {
     return DataTypes.boolean;
   } else {
-    throw new Error(`Unsupported data type for array: ${typeof firstValue}`);
+    return throwError.invalidDataType(firstValue);
   }
 };
 
@@ -683,10 +677,7 @@ export class DBQuery {
           );
         }
         if (fn) {
-          validCol = fieldFunctionCreator(
-            validCol,
-            fn as FieldFunctionType,
-          ) as string;
+          validCol = fieldFunctionCreator(validCol, fn as FieldFunctionType);
         }
         if (value === null) {
           return validCol;
