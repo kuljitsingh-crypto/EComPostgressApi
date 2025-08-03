@@ -1,8 +1,5 @@
-import {
-  aggregateFn,
-  DataTypes,
-  DBModel,
-} from '../PgQueryBuilder/model.helpers';
+import { PG_DATA_TYPE } from '../PgQueryBuilder';
+import { DBModel } from '../PgQueryBuilder/model.helpers';
 
 export class BasketA extends DBModel {}
 
@@ -12,32 +9,32 @@ export class BasketD extends DBModel {}
 
 BasketA.init(
   {
-    a: { type: DataTypes.int, isPrimary: true },
-    fruit_a: { type: DataTypes.string(100), notNull: true },
+    a: { type: PG_DATA_TYPE.int, isPrimary: true },
+    fruit_a: { type: PG_DATA_TYPE.string(100), notNull: true },
   },
   { tableName: 'basket_a' },
 );
 
 BasketB.init(
   {
-    b: { type: DataTypes.int, isPrimary: true },
-    fruit_b: { type: DataTypes.string(100), notNull: true },
+    b: { type: PG_DATA_TYPE.int, isPrimary: true },
+    fruit_b: { type: PG_DATA_TYPE.string(100), notNull: true },
   },
   { tableName: 'basket_b' },
 );
 
 BasketC.init(
   {
-    c: { type: DataTypes.int, isPrimary: true },
-    fruit_c: { type: DataTypes.string(100), notNull: true },
+    c: { type: PG_DATA_TYPE.int, isPrimary: true },
+    fruit_c: { type: PG_DATA_TYPE.string(100), notNull: true },
   },
   { tableName: 'basket_c' },
 );
 
 BasketD.init(
   {
-    d: { type: DataTypes.int, isPrimary: true },
-    fruit_d: { type: DataTypes.string(100), notNull: true },
+    d: { type: PG_DATA_TYPE.int, isPrimary: true },
+    fruit_d: { type: PG_DATA_TYPE.string(100), notNull: true },
   },
   { tableName: 'basket_d' },
 );

@@ -21,6 +21,16 @@ const attachArrayWithAndSep = (array: Array<Primitive>) =>
 const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
   attachArrayWithSep(array, ', ');
 
+const fieldFunc = (fn: FieldFunctionType, column: string) => {
+  const func = fieldFunctionName[fn];
+  if (!func) {
+    return throwError.invalidAggFuncType(fn, Object.keys(fieldFunctionName));
+  }
+  return fnJoiner.joinFnAndColumn(func, column);
+};
+
+//=================== export functions ======================//
+
 export const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
 
 export const fieldFunctionCreator = (
@@ -35,16 +45,6 @@ export const fieldFunctionCreator = (
   const aliasMaybe = alias ? ` ${alias}` : '';
   return `${func}(${field})${aliasMaybe}`;
 };
-
-const fieldFunc = (fn: FieldFunctionType, column: string) => {
-  const func = fieldFunctionName[fn];
-  if (!func) {
-    return throwError.invalidAggFuncType(fn, Object.keys(fieldFunctionName));
-  }
-  return fnJoiner.joinFnAndColumn(func, column);
-};
-
-//=================== export functions ======================//
 
 export const validateField = (field: string, allowed: Set<string>) => {
   if (!allowed.has(field)) {

@@ -1,28 +1,25 @@
 import CurrentUser from './currentUser.model';
-import {
-  DataTypes,
-  dbDefaultValue,
-  DBModel,
-} from '../PgQueryBuilder/model.helpers';
+import { DBModel } from '../PgQueryBuilder/model.helpers';
 import { modelTypes, roleType } from './modelConstants';
+import { PG_DATA_TYPE, PG_DEFAULT_VALUE } from '../PgQueryBuilder';
 
 class Role extends DBModel {}
 Role.init(
   {
     id: {
-      type: DataTypes.uuid,
-      defaultValue: dbDefaultValue.uuidV4,
+      type: PG_DATA_TYPE.uuid,
+      defaultValue: PG_DEFAULT_VALUE.uuidV4,
       isPrimary: true,
     },
     type: {
-      type: DataTypes.string(255),
+      type: PG_DATA_TYPE.string(255),
       customDefaultValue: modelTypes.role,
     },
     userRole: {
-      type: DataTypes.enum(Object.values(roleType)),
+      type: PG_DATA_TYPE.enum(Object.values(roleType)),
     },
     roleId: {
-      type: DataTypes.uuid,
+      type: PG_DATA_TYPE.uuid,
     },
   },
   {

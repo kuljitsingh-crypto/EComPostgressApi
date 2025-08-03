@@ -1,4 +1,5 @@
 import { query } from '../models/db.config';
+import { PG_DATA_TYPE } from './constants/dataTypes';
 import { DB_KEYWORDS, DB_KEYWORDS_TYPE } from './constants/dbkeywords';
 import { FieldFunctionType } from './constants/fieldFunctions';
 import { ReferenceTable } from './constants/foreignkeyActions';
@@ -49,43 +50,6 @@ import { TableJoin } from './methods/tableJoin';
 //============================================= CONSTANTS ===================================================//
 const enumQryPrefix = `DO $$ BEGIN CREATE TYPE`;
 const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
-
-export const DataTypes = {
-  boolean: 'BOOLEAN',
-  true: 'TRUE',
-  false: 'FALSE',
-  text: 'TEXT',
-  float: 'DOUBLE PRECISION',
-  real: 'REAL',
-  smallInt: 'SMALLINT',
-  int: 'INTEGER',
-  bigInt: 'BIGINT',
-  serial: 'SERIAL',
-  date: 'DATE',
-  timestamp: 'TIMESTAMP',
-  timestamptz: 'TIMESTAMPTZ',
-  time: 'TIME',
-  json: 'JSON',
-  jsonb: 'JSONB',
-  uuid: 'UUID',
-  string(n: number) {
-    return `VARCHAR(${n})`;
-  },
-  numeric(precision: number, scale = 0) {
-    return `NUMERIC(${precision}, ${scale})`;
-  },
-  enum(values: string[]) {
-    const valueStr = attachArrayWith.coma(values.map((v) => `'${v}'`));
-    return `ENUM(${valueStr})`;
-  },
-};
-
-export const dbDefaultValue = {
-  currentDate: 'CURRENT_DATE',
-  currentTimestamp: 'CURRENT_TIMESTAMP',
-  currentTime: 'CURRENT_TIME',
-  uuidV4: 'gen_random_uuid()',
-};
 
 //============================================= CONSTANTS ===================================================//
 
@@ -177,11 +141,11 @@ const getPreparedValues = (
 const getArrayDataType = (value: Primitive[]) => {
   const firstValue = value[0];
   if (typeof firstValue === 'number') {
-    return DataTypes.int;
+    return PG_DATA_TYPE.int;
   } else if (typeof firstValue === 'string') {
-    return DataTypes.text;
+    return PG_DATA_TYPE.text;
   } else if (typeof firstValue === 'boolean') {
-    return DataTypes.boolean;
+    return PG_DATA_TYPE.boolean;
   } else {
     return throwError.invalidDataType(firstValue);
   }
