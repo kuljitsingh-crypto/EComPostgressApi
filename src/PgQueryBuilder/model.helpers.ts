@@ -201,16 +201,12 @@ const getArrayDataType = (value: Primitive[]) => {
 
 const getAnyAndAllFilterValue = (val: any, op: string) => {
   if (typeof val !== 'object' || val === null) {
-    throw new Error(
-      `For operator "${op}" with ANY/ALL, value must be an object containing "${DB_KEYWORDS.any}" or "${DB_KEYWORDS.all}" property.`,
-    );
+    return throwError.invalidAnyAllOpType(op);
   }
   const hasAny = (val as any).hasOwnProperty(DB_KEYWORDS.any);
   const hasAll = (val as any).hasOwnProperty(DB_KEYWORDS.all);
   if (!hasAny && !hasAll) {
-    throw new Error(
-      `For subquery operations, value must contain "${DB_KEYWORDS.any}" or "${DB_KEYWORDS.all}" property`,
-    );
+    return throwError.invalidAnySubQType();
   }
   const subqueryKeyword = hasAll ? DB_KEYWORDS.all : DB_KEYWORDS.any;
   const subqueryVal: Array<Primitive> | SubQueryFilter = (val as any)[
@@ -222,7 +218,7 @@ const getAnyAndAllFilterValue = (val: any, op: string) => {
 
 const checkPrimitiveValueForOp = (op: string, value: Primitive) => {
   if (!isPrimitiveValue(value)) {
-    throw new Error(`For operator "${op}" value should be a primitive type.`);
+    return throwError.invalidOPDataType(op);
   }
 };
 
@@ -276,18 +272,16 @@ const getAliasSubqueryModel = <Model>(
     typeof alias === 'undefined' ||
     alias === null
   ) {
-    throw new Error('Alias must be object with appropriate fields.');
+    return throwError.invalidAliasType();
   }
   if (!alias.query) {
-    throw new Error(
-      'To use subquery in alias, alias must has "query" field with appropriate value.',
-    );
+    return throwError.invalidAliasType(true);
   }
   if (alias.query && alias.query.alias) {
     return getAliasSubqueryModel(alias.query.alias);
   }
   if (!alias.query.model) {
-    throw new Error('DBQuery Model is required for alias subquery.');
+    throwError.invalidModelType();
   }
   return alias.query.model as any;
 };

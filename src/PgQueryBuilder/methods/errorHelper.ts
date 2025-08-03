@@ -1,3 +1,4 @@
+import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { TABLE_JOIN } from '../constants/tableJoin';
 import { attachArrayWith } from './helperFunction';
 
@@ -26,11 +27,38 @@ function throwInvalidDataTypeError(type: any): never {
   throw new Error(`Unsupported data type for array: ${typeof type}`);
 }
 
+function throwInvalidAnyOpTypeError(op: string): never {
+  throw new Error(
+    `For operator "${op}" with ANY/ALL, value must be an object containing "${DB_KEYWORDS.any}" or "${DB_KEYWORDS.all}" property.`,
+  );
+}
+
+function throwInvalidAnySubQTypeError(): never {
+  throw new Error(
+    `For subquery operations, value must contain "${DB_KEYWORDS.any}" or "${DB_KEYWORDS.all}" property`,
+  );
+}
+
+function throwInvalidPrimitiveDataTypeError(op: string): never {
+  throw new Error(`For operator "${op}" value should be a primitive type.`);
+}
+
+function throwInvalidAliasFormatError(invalidSubQuery = false): never {
+  const msg = invalidSubQuery
+    ? 'To use subquery in alias, alias must has "query" field with appropriate value.'
+    : 'Alias must be object with appropriate fields.';
+  throw new Error(msg);
+}
+
 export const throwError = {
   invalidJoinType: throwInvalidJoinTypeError,
   invalidModelType: throwInvalidModelTypeError,
   invalidAggFuncType: throwInvalidAggFuncTypeError,
   invalidDataType: throwInvalidDataTypeError,
+  invalidAnyAllOpType: throwInvalidAnyOpTypeError,
+  invalidAnySubQType: throwInvalidAnySubQTypeError,
+  invalidOPDataType: throwInvalidPrimitiveDataTypeError,
+  invalidAliasType: throwInvalidAliasFormatError,
 };
 
 export const errorHandler = (query: string, error: Error) => {
