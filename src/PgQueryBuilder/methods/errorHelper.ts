@@ -80,6 +80,7 @@ function throwInvalidOrderOptionError(key: string): never {
 function throwInvalidWhereClauseError(key: string): never {
   throw new Error(`Where clause is required for subquery operator "${key}".`);
 }
+
 function throwInvalidArrayOpTypeError(
   key: string,
   options?: {
@@ -124,6 +125,37 @@ function throwInvalidPrimaryColumnError(tableName: string): never {
   );
 }
 
+function throwInvalidColumnNameError(
+  field: string,
+  allowedNames: Set<string>,
+): never {
+  const allowed = attachArrayWith.comaAndSpace(Array.from(allowedNames));
+  throw new Error(
+    `Invalid column name ${field}. Allowed Column names are: ${allowed}.`,
+  );
+}
+
+function throwInvalidColumnNameLenError(
+  field: string,
+  options: { min: number; max: number },
+): never {
+  throw new Error(
+    `Invalid column name ${field}. Column name should be within ${options.min} - ${options.max} characters.`,
+  );
+}
+
+function throwInvalidColumnNameRegexError(field: string): never {
+  throw new Error(
+    `Invalid column name ${field}. Column name must contain only letters (a-z, A-Z), numbers (0-9), or underscores (_) and must begin with a letter or underscore.`,
+  );
+}
+
+function throwInvalidColumnNameForGrpError(field: string): never {
+  throw new Error(
+    `Invalid column "${field}" for HAVING clause. Column should be part of GROUP BY or an aggregate function.`,
+  );
+}
+
 export const throwError = {
   invalidJoinType: throwInvalidJoinTypeError,
   invalidModelType: throwInvalidModelTypeError,
@@ -142,6 +174,10 @@ export const throwError = {
   invalidObjectOPType: throwInvalidObjectOpError,
   invalidOperatorType: throwInvalidOperatorTypeError,
   invalidPrimaryColType: throwInvalidPrimaryColumnError,
+  invalidColumnNameType: throwInvalidColumnNameError,
+  invalidGrpColumnNameType: throwInvalidColumnNameForGrpError,
+  invalidColNameLenType: throwInvalidColumnNameLenError,
+  invalidColumnNameRegexType: throwInvalidColumnNameRegexError,
 };
 
 export const errorHandler = (query: string, error: Error) => {

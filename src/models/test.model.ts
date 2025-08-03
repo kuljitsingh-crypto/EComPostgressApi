@@ -1,5 +1,4 @@
-import { PG_DATA_TYPE } from '../PgQueryBuilder';
-import { DBModel } from '../PgQueryBuilder/model.helpers';
+import { PG_DATA_TYPE, DBModel } from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
 

@@ -6,6 +6,10 @@ import { OP } from '../constants/operators';
 import { Primitive } from '../globalTypes';
 import { throwError } from './errorHelper';
 
+const MIN_COLUMN_LENGTH = 1;
+const MAX_COLUMN_LENGTH = 63;
+const validColumnNameRegex = /^[a-zA-Z_][a-zA-Z0-9_$]*$/;
+
 const attachArrayWithSep = (array: Array<Primitive>, sep: string) =>
   array.join(sep);
 
@@ -29,9 +33,25 @@ const fieldFunc = (fn: FieldFunctionType, column: string) => {
   return fnJoiner.joinFnAndColumn(func, column);
 };
 
-//=================== export functions ======================//
+const validateField = (field: string, allowed: Set<string>) => {
+  field = field.trim();
+  if (field.length < MIN_COLUMN_LENGTH || field.length > MAX_COLUMN_LENGTH) {
+    return throwError.invalidColNameLenType(field, {
+      min: MIN_COLUMN_LENGTH,
+      max: MAX_COLUMN_LENGTH,
+    });
+  }
+  if (!validColumnNameRegex.test(field)) {
+    return throwError.invalidColumnNameRegexType(field);
+  }
+  if (!allowed.has(field)) {
+    return throwError.invalidColumnNameType(field, allowed);
+  }
 
-export const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
+  return field;
+};
+
+//=================== export functions ======================//
 
 export const fieldFunctionCreator = (
   field: string,
@@ -46,18 +66,10 @@ export const fieldFunctionCreator = (
   return `${func}(${field})${aliasMaybe}`;
 };
 
-export const validateField = (field: string, allowed: Set<string>) => {
-  if (!allowed.has(field)) {
-    throw new Error(
-      `Invalid column name ${field}. Allowed Column names are: ${attachArrayWithComaAndSpaceSep(
-        Array.from(allowed),
-      )}.`,
-    );
-  }
-};
+export const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
 
 export const FieldQuote = (allowedFields: Set<string>, str: string) => {
-  validateField(str, allowedFields);
+  str = validateField(str, allowedFields);
   return quote(str);
 };
 
@@ -71,9 +83,7 @@ export const prepareColumnForHavingClause = (
   if (isHavingFilter) {
     const [k, fn] = fnJoiner.sepFnAndColumn(key);
     if (!fn && !groupByFields.has(k)) {
-      throw new Error(
-        `Invalid column "${k}" for HAVING clause. Column should be part of GROUP BY or an aggregate function.`,
-      );
+      return throwError.invalidGrpColumnNameType(k);
     }
     validKey = FieldQuote(allowedFields, k);
     if (fn) {
