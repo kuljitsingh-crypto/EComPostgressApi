@@ -16,7 +16,7 @@ import {
   TABLE_JOIN_COND,
   TABLE_JOIN_TYPE,
 } from './constants/tableJoin';
-import { Primitive } from './globalTypes';
+import { Primitive, Table, TableValues } from './globalTypes';
 import {
   AliasFilter,
   AliasSubType,
@@ -90,18 +90,6 @@ export const dbDefaultValue = {
 //============================================= CONSTANTS ===================================================//
 
 //============================================= TYPES ======================================================//
-
-export type DbTable = {
-  [key in string]: {
-    type: string;
-    isPrimary?: boolean;
-    defaultValue?: string;
-    unique?: boolean;
-    notNull?: boolean;
-    customDefaultValue?: string;
-    check?: string;
-  };
-};
 
 //============================================= TYPES ======================================================//
 
@@ -402,8 +390,10 @@ export class DBQuery {
     let incrementBy = 1;
     const valuePlaceholder = values.map((val, pIndex) => {
       if (val.length !== columns.length) {
-        throw new Error(
-          `Invalid value length at index ${pIndex}. Expected ${columns.length} values, but got ${val.length}.`,
+        return throwError.invalidColumnLenType(
+          pIndex,
+          columns.length,
+          val.length,
         );
       }
       if (pIndex > 0) {
@@ -584,9 +574,7 @@ export class DBQuery {
       return attachArrayWith.space([tableName, DB_KEYWORDS.as, alias]);
     }
     if (!alias?.query) {
-      throw new Error(
-        'To use subquery in alias, alias must has "query" field with appropriate value.',
-      );
+      return throwError.invalidAliasType(true);
     }
     const { model: m, ...rest } = (alias as any).query as AliasFilter<Model>;
     const model = getAliasSubqueryModel(alias);
@@ -615,12 +603,10 @@ export class DBQuery {
       return '';
     }
     if (typeof setQry !== 'object' || setQry === null) {
-      throw new Error(`For Set Query Operation, value must be object.`);
+      return throwError.invalidSetQueryType();
     }
     if (!setQry.type || !setQry.model) {
-      throw new Error(
-        `Set Query Operation must contain at least "type", "model", and "columns" keys.`,
-      );
+      return throwError.invalidSetQueryType(true);
     }
     const { type, columns, model, orderBy, alias, set, ...rest } = setQry;
     const queries: string[] = [setOperation[type]];
@@ -666,9 +652,7 @@ export class DBQuery {
         const [column, fn] = fnJoiner.sepFnAndColumn(col);
         let validCol = FieldQuote(allowedFields, column);
         if (!isAggregateAllowed && fn) {
-          throw new Error(
-            `Aggregate functions are not allowed in this context. Found "${fn}" for column "${column}".`,
-          );
+          return throwError.invalidAggFuncPlaceType(fn, column);
         }
         if (fn) {
           validCol = fieldFunctionCreator(validCol, fn as FieldFunctionType);
@@ -700,7 +684,7 @@ export class DBQuery {
         if (typeof val === 'object' && val !== null) {
           const { order, nullOption, fn } = val;
           if (!order) {
-            throw new Error(`Order option is required for column "${key}".`);
+            return throwError.invalidOrderOptionType(key);
           }
           let orderStr = `${validKey} ${order}`;
           if (fn) {
@@ -779,14 +763,10 @@ export class DBQuery {
     const { model, alias, column, orderBy, isDistinct, ...rest } =
       value as InOperationSubQuery;
     if (!model) {
-      throw new Error(
-        `DBQuery Model is required for subquery operator "${key}".`,
-      );
+      return throwError.invalidModelType();
     }
     if (!rest.where && isExistsFilter) {
-      throw new Error(
-        `Where clause is required for subquery operator "${key}".`,
-      );
+      return throwError.invalidWhereClauseType(key);
     }
     const tableName = (model as any).tableName;
     const tableColumns = new Set((model as any).tableColumns) as Set<string>;
@@ -826,14 +806,10 @@ export class DBQuery {
     isHavingFilter: boolean,
   ) {
     if (!Array.isArray(value)) {
-      throw new Error(
-        `For operator "${key}" value should be an array of conditions.`,
-      );
+      return throwError.invalidArrayOPType(key);
     }
     if (value.length < 2) {
-      throw new Error(
-        `For operator "${key}" at least 2 conditions are required.`,
-      );
+      return throwError.invalidArrayOPType(key, { min: 2 });
     }
     const sep = ` ${OP[key]} `;
     const cond = value
@@ -901,9 +877,7 @@ export class DBQuery {
   ) {
     if (Array.isArray(value)) {
       if (value.length < 1) {
-        throw new Error(
-          `Operator "${baseOperation}" requires at least 1 value.`,
-        );
+        return throwError.invalidArrayOPType(baseOperation, { min: 1 });
       }
       const arrayKeyword = DB_KEYWORDS.array;
       const placeholders = preparePlachldrForArray(value, preparedValues);
@@ -916,9 +890,7 @@ export class DBQuery {
       return `${key} ${baseOperation} ${subQryOperation}${arrayQry}`;
     }
     if (typeof value !== 'object' || value === null) {
-      throw new Error(
-        `For operator "${baseOperation}", value must be an object.`,
-      );
+      return throwError.invalidObjectOPType(baseOperation);
     }
     const subQry = DBQuery.#otherModelSubqueryBuilder(
       subQryOperation,
@@ -947,9 +919,7 @@ export class DBQuery {
       const [op, val] = entry as [SIMPLE_OP_KEYS, FilterColumnValue];
       const operation = OP[op];
       if (!operation) {
-        throw new Error(
-          `Invalid operator "${op}". Please use following operators: ${validOperations}. `,
-        );
+        return throwError.invalidOperatorType(op, validOperations);
       }
 
       switch (op) {
@@ -1041,18 +1011,16 @@ export class DBQuery {
         case 'between':
         case 'notBetween': {
           if (!Array.isArray(val)) {
-            throw new Error(`For operator "${op}" value should be array.`);
+            return throwError.invalidArrayOPType(op);
           }
           if (val.length !== 2) {
-            throw new Error(`Operator "${op}" requires exactly 2 values.`);
+            return throwError.invalidArrayOPType(op, { exact: 2 });
           }
           const placeholders = preparePlachldrForArray(val, preparedValues);
           return `${validKey} ${operation} ${placeholders[0]} ${OP.$and} ${placeholders[1]}`;
         }
         default:
-          throw new Error(
-            `Invalid operator "${op}". Please use following operators: ${validOperations}. `,
-          );
+          return throwError.invalidOperatorType(op, validOperations);
       }
     };
     const cond = attachArrayWith.space(Object.entries(value).map(prepareQry));
@@ -1083,7 +1051,7 @@ export class DBQuery {
 //============================================= DBModel ===================================================//
 
 export class DBModel extends DBQuery {
-  static init(modelObj: DbTable, option: ExtraOptions) {
+  static init(modelObj: Table, option: ExtraOptions) {
     const { tableName, reference = {} } = option;
     this.tableName = tableName;
     const primaryKeys: string[] = [];
@@ -1097,9 +1065,7 @@ export class DBModel extends DBQuery {
     });
     this.tableColumns = tableColumns;
     if (primaryKeys.length <= 0) {
-      throw new Error(
-        `At least one primary key column is required in table ${tableName}.`,
-      );
+      throwError.invalidPrimaryColType(tableName);
     }
     columns.push(DBModel.#createPrimaryColumn(primaryKeys));
     Object.entries(reference).forEach(([key, ref]) => {
@@ -1114,18 +1080,14 @@ export class DBModel extends DBQuery {
 
   static #createColumn(
     columnName: string,
-    value: DbTable[keyof DbTable],
+    value: TableValues,
     primaryKeys: string[],
     enums: string[],
   ) {
     const values: (string | boolean)[] = [columnName];
     const colUpr = columnName.toUpperCase();
     Object.entries(value).forEach((entry) => {
-      const [key, keyVale] = entry as [
-        keyof DbTable[keyof DbTable],
-        string | boolean,
-      ];
-
+      const [key, keyVale] = entry as [keyof TableValues, string | boolean];
       switch (key) {
         case 'type': {
           if ((keyVale as any).startsWith('ENUM')) {

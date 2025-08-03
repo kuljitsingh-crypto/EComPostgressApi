@@ -50,6 +50,80 @@ function throwInvalidAliasFormatError(invalidSubQuery = false): never {
   throw new Error(msg);
 }
 
+function throwInvalidColumnLenError(
+  index: number,
+  requiredLen: number,
+  givenLen: number,
+): never {
+  throw new Error(
+    `Invalid value length at index ${index}. Expected ${requiredLen} values, but got ${givenLen}.`,
+  );
+}
+
+function throwInvalidSetOpTypeError(invalidQuery = false): never {
+  const msg = invalidQuery
+    ? 'Set Query Operation must contain at least "type", "model", and "columns" keys.'
+    : 'For Set Query Operation, value must be object.';
+  throw new Error(msg);
+}
+
+function throwInvalidAggFuncPlaceError(fn: string, column: string): never {
+  throw new Error(
+    `Aggregate functions are not allowed in this context. Found "${fn}" for column "${column}".`,
+  );
+}
+
+function throwInvalidOrderOptionError(key: string): never {
+  throw new Error(`Order option is required for column "${key}".`);
+}
+
+function throwInvalidWhereClauseError(key: string): never {
+  throw new Error(`Where clause is required for subquery operator "${key}".`);
+}
+function throwInvalidArrayOpTypeError(
+  key: string,
+  options?: {
+    min?: number;
+    max?: number;
+    exact?: number;
+  },
+): never {
+  const { min = 0, max = 0, exact = 0 } = options || {};
+  if (min > 0) {
+    throw new Error(
+      `For operator "${key}" value should be array of minimum length ${min}.`,
+    );
+  } else if (max > 0) {
+    throw new Error(
+      `For operator "${key}" value should be array of maximum length ${max}.`,
+    );
+  } else if (exact > 0) {
+    throw new Error(
+      `For operator "${key}" value should be array of length ${exact}.`,
+    );
+  }
+  throw new Error(`For operator "${key}" value should be array.`);
+}
+
+function throwInvalidObjectOpError(key: string): never {
+  throw new Error(`For operator "${key}", value must be an object.`);
+}
+
+function throwInvalidOperatorTypeError(
+  op: string,
+  validOperations: string,
+): never {
+  throw new Error(
+    `Invalid operator "${op}". Please use following operators: ${validOperations}. `,
+  );
+}
+
+function throwInvalidPrimaryColumnError(tableName: string): never {
+  throw new Error(
+    `At least one primary key column is required in table ${tableName}.`,
+  );
+}
+
 export const throwError = {
   invalidJoinType: throwInvalidJoinTypeError,
   invalidModelType: throwInvalidModelTypeError,
@@ -59,6 +133,15 @@ export const throwError = {
   invalidAnySubQType: throwInvalidAnySubQTypeError,
   invalidOPDataType: throwInvalidPrimitiveDataTypeError,
   invalidAliasType: throwInvalidAliasFormatError,
+  invalidColumnLenType: throwInvalidColumnLenError,
+  invalidSetQueryType: throwInvalidSetOpTypeError,
+  invalidAggFuncPlaceType: throwInvalidAggFuncPlaceError,
+  invalidOrderOptionType: throwInvalidOrderOptionError,
+  invalidWhereClauseType: throwInvalidWhereClauseError,
+  invalidArrayOPType: throwInvalidArrayOpTypeError,
+  invalidObjectOPType: throwInvalidObjectOpError,
+  invalidOperatorType: throwInvalidOperatorTypeError,
+  invalidPrimaryColType: throwInvalidPrimaryColumnError,
 };
 
 export const errorHandler = (query: string, error: Error) => {
