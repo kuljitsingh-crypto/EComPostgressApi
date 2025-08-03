@@ -4,6 +4,7 @@ import {
 } from '../constants/fieldFunctions';
 import { OP } from '../constants/operators';
 import { Primitive } from '../globalTypes';
+import { PreparedValues } from '../internalTypes';
 import { throwError } from './errorHelper';
 
 const MIN_COLUMN_LENGTH = 1;
@@ -32,8 +33,7 @@ const fieldFunc = (fn: FieldFunctionType, column: string) => {
   }
   return fnJoiner.joinFnAndColumn(func, column);
 };
-
-const validateField = (field: string, allowed: Set<string>) => {
+const simpleFieldValidate = (field: string) => {
   field = field.trim();
   if (field.length < MIN_COLUMN_LENGTH || field.length > MAX_COLUMN_LENGTH) {
     return throwError.invalidColNameLenType(field, {
@@ -44,10 +44,14 @@ const validateField = (field: string, allowed: Set<string>) => {
   if (!validColumnNameRegex.test(field)) {
     return throwError.invalidColumnNameRegexType(field);
   }
+  return field;
+};
+
+const validateField = (field: string, allowed: Set<string>) => {
+  field = simpleFieldValidate(field);
   if (!allowed.has(field)) {
     return throwError.invalidColumnNameType(field, allowed);
   }
-
   return field;
 };
 
@@ -67,6 +71,11 @@ export const fieldFunctionCreator = (
 };
 
 export const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
+
+export const dynamicFieldQuote = (field: string) => {
+  field = simpleFieldValidate(field);
+  return quote(field);
+};
 
 export const FieldQuote = (allowedFields: Set<string>, str: string) => {
   str = validateField(str, allowedFields);
@@ -93,6 +102,30 @@ export const prepareColumnForHavingClause = (
     validKey = FieldQuote(allowedFields, key);
   }
   return validKey;
+};
+
+export const isPrimitiveValue = (value: Primitive | undefined) => {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'undefined' ||
+    value === null
+  );
+};
+
+export const createPlaceholder = (val: number) => {
+  return `$${val}`;
+};
+
+export const getPreparedValues = (
+  preparedValues: PreparedValues,
+  value: Primitive,
+) => {
+  const placeholder = createPlaceholder(preparedValues.index + 1);
+  preparedValues.values[preparedValues.index] = value;
+  preparedValues.index++;
+  return placeholder;
 };
 
 //===================================== Object wrapped functions =======================//
