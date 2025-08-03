@@ -1,31 +1,51 @@
-import { query } from './db.config';
+import { query } from '../models/db.config';
+import { DB_KEYWORDS, DB_KEYWORDS_TYPE } from './constants/dbkeywords';
+import { FieldFunctionType } from './constants/fieldFunctions';
+import { ReferenceTable } from './constants/foreignkeyActions';
+import {
+  OP,
+  OP_KEYS,
+  SIMPLE_OP_KEYS,
+  validOperations,
+} from './constants/operators';
+import { setOperation } from './constants/setOperations';
+import {
+  OTHER_JOIN,
+  TABLE_JOIN_COND,
+  TABLE_JOIN_TYPE,
+} from './constants/tableJoin';
+import { Primitive } from './globalTypes';
+import {
+  AliasFilter,
+  AliasSubType,
+  ExtraOptions,
+  FilterColumnValue,
+  FindQueryAttributes,
+  InOperationSubQuery,
+  ORDER_BY,
+  PAGINATION,
+  PreparedValues,
+  QueryParams,
+  SelectQuery,
+  SetQuery,
+  Subquery,
+  SubQueryFilter,
+  WhereClause,
+  WhereClauseKeys,
+} from './internalTypes';
+import {
+  attachArrayWith,
+  fieldFunctionCreator,
+  FieldQuote,
+  fnJoiner,
+  prepareColumnForHavingClause,
+  quote,
+} from './methods/helperFunction';
+import { TableJoin } from './methods/tableJoin';
 
 //============================================= CONSTANTS ===================================================//
 const enumQryPrefix = `DO $$ BEGIN CREATE TYPE`;
 const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
-
-const tableJoin = {
-  INNER: 'INNER JOIN',
-  LEFT: 'LEFT JOIN',
-  RIGHT: 'RIGHT JOIN',
-  FULLOUTER: 'FULL OUTER JOIN',
-  SELF: 'INNER JOIN',
-  CROSS: 'INNER JOIN',
-} as const;
-
-const setOperation = {
-  UNION: 'UNION',
-  UNION_ALL: 'UNION ALL',
-  INTERSECT: 'INTERSECT',
-  EXCEPT: 'EXCEPT',
-} as const;
-const fieldFunctionName = {
-  MIN: 'MIN',
-  MAX: 'MAX',
-  COUNT: 'COUNT',
-  AVG: 'AVG',
-  SUM: 'SUM',
-} as const;
 
 export const DataTypes = {
   boolean: 'BOOLEAN',
@@ -52,41 +72,10 @@ export const DataTypes = {
     return `NUMERIC(${precision}, ${scale})`;
   },
   enum(values: string[]) {
-    const valueStr = attachArrayWithComaSep(values.map((v) => `'${v}'`));
+    const valueStr = attachArrayWith.coma(values.map((v) => `'${v}'`));
     return `ENUM(${valueStr})`;
   },
 };
-
-const dbKeywords = {
-  notNull: 'NOT NULL',
-  unique: 'UNIQUE',
-  default: 'DEFAULT',
-  primaryKey: 'PRIMARY KEY',
-  foreignKey: 'FOREIGN KEY',
-  constraint: 'CONSTRAINT',
-  references: 'REFERENCES',
-  onDelete: 'ON DELETE',
-  onUpdate: 'ON UPDATE',
-  check: 'CHECK',
-  distinct: 'DISTINCT',
-  orderBy: 'ORDER BY',
-  groupBy: 'GROUP BY',
-  null: 'NULL',
-  where: 'WHERE',
-  select: 'SELECT',
-  from: 'FROM',
-  insertInto: 'INSERT INTO',
-  values: 'VALUES',
-  returning: 'RETURNING',
-  limit: 'LIMIT',
-  offset: 'OFFSET',
-  as: 'AS',
-  on: 'ON',
-  having: 'HAVING',
-  any: 'ANY',
-  array: 'ARRAY',
-  all: 'ALL',
-} as const;
 
 export const dbDefaultValue = {
   currentDate: 'CURRENT_DATE',
@@ -95,117 +84,12 @@ export const dbDefaultValue = {
   uuidV4: 'gen_random_uuid()',
 };
 
-export const OP = {
-  eq: '=',
-  neq: '!=',
-  lte: '<=',
-  lt: '<',
-  gte: '>=',
-  gt: '>',
-  like: 'LIKE',
-  iLike: 'ILIKE',
-  in: 'IN',
-  between: 'BETWEEN',
-  isNull: 'IS',
-  notNull: 'IS NOT',
-  notLike: 'NOT LIKE',
-  notILike: 'NOT ILIKE',
-  notIn: 'NOT IN',
-  notBetween: 'NOT BETWEEN',
-  startsWith: 'LIKE',
-  endsWith: 'LIKE',
-  substring: 'LIKE',
-  iStartsWith: 'ILIKE',
-  iEndsWith: 'ILIKE',
-  iSubstring: 'ILIKE',
-  $exists: 'EXISTS',
-  $notExists: 'NOT EXISTS',
-  $and: 'AND',
-  $or: 'OR',
-} as const;
-const validOperations = Object.keys(OP).join(', ');
-
 const conditionalOperator = new Set(['$or', '$and'] as const);
 const subqueryOperator = new Set(['$exists', '$notExists'] as const);
-
-export const foreignKeyActions = {
-  noAction: 'NO ACTION',
-  cascade: 'CASCADE',
-  restrict: 'RESTRICT',
-  null: 'SET NULL',
-  default: 'SET DEFAULT',
-} as const;
-
-const fnJoiner = {
-  joinFnAndColumn: (fn: FieldFunctionType, column: string) => `${column},${fn}`,
-  sepFnAndColumn: (fnAndCol: string) => fnAndCol.split(','),
-};
-
-export const aggregateFn = Object.freeze({
-  [fieldFunctionName.COUNT]: (column: string) => fieldFunc('COUNT', column),
-  [fieldFunctionName.AVG]: (column: string) => fieldFunc('AVG', column),
-  [fieldFunctionName.MAX]: (column: string) => fieldFunc('MAX', column),
-  [fieldFunctionName.MIN]: (column: string) => fieldFunc('MIN', column),
-  [fieldFunctionName.SUM]: (column: string) => fieldFunc('SUM', column),
-});
 
 //============================================= CONSTANTS ===================================================//
 
 //============================================= TYPES ======================================================//
-
-type Primitive = string | number | boolean | null;
-type PreparedValues = { index: number; values: Primitive[] };
-type SubqueryWhereReq = 'WhereReq' | 'WhereNotReq';
-
-type FieldFunctionType = keyof typeof fieldFunctionName;
-
-type TABLE_JOIN_TYPE = keyof typeof tableJoin;
-
-type ORDER_OPTION = 'ASC' | 'DESC';
-type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
-type PAGINATION = { limit: number; offset?: number };
-type ColumnRef = `${string}.${string}`;
-type BaseColumn = ColumnRef;
-type TargetColumn = ColumnRef;
-type JOIN_COND = Record<BaseColumn, TargetColumn>;
-type OTHER_JOIN<T extends TABLE_JOIN_TYPE> = {
-  type: T;
-  model: DBModel;
-  /**
-   * {baseColumn:joinColumn} or {baseColumn:joinColumn, baseColumn2:joinColumn2}
-   */
-  on: JOIN_COND;
-  alias?: string;
-};
-type JOIN<T extends TABLE_JOIN_TYPE> = {
-  type: T;
-  tableName?: string;
-  model?: DBModel;
-  on: JOIN_COND;
-  alias?: string;
-};
-type SELF_JOIN<T extends TABLE_JOIN_TYPE> = {
-  type: T;
-  alias?: string;
-  on: JOIN_COND;
-};
-type CROSS_JOIN<T extends TABLE_JOIN_TYPE> = {
-  type: T;
-  alias?: string;
-  model: DBModel;
-};
-
-type TABLE_JOIN<T extends TABLE_JOIN_TYPE = TABLE_JOIN_TYPE> = T extends 'SELF'
-  ? SELF_JOIN<T>
-  : T extends 'CROSS'
-    ? CROSS_JOIN<T>
-    : OTHER_JOIN<T>;
-
-type ORDER_BY = Record<
-  string,
-  | ORDER_OPTION
-  | { order: ORDER_OPTION; nullOption?: NULL_OPTION; fn?: FieldFunctionType }
->;
 
 export type DbTable = {
   [key in string]: {
@@ -219,133 +103,6 @@ export type DbTable = {
   };
 };
 
-type OP_KEYS = keyof typeof OP;
-
-type SIMPLE_OP_KEYS = Exclude<
-  OP_KEYS,
-  '$and' | '$or' | '$exists' | '$notExists'
->;
-
-type SubQueryFilterKey = (typeof dbKeywords)['any' | 'all'];
-type SubQueryFilterRecord = {
-  [key in SubQueryFilterKey]?: Array<Primitive> | SubQueryFilter;
-};
-type FilterColumnValue = Primitive | SubQueryFilterRecord;
-
-type ExistsFilter<T extends SubqueryWhereReq = 'WhereNotReq'> = {
-  model: DBQuery;
-  alias?: string;
-} & Subquery<T>;
-type SubQueryFilter<T extends SubqueryWhereReq = 'WhereNotReq'> =
-  ExistsFilter<T> & {
-    orderBy?: ORDER_BY;
-    column: string;
-    isDistinct?: boolean;
-  };
-
-type InOperationSubQuery = SubQueryFilter & {
-  isDistinct?: boolean;
-};
-
-type ConditionMap = {
-  in: Primitive[] | InOperationSubQuery;
-  notIn: Primitive[] | InOperationSubQuery;
-  between: Primitive[];
-  notBetween: Primitive[];
-  isNull: null;
-  notNull: null;
-};
-
-type NormalOperators =
-  | {
-      [key in Exclude<SIMPLE_OP_KEYS, keyof ConditionMap>]?: FilterColumnValue;
-    }
-  | FilterColumnValue;
-
-type Condition<Key extends SIMPLE_OP_KEYS = SIMPLE_OP_KEYS> =
-  Key extends keyof ConditionMap
-    ? { [K in Key]: ConditionMap[K] }
-    : NormalOperators;
-
-type WhereClause =
-  | {
-      [column: string]: Condition;
-    }
-  | {
-      $and: WhereClause[];
-    }
-  | {
-      $or: WhereClause[];
-    }
-  | { $exists: ExistsFilter<'WhereReq'> }
-  | { $notExists: ExistsFilter<'WhereReq'> };
-
-type Subquery<T extends SubqueryWhereReq = 'WhereNotReq'> =
-  (T extends 'WhereReq'
-    ? { where: WhereClause }
-    : {
-        where?: WhereClause;
-      }) & {
-    groupBy?: string[];
-    limit?: PAGINATION['limit'];
-    offset?: PAGINATION['offset'];
-    join?: TABLE_JOIN[];
-    having?: WhereClause;
-  };
-
-type SelectQuery = {
-  columns?: FindQueryAttributes;
-  isDistinct?: boolean;
-  alias?: AliasSubType;
-};
-type SetQuery = { type: SetOperationType } & SetOperationFilter;
-type AliasFilter = SetOperationFilter & {
-  isDistinct?: boolean;
-};
-type AliasSubType = string | ({ as?: string } & AliasFilter);
-type SetOperationFilter = {
-  model: DBQuery;
-  alias?: AliasSubType;
-  columns?: FindQueryAttributes;
-  orderBy?: ORDER_BY;
-  set?: SetQuery;
-} & Subquery<'WhereNotReq'>;
-
-type SetOperationType = keyof typeof setOperation;
-type WhereClauseKeys = '$and' | '$or' | string;
-
-type ForeignKeyActions =
-  (typeof foreignKeyActions)[keyof typeof foreignKeyActions];
-
-type ReferenceTable = {
-  parentColumn: string | string[];
-  column: string | string[];
-  constraintName?: string;
-  onDelete?: ForeignKeyActions;
-  onUpdate?: ForeignKeyActions;
-};
-
-type Reference = {
-  [parentTable in string]: ReferenceTable;
-};
-type ExtraOptions = {
-  tableName: string;
-  reference?: Reference;
-};
-
-/**
- * Different Flavours
- * 1. {columnName:null} - return column name as define in columnKey
- * 2.{columnName:aliasName} - return column name as define in columnValue
- */
-type FindQueryAttributes = Record<string, null | string>;
-
-type QueryParams = SelectQuery &
-  Subquery & {
-    orderBy?: ORDER_BY;
-    set?: SetQuery;
-  };
-
 //============================================= TYPES ======================================================//
 
 //============================================= HELPERS ===================================================//
@@ -355,24 +112,10 @@ const isPrimitiveValue = (value: Primitive | undefined) => {
     typeof value === 'string' ||
     typeof value === 'number' ||
     typeof value === 'boolean' ||
+    typeof value === 'undefined' ||
     value === null
   );
 };
-
-const attachArrayWithSep = (array: Array<Primitive>, sep: string) =>
-  array.join(sep);
-
-const attachArrayWithSpaceSep = (array: Array<Primitive>) =>
-  attachArrayWithSep(array, ' ');
-
-const attachArrayWithComaSep = (array: Array<Primitive>) =>
-  attachArrayWithSep(array, ',');
-
-const attachArrayWithAndSep = (array: Array<Primitive>) =>
-  attachArrayWithSep(array, ` ${OP.$and} `);
-
-const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
-  attachArrayWithSep(array, ', ');
 
 const errorHandler = (query: string, error: Error) => {
   const msg = `Error executing query: "${query}". Error: ${error.message}`;
@@ -380,68 +123,53 @@ const errorHandler = (query: string, error: Error) => {
   throw err;
 };
 
-const fieldFunctionCreator = (
-  field: string,
-  functionName: FieldFunctionType,
-  alias?: string,
-) => {
-  const func = fieldFunctionName[functionName];
-  if (!func) {
-    throw new Error(
-      `Invalid function name "${functionName}". Valid functions are: ${attachArrayWithComaAndSpaceSep(
-        Object.keys(fieldFunctionName),
-      )}.`,
-    );
-  }
-  const aliasMaybe = alias ? ` ${alias}` : '';
-  return `${func}(${field})${aliasMaybe}`;
-};
-
-const fieldFunc = (fn: FieldFunctionType, column: string) => {
-  const func = fieldFunctionName[fn];
-  if (!func) {
-    throw new Error(
-      `Invalid function name "${fn}". Valid functions are: ${attachArrayWithComaAndSpaceSep(
-        Object.keys(fieldFunctionName),
-      )}.`,
-    );
-  }
-  return fnJoiner.joinFnAndColumn(func, column);
-};
-
-const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
-
-const validateField = (field: string, allowed: Set<string>) => {
-  if (!allowed.has(field)) {
-    throw new Error(
-      `Invalid column name ${field}. Allowed Column names are: ${attachArrayWithComaAndSpaceSep(
-        Array.from(allowed),
-      )}.`,
-    );
-  }
-};
-
-const FieldQuote = (allowedFields: Set<string>, str: string) => {
-  validateField(str, allowedFields);
-  return quote(str);
-};
-
-const getAliasName = (alias?: AliasSubType): string | undefined => {
+const getAliasName = <Model>(alias?: AliasSubType<Model>): string | null => {
   const aliasStr =
     typeof alias === 'object' && alias !== null && alias.as
       ? alias.as
-      : (alias as string);
+      : typeof alias === 'string'
+        ? alias
+        : null;
   return aliasStr;
 };
 
-const aliasFieldNames = (names: Set<string>, alias?: AliasSubType) => {
-  alias = getAliasName(alias);
-  if (!alias) return [];
-  return Array.from(names).map((name) => `${alias}.${name}`);
+const getAliasNames = <Model>(
+  aliasNames: string[],
+  alias?: AliasSubType<Model>,
+) => {
+  if (!alias) {
+    return aliasNames;
+  }
+  const aliasStr = getAliasName(alias);
+  if (!aliasStr) {
+    return aliasNames;
+  }
+  aliasNames.push(aliasStr);
+  if (typeof alias === 'string') {
+    return aliasNames;
+  }
+  if (alias.query && alias.query.alias) {
+    return getAliasNames(aliasNames, alias.query.alias);
+  }
+  return aliasNames;
+};
+
+const aliasFieldNames = <Model>(
+  names: Set<string>,
+  alias?: AliasSubType<Model>,
+) => {
+  const aliasNames = getAliasNames([], alias);
+  if (!aliasNames || aliasNames.length < 1) return [];
+  const nameArr = Array.from(names);
+  const allowedNames = aliasNames.reduce((prev, alias) => {
+    prev.push(...nameArr.map((name) => `${alias}.${name}`));
+    return prev;
+  }, [] as string[]);
+  return allowedNames;
 };
 
 const addJoinModelFields = <T extends TABLE_JOIN_TYPE>(
-  joinType: OTHER_JOIN<T>,
+  joinType: OTHER_JOIN<T, DBModel>,
   modelFields: string[],
 ) => {
   const { model, alias } = joinType;
@@ -454,17 +182,6 @@ const createPlaceholder = (val: number) => {
   return `$${val}`;
 };
 
-const joinTableCond = (cond: JOIN_COND, allowedFields: Set<string>) =>
-  attachArrayWithAndSep(
-    Object.entries(cond).map(
-      ([baseColumn, joinColumn]) =>
-        `${FieldQuote(allowedFields, baseColumn)} ${OP.eq} ${FieldQuote(
-          allowedFields,
-          joinColumn,
-        )}`,
-    ),
-  );
-
 const getPreparedValues = (
   preparedValues: PreparedValues,
   value: Primitive,
@@ -475,29 +192,6 @@ const getPreparedValues = (
   return placeholder;
 };
 
-const prepareColumnForHavingClause = (
-  key: string,
-  groupByFields: Set<string>,
-  allowedFields: Set<string>,
-  isHavingFilter: boolean,
-) => {
-  let validKey: string;
-  if (isHavingFilter) {
-    const [k, fn] = fnJoiner.sepFnAndColumn(key);
-    if (!fn && !groupByFields.has(k)) {
-      throw new Error(
-        `Invalid column "${k}" for HAVING clause. Column should be part of GROUP BY or an aggregate function.`,
-      );
-    }
-    validKey = FieldQuote(allowedFields, k);
-    if (fn) {
-      validKey = fieldFunctionCreator(validKey, fn as FieldFunctionType);
-    }
-  } else {
-    validKey = FieldQuote(allowedFields, key);
-  }
-  return validKey;
-};
 const getArrayDataType = (value: Primitive[]) => {
   const firstValue = value[0];
   if (typeof firstValue === 'number') {
@@ -514,17 +208,17 @@ const getArrayDataType = (value: Primitive[]) => {
 const getAnyAndAllFilterValue = (val: any, op: string) => {
   if (typeof val !== 'object' || val === null) {
     throw new Error(
-      `For operator "${op}" with ANY/ALL, value must be an object containing "${dbKeywords.any}" or "${dbKeywords.all}" property.`,
+      `For operator "${op}" with ANY/ALL, value must be an object containing "${DB_KEYWORDS.any}" or "${DB_KEYWORDS.all}" property.`,
     );
   }
-  const hasAny = (val as any).hasOwnProperty(dbKeywords.any);
-  const hasAll = (val as any).hasOwnProperty(dbKeywords.all);
+  const hasAny = (val as any).hasOwnProperty(DB_KEYWORDS.any);
+  const hasAll = (val as any).hasOwnProperty(DB_KEYWORDS.all);
   if (!hasAny && !hasAll) {
     throw new Error(
-      `For subquery operations, value must contain "${dbKeywords.any}" or "${dbKeywords.all}" property`,
+      `For subquery operations, value must contain "${DB_KEYWORDS.any}" or "${DB_KEYWORDS.all}" property`,
     );
   }
-  const subqueryKeyword = hasAll ? dbKeywords.all : dbKeywords.any;
+  const subqueryKeyword = hasAll ? DB_KEYWORDS.all : DB_KEYWORDS.any;
   const subqueryVal: Array<Primitive> | SubQueryFilter = (val as any)[
     subqueryKeyword
   ];
@@ -566,7 +260,7 @@ const prepareFinalFindQry = (
 ) => {
   const rowQueries: string[] = [];
   if (setQry && subQry) {
-    const firstQry = `${dbKeywords.select} * ${dbKeywords.from} (${selectQry} ${setQry}) ${dbKeywords.as} results`;
+    const firstQry = `${DB_KEYWORDS.select} * ${DB_KEYWORDS.from} (${selectQry} ${setQry}) ${DB_KEYWORDS.as} results`;
     rowQueries.push(firstQry);
     rowQueries.push(subQry);
   } else if (setQry && !subQry) {
@@ -578,7 +272,69 @@ const prepareFinalFindQry = (
   } else {
     rowQueries.push(selectQry);
   }
-  return attachArrayWithSpaceSep(rowQueries);
+  return attachArrayWith.space(rowQueries);
+};
+const getAliasSubqueryModel = <Model>(
+  alias?: AliasSubType<Model>,
+): { tableColumns: Set<string>; tableName: string } => {
+  if (
+    typeof alias === 'string' ||
+    typeof alias === 'undefined' ||
+    alias === null
+  ) {
+    throw new Error('Alias must be object with appropriate fields.');
+  }
+  if (!alias.query) {
+    throw new Error(
+      'To use subquery in alias, alias must has "query" field with appropriate value.',
+    );
+  }
+  if (alias.query && alias.query.alias) {
+    return getAliasSubqueryModel(alias.query.alias);
+  }
+  if (!alias.query.model) {
+    throw new Error('DBQuery Model is required for alias subquery.');
+  }
+  return alias.query.model as any;
+};
+
+const initializeModelFields = <Model>(
+  refAllowedFields: Set<string>,
+  alias?: AliasSubType<Model>,
+) => {
+  if (typeof alias === 'object') {
+    const model = getAliasSubqueryModel(alias);
+    refAllowedFields = model.tableColumns;
+  }
+  return [...refAllowedFields, ...aliasFieldNames(refAllowedFields, alias)];
+};
+
+const getAllowedFields = <Model>(
+  selfAllowedFields: Set<string>,
+  alias?: AliasSubType<Model>,
+  include?: TABLE_JOIN_COND<DBModel>[],
+) => {
+  const modelFields = initializeModelFields(selfAllowedFields, alias);
+  if (include && Array.isArray(include) && include.length > 0) {
+    include.forEach((joinType) => {
+      const { type } = joinType;
+      switch (type) {
+        case 'INNER':
+        case 'LEFT':
+        case 'RIGHT':
+        case 'FULLOUTER': {
+          addJoinModelFields(joinType, modelFields);
+          break;
+        }
+        case 'CROSS': {
+          const { model, alias } = joinType;
+          addJoinModelFields({ model, on: {}, alias, type }, modelFields);
+          break;
+        }
+      }
+    });
+  }
+  return new Set(modelFields);
 };
 
 //============================================= HELPERS ===================================================//
@@ -590,33 +346,14 @@ export class DBQuery {
   static tableColumns: Set<string> = new Set();
   static #groupByFields: Set<string> = new Set();
 
-  static async findAll(queryParams?: QueryParams) {
-    const { columns, isDistinct, orderBy, alias, set, ...rest } =
-      queryParams || {};
+  static async findAll<Model>(queryParams?: QueryParams<Model>) {
     const preparedValues: PreparedValues = { index: 0, values: [] };
-    const allowedFields = DBQuery.#getAllowedFields(
+    const findAllQuery = DBQuery.#prepareQuery(
+      preparedValues,
       this.tableColumns,
-      alias,
-      rest.join,
-    );
-    const selectQry = DBQuery.#prepareSelectQuery(
       this.tableName,
-      allowedFields,
-      preparedValues,
-      {
-        columns,
-        isDistinct,
-        alias,
-      },
+      queryParams || {},
     );
-    const subQry = DBQuery.#prepareSubquery(
-      allowedFields,
-      preparedValues,
-      rest,
-      orderBy,
-    );
-    const setQry = DBQuery.#prepareSetQuery(preparedValues, set);
-    const findAllQuery = prepareFinalFindQry(selectQry, setQry, subQry);
     try {
       const result = await query(findAllQuery, preparedValues.values);
       return { rows: result.rows, count: result.rowCount };
@@ -631,7 +368,7 @@ export class DBQuery {
   ) {
     const keys: string[] = [];
     const valuePlaceholder: string[] = [];
-    const allowedFields = DBQuery.#getAllowedFields(this.tableColumns);
+    const allowedFields = getAllowedFields(this.tableColumns);
     const returnStr = DBQuery.#getSelectColumns(
       allowedFields,
       returnOnly,
@@ -644,12 +381,12 @@ export class DBQuery {
       const placeholder = getPreparedValues(preparedValues, value);
       valuePlaceholder.push(placeholder);
     });
-    const columns = attachArrayWithComaSep(keys);
-    const valuePlaceholders = attachArrayWithComaSep(valuePlaceholder);
-    const insertClause = `${dbKeywords.insertInto} "${this.tableName}"(${columns})`;
-    const valuesClause = `${dbKeywords.values}${valuePlaceholders}`;
-    const returningClause = `${dbKeywords.returning} ${returnStr}`;
-    const createQry = attachArrayWithSpaceSep([
+    const columns = attachArrayWith.coma(keys);
+    const valuePlaceholders = attachArrayWith.coma(valuePlaceholder);
+    const insertClause = `${DB_KEYWORDS.insertInto} "${this.tableName}"(${columns})`;
+    const valuesClause = `${DB_KEYWORDS.values}${valuePlaceholders}`;
+    const returningClause = `${DB_KEYWORDS.returning} ${returnStr}`;
+    const createQry = attachArrayWith.space([
       insertClause,
       valuesClause,
       returningClause,
@@ -668,7 +405,7 @@ export class DBQuery {
     returnOnly?: FindQueryAttributes,
   ) {
     const flatedValues: Primitive[] = [];
-    const allowedFields = DBQuery.#getAllowedFields(this.tableColumns);
+    const allowedFields = getAllowedFields(this.tableColumns);
     const returnStr = DBQuery.#getSelectColumns(
       allowedFields,
       returnOnly,
@@ -685,7 +422,7 @@ export class DBQuery {
         incrementBy += val.length - 1;
       }
       flatedValues.push(...val);
-      const placeholder = attachArrayWithComaSep(
+      const placeholder = attachArrayWith.coma(
         val.map((_, cIndex) =>
           createPlaceholder(pIndex + cIndex + incrementBy),
         ),
@@ -693,12 +430,12 @@ export class DBQuery {
 
       return `(${placeholder})`;
     });
-    const colStr = attachArrayWithComaSep(columns);
-    const valuePlaceholders = attachArrayWithComaSep(valuePlaceholder);
-    const insertClause = `${dbKeywords.insertInto} "${this.tableName}"(${colStr})`;
-    const valuesClause = `${dbKeywords.values}${valuePlaceholders}`;
-    const returningClause = `${dbKeywords.returning} ${returnStr}`;
-    const createQry = attachArrayWithSpaceSep([
+    const colStr = attachArrayWith.coma(columns);
+    const valuePlaceholders = attachArrayWith.coma(valuePlaceholder);
+    const insertClause = `${DB_KEYWORDS.insertInto} "${this.tableName}"(${colStr})`;
+    const valuesClause = `${DB_KEYWORDS.values}${valuePlaceholders}`;
+    const returningClause = `${DB_KEYWORDS.returning} ${returnStr}`;
+    const createQry = attachArrayWith.coma([
       insertClause,
       valuesClause,
       returningClause,
@@ -712,6 +449,37 @@ export class DBQuery {
   }
 
   // Private Methods
+  static #prepareQuery<Model>(
+    preparedValues: PreparedValues,
+    refAllowedFields: Set<string>,
+    tableName: string,
+    qry: QueryParams<Model>,
+    useOnlyRefAllowedFields = false,
+  ) {
+    const { columns, isDistinct, orderBy, alias, set, ...rest } = qry;
+    const allowedFields = useOnlyRefAllowedFields
+      ? refAllowedFields
+      : getAllowedFields(refAllowedFields, alias, rest.join as any);
+    const selectQry = DBQuery.#prepareSelectQuery(
+      tableName,
+      allowedFields,
+      preparedValues,
+      {
+        columns,
+        isDistinct,
+        alias,
+      },
+    );
+    const subQry = DBQuery.#prepareSubquery(
+      allowedFields,
+      preparedValues,
+      rest,
+      orderBy,
+    );
+    const setQry = DBQuery.#prepareSetQuery(preparedValues, set);
+    const query = prepareFinalFindQry(selectQry, setQry, subQry);
+    return query;
+  }
   static #prepareVariableQry(params: {
     whereQry?: string;
     orderbyQry?: string;
@@ -741,13 +509,13 @@ export class DBQuery {
     if (limitQry) {
       variableQry.push(limitQry);
     }
-    return attachArrayWithSpaceSep(variableQry);
+    return attachArrayWith.space(variableQry);
   }
 
-  static #prepareSubquery(
+  static #prepareSubquery<Model>(
     allowedFields: Set<string>,
     preparedValues: PreparedValues,
-    subQuery: Subquery,
+    subQuery: Subquery<Model>,
     orderBy?: ORDER_BY,
   ) {
     const { where, groupBy, limit, offset, join, having } = subQuery || {};
@@ -761,7 +529,7 @@ export class DBQuery {
       limit,
       offset,
     );
-    const joinStr = DBQuery.#prepareTableJoin(
+    const joinStr = TableJoin.prepareTableJoin(
       this.tableName,
       allowedFields,
       join,
@@ -787,83 +555,74 @@ export class DBQuery {
     return finalSubQry;
   }
 
-  static #prepareSelectQuery(
+  static #prepareSelectQuery<Model>(
     tableName: string,
     allowedFields: Set<string>,
     preparedValues: PreparedValues,
-    selectQuery: SelectQuery,
+    selectQuery: SelectQuery<Model>,
   ) {
     const { isDistinct, columns, alias } = selectQuery;
-    const distinctMaybe = isDistinct ? `${dbKeywords.distinct}` : '';
+    const distinctMaybe = isDistinct ? `${DB_KEYWORDS.distinct}` : '';
     const colStr = DBQuery.#getSelectColumns(allowedFields, columns);
     const tableAlias = DBQuery.#prepareAliasSubQuery(
       tableName,
-      allowedFields,
       preparedValues,
+      allowedFields,
       alias,
     );
     const queries = [
-      dbKeywords.select,
+      DB_KEYWORDS.select,
       distinctMaybe,
       colStr,
-      dbKeywords.from,
+      DB_KEYWORDS.from,
       tableAlias,
     ].filter(Boolean);
-    const selectQry = attachArrayWithSpaceSep(queries);
+    const selectQry = attachArrayWith.space(queries);
     return selectQry;
   }
 
-  static #prepareAliasSubQuery(
+  static #prepareAliasSubQuery<Model extends any = any>(
     tableName: string,
-    allowedFields: Set<string>,
     preparedValues: PreparedValues,
-    alias?: AliasSubType,
+    allowedFields: Set<string>,
+    alias?: AliasSubType<Model>,
   ): string {
-    const aliasStr = getAliasName(alias);
     const isPrimitiveAlias =
-      isPrimitiveValue(alias as any) || typeof aliasStr === 'undefined';
+      typeof alias === 'string' || typeof alias == 'undefined';
     if (isPrimitiveAlias) {
-      if (!aliasStr) {
+      if (!alias) {
         return tableName;
       }
-      return attachArrayWithSpaceSep([tableName, dbKeywords.as, aliasStr]);
+      return attachArrayWith.space([tableName, DB_KEYWORDS.as, alias]);
     }
-    const {
-      model,
-      columns,
-      alias: as,
-      orderBy,
-      set,
-      isDistinct,
-      ...rest
-    } = alias as AliasFilter;
-    const tablName = (model as any).tableName;
-    const selectQry = DBQuery.#prepareSelectQuery(
+    if (!alias?.query) {
+      throw new Error(
+        'To use subquery in alias, alias must has "query" field with appropriate value.',
+      );
+    }
+    const { model: m, ...rest } = (alias as any).query as AliasFilter<Model>;
+    const model = getAliasSubqueryModel(alias);
+    const tablName = model.tableName;
+    const query = DBQuery.#prepareQuery(
+      preparedValues,
+      allowedFields,
       tablName,
-      allowedFields,
-      preparedValues,
-      {
-        columns,
-        isDistinct,
-        alias: as,
-      },
+      rest as any,
+      true,
     );
-    const subQry = DBQuery.#prepareSubquery(
-      allowedFields,
-      preparedValues,
-      rest,
-      orderBy,
-    );
-    const setQry = DBQuery.#prepareSetQuery(preparedValues, set);
-    const findAllQuery = `( ${prepareFinalFindQry(selectQry, setQry, subQry)} )`;
+    const findAllQuery = `(${query})`;
     const queries = [findAllQuery];
+    const aliasStr = getAliasName(alias);
     if (aliasStr) {
-      queries.push(dbKeywords.as, aliasStr);
+      queries.push(DB_KEYWORDS.as, aliasStr);
     }
-    return attachArrayWithSpaceSep(queries);
+    return attachArrayWith.space(queries);
   }
 
-  static #prepareSetQuery(preparedValues: PreparedValues, setQry?: SetQuery) {
+  static #prepareSetQuery<Model>(
+    preparedValues: PreparedValues,
+    setQry?: SetQuery<Model>,
+  ) {
     if (!setQry) {
       return '';
     }
@@ -879,11 +638,7 @@ export class DBQuery {
     const queries: string[] = [setOperation[type]];
     const tableName = (model as any).tableName;
     const tableColumns = (model as any).tableColumns;
-    const allowedFields = DBQuery.#getAllowedFields(
-      tableColumns,
-      alias,
-      rest.join,
-    );
+    const allowedFields = getAllowedFields(tableColumns, alias, rest.join);
     const selectQry = DBQuery.#prepareSelectQuery(
       tableName,
       allowedFields,
@@ -903,12 +658,12 @@ export class DBQuery {
     const rawQries = [selectQry, subQry, setSubqry].filter(Boolean);
     let q;
     if (rawQries.length > 1) {
-      q = `(${attachArrayWithSpaceSep(rawQries)})`;
+      q = `(${attachArrayWith.space(rawQries)})`;
     } else {
-      q = attachArrayWithSpaceSep(rawQries);
+      q = attachArrayWith.space(rawQries);
     }
     queries.push(q);
-    return attachArrayWithSpaceSep(queries);
+    return attachArrayWith.space(queries);
   }
 
   static #getSelectColumns(
@@ -928,13 +683,16 @@ export class DBQuery {
           );
         }
         if (fn) {
-          validCol = fieldFunctionCreator(validCol, fn as FieldFunctionType);
+          validCol = fieldFunctionCreator(
+            validCol,
+            fn as FieldFunctionType,
+          ) as string;
         }
         if (value === null) {
           return validCol;
         } else if (typeof value === 'string') {
           allowedFields.add(value);
-          return `${validCol} ${dbKeywords.as} ${quote(value)}`;
+          return `${validCol} ${DB_KEYWORDS.as} ${quote(value)}`;
         }
         return null;
       })
@@ -947,7 +705,7 @@ export class DBQuery {
     orderBy?: ORDER_BY,
   ) {
     if (!orderBy || Object.keys(orderBy).length < 1) return '';
-    const orderStatement: string[] = [dbKeywords.orderBy];
+    const orderStatement: string[] = [DB_KEYWORDS.orderBy];
     const qry = Object.entries(orderBy)
       .map(([key, val]) => {
         const validKey = FieldQuote(allowedFields, key);
@@ -972,7 +730,7 @@ export class DBQuery {
       .filter(Boolean)
       .join(', ');
     orderStatement.push(qry);
-    return attachArrayWithSpaceSep(orderStatement);
+    return attachArrayWith.space(orderStatement);
   }
 
   static #prepareGroupByStatement(
@@ -981,8 +739,8 @@ export class DBQuery {
   ) {
     DBQuery.#groupByFields.clear();
     if (!groupBy || (Array.isArray(groupBy) && groupBy.length < 1)) return '';
-    const groupStatements: string[] = [dbKeywords.groupBy];
-    const qry = attachArrayWithComaSep(
+    const groupStatements: string[] = [DB_KEYWORDS.groupBy];
+    const qry = attachArrayWith.coma(
       groupBy.map((key) => {
         const validKey = FieldQuote(allowedFields, key);
         DBQuery.#groupByFields.add(validKey);
@@ -990,7 +748,7 @@ export class DBQuery {
       }),
     );
     groupStatements.push(qry);
-    return attachArrayWithSpaceSep(groupStatements);
+    return attachArrayWith.space(groupStatements);
   }
 
   static #prepareFilterStatement(
@@ -1003,11 +761,11 @@ export class DBQuery {
     const { isHavingFilter = false } = options || {};
     const filterStatements: string[] = [];
     if (isHavingFilter) {
-      filterStatements.push(dbKeywords.having);
+      filterStatements.push(DB_KEYWORDS.having);
     } else {
-      filterStatements.push(dbKeywords.where);
+      filterStatements.push(DB_KEYWORDS.where);
     }
-    const qry = attachArrayWithAndSep(
+    const qry = attachArrayWith.space(
       Object.entries(filter)
         .map((filter) => {
           return DBQuery.#getQueryStatement(
@@ -1023,7 +781,7 @@ export class DBQuery {
       filterStatements.push(qry);
     }
     return filterStatements.length > 1
-      ? attachArrayWithSpaceSep(filterStatements)
+      ? attachArrayWith.space(filterStatements)
       : '';
   }
 
@@ -1053,7 +811,7 @@ export class DBQuery {
     const selectQuery = isExistsFilter
       ? { columns: { '1': null }, alias, isDistinct }
       : { columns: { [column]: null }, alias, isDistinct };
-    const subQryAllowedFields = DBQuery.#getAllowedFields(
+    const subQryAllowedFields = getAllowedFields(
       tableColumns,
       alias,
       rest.join,
@@ -1072,7 +830,7 @@ export class DBQuery {
     const operator = isExistsFilter ? OP[key as OP_KEYS] : key;
     const subQryArr: string[] = operator ? [operator] : [];
     subQryArr.push(`(${selectQry} ${subquery})`);
-    return attachArrayWithSpaceSep(subQryArr);
+    return attachArrayWith.space(subQryArr);
   }
 
   static #andOrFilterBuilder(
@@ -1162,14 +920,14 @@ export class DBQuery {
           `Operator "${baseOperation}" requires at least 1 value.`,
         );
       }
-      const arrayKeyword = dbKeywords.array;
+      const arrayKeyword = DB_KEYWORDS.array;
       const placeholders = preparePlachldrForArray(value, preparedValues);
       const dataType = getArrayDataType(value);
       const arrayQry = isArrayKeywordReq
-        ? ` (${arrayKeyword}[${attachArrayWithComaSep(
+        ? ` (${arrayKeyword}[${attachArrayWith.coma(
             placeholders,
           )}]::${dataType}[])`
-        : `(${attachArrayWithComaSep(placeholders)})`;
+        : `(${attachArrayWith.coma(placeholders)})`;
       return `${key} ${baseOperation} ${subQryOperation}${arrayQry}`;
     }
     if (typeof value !== 'object' || value === null) {
@@ -1249,7 +1007,7 @@ export class DBQuery {
         }
         case 'notNull':
         case 'isNull': {
-          return `${key} ${operation} ${dbKeywords.null}`;
+          return `${key} ${operation} ${DB_KEYWORDS.null}`;
         }
         case 'startsWith':
         case 'iStartsWith': {
@@ -1312,7 +1070,7 @@ export class DBQuery {
           );
       }
     };
-    const cond = attachArrayWithAndSep(Object.entries(value).map(prepareQry));
+    const cond = attachArrayWith.space(Object.entries(value).map(prepareQry));
     return cond ? `(${cond})` : '';
   }
 
@@ -1326,114 +1084,12 @@ export class DBQuery {
     }
 
     const limitPlaceholder = getPreparedValues(preparedValues, limit);
-    const limitStatements = [`${dbKeywords.limit} ${limitPlaceholder}`];
+    const limitStatements = [`${DB_KEYWORDS.limit} ${limitPlaceholder}`];
     if (offset && typeof offset === 'number') {
       const offsetPlaceholder = getPreparedValues(preparedValues, offset);
-      limitStatements.push(`${dbKeywords.offset} ${offsetPlaceholder}`);
+      limitStatements.push(`${DB_KEYWORDS.offset} ${offsetPlaceholder}`);
     }
-    return attachArrayWithSpaceSep(limitStatements);
-  }
-
-  static #prepareTableJoin(
-    selfModelName: string,
-    allowedFields: Set<string>,
-    include?: TABLE_JOIN[],
-  ) {
-    if (!include || include.length < 1) {
-      return '';
-    }
-    const joins = include.map((joinType) => {
-      switch (joinType.type) {
-        case 'SELF': {
-          const { type, on, alias } = joinType;
-          const updatedInclude = {
-            type,
-            tableName: selfModelName,
-            on,
-            alias,
-          };
-          return DBQuery.#prepareJoinStr(allowedFields, updatedInclude);
-        }
-        case 'INNER':
-        case 'FULLOUTER':
-        case 'LEFT':
-        case 'RIGHT':
-          return DBQuery.#prepareJoinStr(allowedFields, joinType);
-        case 'CROSS': {
-          const { type, model, alias } = joinType;
-          const updatedInclude = {
-            type,
-            model,
-            on: {},
-            alias,
-          };
-          return DBQuery.#prepareJoinStr(allowedFields, updatedInclude);
-        }
-        default:
-          throw new Error(
-            `Invalid join type:"${
-              (include as any).type
-            }". Valid join types:${attachArrayWithComaSep(
-              Object.keys(tableJoin),
-            )}.`,
-          );
-      }
-    });
-    return attachArrayWithSpaceSep(joins);
-  }
-  static #prepareJoinStr<T extends TABLE_JOIN_TYPE>(
-    allowedFields: Set<string>,
-    joinType: JOIN<T>,
-  ) {
-    const { type, model, on, tableName: name, alias } = joinType;
-    const joinName = tableJoin[type];
-    if (!joinName) {
-      throw new Error(
-        `Invalid join type:"${type}". Valid join types:${attachArrayWithComaSep(
-          Object.keys(tableJoin),
-        )}.`,
-      );
-    }
-    if (!name && !model) {
-      throw new Error('DBModel child is required for join.');
-    }
-    const tableName = name || (model as any).tableName;
-    const onStr = type === 'CROSS' ? 'true' : joinTableCond(on, allowedFields);
-    const aliasMaybe = alias
-      ? ` ${dbKeywords.as} ${alias} ${dbKeywords.on} `
-      : ` ${dbKeywords.on} `;
-    return `${joinName} ${tableName}${aliasMaybe}${onStr}`;
-  }
-
-  static #getAllowedFields(
-    selfAllowedFields: Set<string>,
-    alias?: AliasSubType,
-    include?: TABLE_JOIN[],
-  ) {
-    const modelFields: string[] = [
-      ...selfAllowedFields,
-      ...aliasFieldNames(selfAllowedFields, alias),
-    ];
-    if (include && Array.isArray(include) && include.length > 0) {
-      include.forEach((joinType) => {
-        const { type } = joinType;
-        switch (type) {
-          case 'INNER':
-          case 'LEFT':
-          case 'RIGHT':
-          case 'FULLOUTER': {
-            addJoinModelFields(joinType, modelFields);
-            break;
-          }
-          case 'CROSS': {
-            const { model, alias } = joinType;
-            addJoinModelFields({ model, on: {}, alias, type }, modelFields);
-            break;
-          }
-        }
-      });
-    }
-    return new Set(modelFields);
+    return attachArrayWith.space(limitStatements);
   }
 }
 
@@ -1465,7 +1121,7 @@ export class DBModel extends DBQuery {
       columns.push(DBModel.#createForeignColumn(key, ref));
     });
     const createEnumQryPromise = Promise.all(enums.map((e) => query(e)));
-    const createTableQry = `CREATE TABLE IF NOT EXISTS "${tableName}" (${attachArrayWithComaSep(
+    const createTableQry = `CREATE TABLE IF NOT EXISTS "${tableName}" (${attachArrayWith.coma(
       columns,
     )});`;
     createEnumQryPromise.then(() => query(createTableQry));
@@ -1488,7 +1144,7 @@ export class DBModel extends DBQuery {
       switch (key) {
         case 'type': {
           if ((keyVale as any).startsWith('ENUM')) {
-            const enumQry = `${enumQryPrefix} ${colUpr} ${dbKeywords.as} ${keyVale}; ${enumQrySuffix}`;
+            const enumQry = `${enumQryPrefix} ${colUpr} ${DB_KEYWORDS.as} ${keyVale}; ${enumQrySuffix}`;
             enums.push(enumQry);
             values.push(colUpr);
           } else {
@@ -1500,47 +1156,47 @@ export class DBModel extends DBQuery {
           primaryKeys.push(columnName);
           break;
         case 'defaultValue':
-          values.push(`${dbKeywords.default} ${keyVale}`);
+          values.push(`${DB_KEYWORDS.default} ${keyVale}`);
           break;
         case 'unique':
-          values.push(dbKeywords.unique);
+          values.push(DB_KEYWORDS.unique);
           break;
         case 'notNull':
-          values.push(dbKeywords.notNull);
+          values.push(DB_KEYWORDS.notNull);
           break;
         case 'customDefaultValue':
-          values.push(`${dbKeywords.default} '${keyVale}'`);
+          values.push(`${DB_KEYWORDS.default} '${keyVale}'`);
           break;
         case 'check':
-          values.push(`${dbKeywords.check} (${keyVale})`);
+          values.push(`${DB_KEYWORDS.check} (${keyVale})`);
           break;
       }
     });
-    return attachArrayWithSpaceSep(values);
+    return attachArrayWith.space(values);
   }
   static #createPrimaryColumn(primaryKeys: string[]) {
-    return `${dbKeywords.primaryKey} (${attachArrayWithComaSep(primaryKeys)})`;
+    return `${DB_KEYWORDS.primaryKey} (${attachArrayWith.coma(primaryKeys)})`;
   }
   static #createForeignColumn(parentTable: string, ref: ReferenceTable) {
     const { parentColumn, column, constraintName, onDelete, onUpdate } = ref;
     const colStr = Array.isArray(column)
-      ? attachArrayWithComaSep(column)
+      ? attachArrayWith.coma(column)
       : column;
     const parentColStr = Array.isArray(parentColumn)
-      ? attachArrayWithComaSep(parentColumn)
+      ? attachArrayWith.coma(parentColumn)
       : parentColumn;
     const values: string[] = [];
     if (constraintName) {
-      values.push(`${dbKeywords.constraint} ${constraintName}`);
+      values.push(`${DB_KEYWORDS.constraint} ${constraintName}`);
     }
-    values.push(`${dbKeywords.foreignKey} (${colStr})`);
-    values.push(`${dbKeywords.references} "${parentTable}" (${parentColStr})`);
+    values.push(`${DB_KEYWORDS.foreignKey} (${colStr})`);
+    values.push(`${DB_KEYWORDS.references} "${parentTable}" (${parentColStr})`);
     if (onDelete) {
-      values.push(`${dbKeywords.onDelete} ${onDelete}`);
+      values.push(`${DB_KEYWORDS.onDelete} ${onDelete}`);
     }
     if (onUpdate) {
-      values.push(`${dbKeywords.onUpdate} ${onUpdate}`);
+      values.push(`${DB_KEYWORDS.onUpdate} ${onUpdate}`);
     }
-    return attachArrayWithSpaceSep(values);
+    return attachArrayWith.space(values);
   }
 }

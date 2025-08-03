@@ -1,5 +1,9 @@
 import CurrentUser from './currentUser.model';
-import { DataTypes, dbDefaultValue, DBModel } from './model.helpers';
+import {
+  DataTypes,
+  dbDefaultValue,
+  DBModel,
+} from '../PgQueryBuilder/model.helpers';
 import { modelTypes, roleType } from './modelConstants';
 
 class Role extends DBModel {}

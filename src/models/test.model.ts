@@ -1,4 +1,8 @@
-import { aggregateFn, DataTypes, DBModel } from './model.helpers';
+import {
+  aggregateFn,
+  DataTypes,
+  DBModel,
+} from '../PgQueryBuilder/model.helpers';
 
 export class BasketA extends DBModel {}
 
@@ -75,11 +79,17 @@ BasketA.findAll({
   // where: {
   //   fruit_a: { iStartsWith: 'a' },
   // },
-  alias: { as: 'ac', model: BasketB },
+  // alias: {
+  //   as: 'ac',
+  //   query: {
+  //     alias: { query: { model: BasketC }, as: 'fine' },
+  //     where: { 'fine.c': { gt: 2 } },
+  //   },
+  // },
   where: {
     // a: { between: [1, 3], gte: 1 },
     // where: { a: { gt: 1 } },
-    b: { gt: 1 },
+    // b: { gt: 1 },
     // a: {
     // eq: {
     //   ANY: { model: BasketB, column: 'b' },

@@ -1,0 +1,33 @@
+export const DB_KEYWORDS = {
+  notNull: 'NOT NULL',
+  unique: 'UNIQUE',
+  default: 'DEFAULT',
+  primaryKey: 'PRIMARY KEY',
+  foreignKey: 'FOREIGN KEY',
+  constraint: 'CONSTRAINT',
+  references: 'REFERENCES',
+  onDelete: 'ON DELETE',
+  onUpdate: 'ON UPDATE',
+  check: 'CHECK',
+  distinct: 'DISTINCT',
+  orderBy: 'ORDER BY',
+  groupBy: 'GROUP BY',
+  null: 'NULL',
+  where: 'WHERE',
+  select: 'SELECT',
+  from: 'FROM',
+  insertInto: 'INSERT INTO',
+  values: 'VALUES',
+  returning: 'RETURNING',
+  limit: 'LIMIT',
+  offset: 'OFFSET',
+  as: 'AS',
+  on: 'ON',
+  having: 'HAVING',
+  any: 'ANY',
+  array: 'ARRAY',
+  all: 'ALL',
+} as const;
+
+export type DB_KEYWORDS_TYPE = typeof DB_KEYWORDS;
+export type DB_KEYWORDS_KEYS = keyof DB_KEYWORDS_TYPE;
