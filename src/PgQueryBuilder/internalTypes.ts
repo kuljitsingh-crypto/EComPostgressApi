@@ -61,32 +61,32 @@ export type InOperationSubQuery = SubQueryFilter & {
   isDistinct?: boolean;
 };
 
-export type WhereClause =
+export type WhereClause<Model> =
   | {
       [column: string]: Condition;
     }
   | {
-      $and: WhereClause[];
+      $and: WhereClause<Model>[];
     }
   | {
-      $or: WhereClause[];
+      $or: WhereClause<Model>[];
     }
-  | { $exists: ExistsFilter<'WhereReq'> }
-  | { $notExists: ExistsFilter<'WhereReq'> };
+  | { $exists: ExistsFilter<Model, 'WhereReq'> }
+  | { $notExists: ExistsFilter<Model, 'WhereReq'> };
 
 export type Subquery<
   Model,
   T extends SubqueryWhereReq = 'WhereNotReq',
 > = (T extends 'WhereReq'
-  ? { where: WhereClause }
+  ? { where: WhereClause<Model> }
   : {
-      where?: WhereClause;
+      where?: WhereClause<Model>;
     }) & {
   groupBy?: string[];
   limit?: PAGINATION['limit'];
   offset?: PAGINATION['offset'];
   join?: TABLE_JOIN_COND<Model>[];
-  having?: WhereClause;
+  having?: WhereClause<Model>;
 };
 
 export type SelectQuery<Model> = {

@@ -71,7 +71,7 @@ BasketD.init(
 // );
 
 BasketA.findAll({
-  // columns: { a: null },
+  // columns: { a: 'b' },
   // where: {
   //   fruit_a: { iStartsWith: 'a' },
   // },
@@ -83,7 +83,7 @@ BasketA.findAll({
   //   },
   // },
   where: {
-    // a: { between: [1, 3], gte: 1 },
+    a: { between: [1, 3], gte: 1 },
     // where: { a: { gt: 1 } },
     // b: { gt: 1 },
     // a: {
@@ -131,10 +131,10 @@ BasketA.findAll({
   // alias: 'fruit',
   // join: [
   //   {
-  //     type: 'INNER',
+  //     type: 'LEFT',
   //     model: BasketB,
   //     alias: 'basket_b',
-  //     on: { 'fruit.fruit_a': 'basket_b.fruit_b', 'fruit.a': 'basket_b.b' },
+  //     on: { fruit_a: 'basket_b.fruit_b', a: 'basket_b.b' },
   //     //   { model: BasketC, on: { 'basket_a.fruit_a': 'basket_c.fruit_c' } },
   //     // alias: 'basket_c',
   //     // // on: { 'basket_a.fruit_a': 'basket_c.fruit_a' },
@@ -143,11 +143,11 @@ BasketA.findAll({
   //     type: 'LEFT',
   //     model: BasketC,
   //     alias: 'basket_c',
-  //     on: { 'fruit.fruit_a': 'basket_c.fruit_c' },
+  //     on: { fruit_a: 'basket_c.fruit_c' },
   //   },
   // ],
   // orderBy: {
-  //   b: 'ASC',
+  //   a: 'ASC',
   //   // a: { order: 'DESC' },
 
   //   // fruit_a: 'DESC',
@@ -182,3 +182,7 @@ BasketA.findAll({
 }).then((res) => {
   console.log(res);
 });
+
+export function run() {
+  console.log('test model');
+}

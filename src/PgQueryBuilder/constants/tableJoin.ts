@@ -9,7 +9,7 @@ export const TABLE_JOIN = {
 
 export type TABLE_JOIN_TYPE = keyof typeof TABLE_JOIN;
 
-type ColumnRef = `${string}.${string}`;
+type ColumnRef = `${string}.${string}` | string;
 type BaseColumn = ColumnRef;
 type TargetColumn = ColumnRef;
 export type JOIN_COLUMN = Record<BaseColumn, TargetColumn>;

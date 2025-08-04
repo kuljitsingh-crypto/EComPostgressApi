@@ -10,6 +10,9 @@ import { throwError } from './errorHelper';
 const MIN_COLUMN_LENGTH = 1;
 const MAX_COLUMN_LENGTH = 63;
 const validColumnNameRegex = /^[a-zA-Z_][a-zA-Z0-9_$]*$/;
+const validAliasColumnNameRegex =
+  /^([a-zA-Z_][a-zA-Z0-9_$]*\.[a-zA-Z_][a-zA-Z0-9_$]*)$/;
+const validExistsColumnNameRegex = /^[1]$/;
 
 const attachArrayWithSep = (array: Array<Primitive>, sep: string) =>
   array.join(sep);
@@ -41,7 +44,11 @@ const simpleFieldValidate = (field: string) => {
       max: MAX_COLUMN_LENGTH,
     });
   }
-  if (!validColumnNameRegex.test(field)) {
+  const isValidRegexField =
+    validColumnNameRegex.test(field) ||
+    validAliasColumnNameRegex.test(field) ||
+    validExistsColumnNameRegex.test(field);
+  if (!isValidRegexField) {
     return throwError.invalidColumnNameRegexType(field);
   }
   return field;

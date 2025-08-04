@@ -1,13 +1,12 @@
 import 'dotenv/config';
 import express from 'express';
 import { addUUIDExtension } from './models/db.config';
-import * as models from './models';
+import * as test from './models/test.model';
 const PORT = parseInt(process.env.PORT || '3500', 10);
 const app = express();
 addUUIDExtension();
 
-models.RolModel;
-
+test.run();
 app.get('/', (req, res) => {
   res.send('Hello World!');
 });

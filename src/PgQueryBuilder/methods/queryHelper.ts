@@ -119,7 +119,7 @@ const getAnyAndAllFilterValue = (val: any, op: string) => {
 };
 
 export class QueryHelper {
-  static prepareSubQry(params: {
+  static #prepareSubQry(params: {
     whereQry?: string;
     orderbyQry?: string;
     limitQry?: string;
@@ -277,7 +277,7 @@ export class QueryHelper {
         isHavingFilter: true,
       },
     );
-    const finalSubQry = QueryHelper.prepareSubQry({
+    const finalSubQry = QueryHelper.#prepareSubQry({
       whereQry: whereStatement,
       limitQry: limitStr,
       joinQry: joinStr,
@@ -411,11 +411,11 @@ export class QueryHelper {
     return attachArrayWith.space(queries);
   }
 
-  static #prepareFilterStatement(
+  static #prepareFilterStatement<Model>(
     allowedFields: Set<string>,
     groupByFields: Set<string>,
     preparedValues: PreparedValues,
-    filter?: WhereClause,
+    filter?: WhereClause<Model>,
     options?: { isHavingFilter?: boolean },
   ) {
     if (!filter) return '';
@@ -468,7 +468,7 @@ export class QueryHelper {
       tableColumns.add('1');
     }
     const selectQuery = isExistsFilter
-      ? { columns: { '1': null }, alias, isDistinct }
+      ? { columns: { 1: null }, alias, isDistinct }
       : { columns: { [column]: null }, alias, isDistinct };
     const subQryAllowedFields = FieldHelper.getAllowedFields(
       tableColumns,
@@ -731,7 +731,7 @@ export class QueryHelper {
           return throwError.invalidOperatorType(op, validOperations);
       }
     };
-    const cond = attachArrayWith.space(Object.entries(value).map(prepareQry));
+    const cond = attachArrayWith.and(Object.entries(value).map(prepareQry));
     return cond ? `(${cond})` : '';
   }
 }

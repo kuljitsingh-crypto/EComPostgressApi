@@ -10,8 +10,8 @@ import {
 import { throwError } from './errorHelper';
 import { attachArrayWith, FieldQuote } from './helperFunction';
 
-const joinTableCond = (cond: JOIN_COLUMN, allowedFields: Set<string>) =>
-  attachArrayWith.and(
+const joinTableCond = (cond: JOIN_COLUMN, allowedFields: Set<string>) => {
+  const onStr = attachArrayWith.and(
     Object.entries(cond).map(([baseColumn, joinColumn]) =>
       attachArrayWith.space([
         FieldQuote(allowedFields, baseColumn),
@@ -20,7 +20,8 @@ const joinTableCond = (cond: JOIN_COLUMN, allowedFields: Set<string>) =>
       ]),
     ),
   );
-
+  return onStr ? `(${onStr})` : '';
+};
 export class TableJoin {
   static prepareTableJoin<Model>(
     selfModelName: string,
