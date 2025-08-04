@@ -118,6 +118,11 @@ const getAnyAndAllFilterValue = (val: any, op: string) => {
   return { key: subqueryKeyword, value: subqueryVal };
 };
 
+const prepareArrayData = (arr: Primitive[], type: string) => {
+  const arrayKeyword = DB_KEYWORDS.array;
+  return `(${arrayKeyword}[${attachArrayWith.coma(arr)}]::${type}[])`;
+};
+
 export class QueryHelper {
   static #prepareSubQry(params: {
     whereQry?: string;
@@ -583,13 +588,10 @@ export class QueryHelper {
       if (value.length < 1) {
         return throwError.invalidArrayOPType(baseOperation, { min: 1 });
       }
-      const arrayKeyword = DB_KEYWORDS.array;
       const placeholders = preparePlachldrForArray(value, preparedValues);
       const dataType = getArrayDataType(value);
       const arrayQry = isArrayKeywordReq
-        ? ` (${arrayKeyword}[${attachArrayWith.coma(
-            placeholders,
-          )}]::${dataType}[])`
+        ? prepareArrayData(placeholders, dataType)
         : `(${attachArrayWith.coma(placeholders)})`;
       return `${key} ${baseOperation} ${subQryOperation}${arrayQry}`;
     }
