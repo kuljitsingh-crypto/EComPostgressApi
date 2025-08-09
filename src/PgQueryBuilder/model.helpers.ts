@@ -7,6 +7,7 @@ import {
   FindQueryAttributes,
   PreparedValues,
   QueryParams,
+  RawQuery,
 } from './internalTypes';
 import { ColumnHelper } from './methods/columnHelper';
 import { errorHandler, throwError } from './methods/errorHelper';
@@ -18,6 +19,7 @@ import {
   getPreparedValues,
 } from './methods/helperFunction';
 import { QueryHelper } from './methods/queryHelper';
+import { RawQueryHandler } from './methods/rawQueryHelper';
 
 //============================================= CONSTANTS ===================================================//
 const enumQryPrefix = `DO $$ BEGIN CREATE TYPE`;
@@ -47,12 +49,21 @@ export class DBQuery {
     }
   }
 
-  static async queryRawSql(qry: string, params: any[] = []) {
+  static async queryRawSql(
+    qry: RawQuery = {} as RawQuery,
+    params: Primitive[] = [],
+  ) {
+    const tableName = this.tableName;
+    const { query: rawQry, values } = RawQueryHandler.buildRawQuery(
+      qry,
+      tableName,
+      params,
+    );
     try {
-      const result = await query(qry, params);
+      const result = await query(rawQry, values);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {
-      return errorHandler(qry, error as Error);
+      return errorHandler(rawQry, error as Error);
     }
   }
 

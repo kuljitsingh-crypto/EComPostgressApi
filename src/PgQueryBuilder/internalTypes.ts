@@ -137,3 +137,16 @@ export type QueryParams<Model> = SelectQuery<Model> &
     orderBy?: ORDER_BY;
     set?: SetQuery<Model>;
   };
+
+export type RawQuery =
+  | string
+  | {
+      columns?: string[];
+      where?: string[];
+      groupBy?: string[];
+      orderBy?: string[];
+      having?: string[];
+      distinct?: boolean;
+      limit?: number;
+      offset?: number;
+    };

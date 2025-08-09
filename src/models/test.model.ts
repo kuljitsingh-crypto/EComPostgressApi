@@ -185,7 +185,12 @@ BasketA.findAll({
   console.log(res);
 });
 
-
+BasketA.queryRawSql({
+  columns: ['Power(a,3)'],
+  // where: ['a & 1'],
+}).then((res) => {
+  console.log('raw Query Result->', res);
+});
 
 export function run() {
   console.log('test model');
