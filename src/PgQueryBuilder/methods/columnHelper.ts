@@ -1,6 +1,6 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { FieldFunctionType } from '../constants/fieldFunctions';
-import { FindQueryAttributes } from '../internalTypes';
+import { FindQueryAttribute, FindQueryAttributes } from '../internalTypes';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
@@ -10,16 +10,29 @@ import {
   fnJoiner,
 } from './helperFunction';
 
+const getColNameAndAlias = (
+  col: FindQueryAttribute,
+  allowedFields: Set<string>,
+) => {
+  if (typeof col === 'string') {
+    return { col, value: null };
+  } else if (typeof col === 'object' && col !== null) {
+    const [column, value] = Object.entries(col)[0];
+    return { col: column, value };
+  }
+  return throwError.invalidColumnNameType(col, allowedFields);
+};
+
 export class ColumnHelper {
   static getSelectColumns(
     allowedFields: Set<string>,
     columns?: FindQueryAttributes,
     isAggregateAllowed = true,
   ) {
-    if (!columns || Object.keys(columns).length < 1) return '*';
-    const fields = Object.entries(columns)
+    if (!columns || !Array.isArray(columns) || columns.length < 1) return '*';
+    const fields = columns
       .map((attr) => {
-        const [col, value] = attr;
+        const { col, value } = getColNameAndAlias(attr, allowedFields);
         const [column, fn] = fnJoiner.sepFnAndColumn(col);
         let validCol = FieldQuote(allowedFields, column);
         if (!isAggregateAllowed && fn) {

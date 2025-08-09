@@ -1,4 +1,4 @@
-import { PG_DATA_TYPE, DBModel } from '../PgQueryBuilder';
+import { PG_DATA_TYPE, DBModel, aggregateFn } from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
 
@@ -71,6 +71,7 @@ BasketD.init(
 // );
 
 BasketA.findAll({
+  //columns: [aggregateFn.COUNT('a'), { [aggregateFn.COUNT('fruit_a')]: 'c' }],
   // columns: { a: 'b' },
   // where: {
   //   fruit_a: { iStartsWith: 'a' },
@@ -83,7 +84,8 @@ BasketA.findAll({
   //   },
   // },
   where: {
-    a: { between: [1, 3], gte: 1 },
+    // 1: '1',
+    // a: { between: [1, 3], gte: 1 },
     // where: { a: { gt: 1 } },
     // b: { gt: 1 },
     // a: {
@@ -182,6 +184,8 @@ BasketA.findAll({
 }).then((res) => {
   console.log(res);
 });
+
+
 
 export function run() {
   console.log('test model');

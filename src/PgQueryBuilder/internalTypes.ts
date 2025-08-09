@@ -129,7 +129,8 @@ export type ExtraOptions = {
  * 1. {columnName:null} - return column name as define in columnKey
  * 2.{columnName:aliasName} - return column name as define in columnValue
  */
-export type FindQueryAttributes = Record<string, null | string>;
+export type FindQueryAttribute = Record<string, null | string> | string;
+export type FindQueryAttributes = FindQueryAttribute[];
 
 export type QueryParams<Model> = SelectQuery<Model> &
   Subquery<Model> & {

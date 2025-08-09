@@ -47,6 +47,15 @@ export class DBQuery {
     }
   }
 
+  static async queryRawSql(qry: string, params: any[] = []) {
+    try {
+      const result = await query(qry, params);
+      return { rows: result.rows, count: result.rowCount };
+    } catch (error) {
+      return errorHandler(qry, error as Error);
+    }
+  }
+
   static async create(
     fields: Record<string, Primitive>,
     returnOnly?: FindQueryAttributes,
