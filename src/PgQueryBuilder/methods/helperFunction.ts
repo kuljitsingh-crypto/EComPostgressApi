@@ -1,5 +1,5 @@
 import {
-  fieldFunctionName,
+  aggregateFunctionName,
   FieldFunctionType,
 } from '../constants/fieldFunctions';
 import { OP } from '../constants/operators';
@@ -30,9 +30,12 @@ const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
   attachArrayWithSep(array, ', ');
 
 const fieldFunc = (fn: FieldFunctionType, column: string) => {
-  const func = fieldFunctionName[fn];
+  const func = aggregateFunctionName[fn];
   if (!func) {
-    return throwError.invalidAggFuncType(fn, Object.keys(fieldFunctionName));
+    return throwError.invalidAggFuncType(
+      fn,
+      Object.keys(aggregateFunctionName),
+    );
   }
   return fnJoiner.joinFnAndColumn(func, column);
 };
@@ -69,9 +72,12 @@ export const fieldFunctionCreator = (
   functionName: FieldFunctionType,
   alias?: string,
 ) => {
-  const func = fieldFunctionName[functionName];
+  const func = aggregateFunctionName[functionName];
   if (!func) {
-    return throwError.invalidAggFuncType(func, Object.keys(fieldFunctionName));
+    return throwError.invalidAggFuncType(
+      func,
+      Object.keys(aggregateFunctionName),
+    );
   }
   const aliasMaybe = alias ? ` ${alias}` : '';
   return `${func}(${field})${aliasMaybe}`;
@@ -151,9 +157,9 @@ export const fnJoiner = {
 };
 
 export const aggregateFn = Object.freeze({
-  [fieldFunctionName.COUNT]: (column: string) => fieldFunc('COUNT', column),
-  [fieldFunctionName.AVG]: (column: string) => fieldFunc('AVG', column),
-  [fieldFunctionName.MAX]: (column: string) => fieldFunc('MAX', column),
-  [fieldFunctionName.MIN]: (column: string) => fieldFunc('MIN', column),
-  [fieldFunctionName.SUM]: (column: string) => fieldFunc('SUM', column),
+  [aggregateFunctionName.COUNT]: (column: string) => fieldFunc('COUNT', column),
+  [aggregateFunctionName.AVG]: (column: string) => fieldFunc('AVG', column),
+  [aggregateFunctionName.MAX]: (column: string) => fieldFunc('MAX', column),
+  [aggregateFunctionName.MIN]: (column: string) => fieldFunc('MIN', column),
+  [aggregateFunctionName.SUM]: (column: string) => fieldFunc('SUM', column),
 });

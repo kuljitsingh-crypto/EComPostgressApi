@@ -1,4 +1,4 @@
-export const fieldFunctionName = {
+export const aggregateFunctionName = {
   MIN: 'MIN',
   MAX: 'MAX',
   COUNT: 'COUNT',
@@ -6,4 +6,6 @@ export const fieldFunctionName = {
   SUM: 'SUM',
 } as const;
 
-export type FieldFunctionType = keyof typeof fieldFunctionName;
+export const fieldFunction = {};
+
+export type FieldFunctionType = keyof typeof aggregateFunctionName;

@@ -208,7 +208,7 @@ BasketA.findAll({
 });
 
 BasketE.queryRawSql({
-  columns: ['d * e'],
+  columns: ['||/ d'],
   // where: ['a & 1'],
 }).then((res) => {
   console.log('raw Query Result->', res);
