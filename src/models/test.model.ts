@@ -5,6 +5,7 @@ export class BasketA extends DBModel {}
 export class BasketB extends DBModel {}
 export class BasketC extends DBModel {}
 export class BasketD extends DBModel {}
+export class BasketE extends DBModel {}
 
 BasketA.init(
   {
@@ -38,6 +39,16 @@ BasketD.init(
   { tableName: 'basket_d' },
 );
 
+BasketE.init(
+  {
+    d: { type: PG_DATA_TYPE.int, isPrimary: true },
+    e: { type: PG_DATA_TYPE.int, isPrimary: true },
+    fruit_d: { type: PG_DATA_TYPE.string(100), notNull: true },
+    fruit_e: { type: PG_DATA_TYPE.string(100), notNull: true },
+  },
+  { tableName: 'basket_e' },
+);
+
 // BasketA.createBulk(
 //   ['a', 'fruit_a'],
 //   [
@@ -57,6 +68,16 @@ BasketD.init(
 //     [2, 'Apple'],
 //     [3, 'Watermelon'],
 //     [4, 'Pear'],
+//   ],
+// );
+
+// BasketE.createBulk(
+//   ['d', 'e', 'fruit_d', 'fruit_e'],
+//   [
+//     [1, 4, 'Apple', 'Orange'],
+//     [2, 5, 'Orange', 'Watermelon'],
+//     [3, 9, 'Watermelon', 'Banana'],
+//     [4, 0, 'Pear', 'Cucumber'],
 //   ],
 // );
 
@@ -84,6 +105,7 @@ BasketA.findAll({
   //   },
   // },
   where: {
+    // fruit_a: { notMatch: 5 },
     // 1: '1',
     // a: { between: [1, 3], gte: 1 },
     // where: { a: { gt: 1 } },
@@ -185,8 +207,8 @@ BasketA.findAll({
   console.log(res);
 });
 
-BasketA.queryRawSql({
-  columns: ['Power(a,3)'],
+BasketE.queryRawSql({
+  columns: ['d * e'],
   // where: ['a & 1'],
 }).then((res) => {
   console.log('raw Query Result->', res);

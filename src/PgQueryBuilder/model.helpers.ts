@@ -142,7 +142,7 @@ export class DBQuery {
     const insertClause = `${DB_KEYWORDS.insertInto} "${this.tableName}"(${colStr})`;
     const valuesClause = `${DB_KEYWORDS.values}${valuePlaceholders}`;
     const returningClause = `${DB_KEYWORDS.returning} ${returnStr}`;
-    const createQry = attachArrayWith.coma([
+    const createQry = attachArrayWith.space([
       insertClause,
       valuesClause,
       returningClause,

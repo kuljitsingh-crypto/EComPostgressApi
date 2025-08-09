@@ -9,18 +9,25 @@ const checkAndAddQuery = (
   prefix?: string,
   replaceWithIndex?: number,
 ) => {
-  if (attrName && Array.isArray(attrName) && attrName.length > 0) {
-    const attrStr = attachArrayWith.coma(attrName);
-    const data: string[] = [];
-    if (prefix) {
-      data.push(prefix);
-    }
-    data.push(attrStr);
-    if (typeof replaceWithIndex == 'number') {
-      queries[replaceWithIndex] = attachArrayWith.space(data);
-    } else {
-      queries.push(attachArrayWith.space(data));
-    }
+  const isValidAttr =
+    attrName && Array.isArray(attrName) && attrName.length > 0;
+  if (!isValidAttr) {
+    return;
+  }
+  attrName = attrName?.filter(Boolean) as string[];
+  if (attrName.length < 1) {
+    return;
+  }
+  const attrStr = attachArrayWith.coma(attrName);
+  const data: string[] = [];
+  if (prefix) {
+    data.push(prefix);
+  }
+  data.push(attrStr);
+  if (typeof replaceWithIndex == 'number') {
+    queries[replaceWithIndex] = attachArrayWith.space(data);
+  } else {
+    queries.push(attachArrayWith.space(data));
   }
 };
 

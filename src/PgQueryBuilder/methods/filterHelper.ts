@@ -379,7 +379,11 @@ export class TableFilter {
         case 'like':
         case 'iLike':
         case 'notLike':
-        case 'notILike': {
+        case 'notILike':
+        case 'match':
+        case 'iMatch':
+        case 'notMatch':
+        case 'iNotMatch': {
           checkPrimitiveValueForOp(op, val as any);
           return prepareQryForPrimitiveOp(
             preparedValues,
