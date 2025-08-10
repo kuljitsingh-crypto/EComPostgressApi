@@ -4,7 +4,7 @@ import {
 } from '../constants/fieldFunctions';
 import { OP } from '../constants/operators';
 import { Primitive } from '../globalTypes';
-import { PreparedValues } from '../internalTypes';
+import { AllowedFields, GroupByFields, PreparedValues } from '../internalTypes';
 import { throwError } from './errorHelper';
 
 const MIN_COLUMN_LENGTH = 1;
@@ -57,7 +57,7 @@ const simpleFieldValidate = (field: string) => {
   return field;
 };
 
-const validateField = (field: string, allowed: Set<string>) => {
+const validateField = (field: string, allowed: AllowedFields) => {
   field = simpleFieldValidate(field);
   if (!allowed.has(field)) {
     return throwError.invalidColumnNameType(field, allowed);
@@ -90,15 +90,15 @@ export const dynamicFieldQuote = (field: string) => {
   return quote(field);
 };
 
-export const FieldQuote = (allowedFields: Set<string>, str: string) => {
+export const fieldQuote = (allowedFields: AllowedFields, str: string) => {
   str = validateField(str, allowedFields);
   return quote(str);
 };
 
 export const prepareColumnForHavingClause = (
   key: string,
-  groupByFields: Set<string>,
-  allowedFields: Set<string>,
+  groupByFields: GroupByFields,
+  allowedFields: AllowedFields,
   isHavingFilter: boolean,
 ) => {
   let validKey: string;
@@ -107,12 +107,12 @@ export const prepareColumnForHavingClause = (
     if (!fn && !groupByFields.has(k)) {
       return throwError.invalidGrpColumnNameType(k);
     }
-    validKey = FieldQuote(allowedFields, k);
+    validKey = fieldQuote(allowedFields, k);
     if (fn) {
       validKey = aggregateFunctionCreator(validKey, fn as FieldFunctionType);
     }
   } else {
-    validKey = FieldQuote(allowedFields, key);
+    validKey = fieldQuote(allowedFields, key);
   }
   return validKey;
 };

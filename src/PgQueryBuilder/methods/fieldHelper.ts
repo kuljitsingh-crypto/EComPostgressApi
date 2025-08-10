@@ -3,12 +3,12 @@ import {
   TABLE_JOIN_COND,
   TABLE_JOIN_TYPE,
 } from '../constants/tableJoin';
-import { AliasSubType } from '../internalTypes';
+import { AliasSubType, AllowedFields } from '../internalTypes';
 import { throwError } from './errorHelper';
 
 export class FieldHelper {
   static getAllowedFields<Model>(
-    selfAllowedFields: Set<string>,
+    selfAllowedFields: AllowedFields,
     alias?: AliasSubType<Model>,
     include?: TABLE_JOIN_COND<Model>[],
   ) {
@@ -42,7 +42,7 @@ export class FieldHelper {
   }
 
   static getAliasSubqueryModel<Model>(alias?: AliasSubType<Model>): {
-    tableColumns: Set<string>;
+    tableColumns: AllowedFields;
     tableName: string;
   } {
     if (
@@ -119,7 +119,7 @@ export class FieldHelper {
   }
 
   static #initializeModelFields<Model>(
-    refAllowedFields: Set<string>,
+    refAllowedFields: AllowedFields,
     alias?: AliasSubType<Model>,
   ) {
     if (typeof alias === 'object') {

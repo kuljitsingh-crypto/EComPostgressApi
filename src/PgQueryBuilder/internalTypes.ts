@@ -11,6 +11,8 @@ type SubqueryWhereReq = 'WhereReq' | 'WhereNotReq';
 export type ORDER_OPTION = 'ASC' | 'DESC';
 export type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
 export type PAGINATION = { limit: number; offset?: number };
+export type GroupByFields = Set<string>;
+export type AllowedFields = Set<string>;
 
 export type ORDER_BY = Record<
   string,
@@ -133,12 +135,16 @@ export type ExtraOptions = {
   reference?: Reference;
 };
 
-/**
- * Different Flavours
- * 1. {columnName:null} - return column name as define in columnKey
- * 2.{columnName:aliasName} - return column name as define in columnValue
- */
-export type FindQueryAttribute = [string, null | string] | string;
+export type CallableField = (
+  preparedValues: PreparedValues,
+  groupByFields: GroupByFields,
+  allowedFields: AllowedFields,
+) => { col: string; value: string | null; shouldSkipFieldValidation?: boolean };
+
+export type FindQueryAttribute =
+  | [string | CallableField, null | string]
+  | string
+  | CallableField;
 export type FindQueryAttributes = FindQueryAttribute[];
 
 export type QueryParams<Model> = SelectQuery<Model> &

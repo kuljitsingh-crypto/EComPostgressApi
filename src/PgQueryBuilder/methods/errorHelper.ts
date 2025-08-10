@@ -1,5 +1,6 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { TABLE_JOIN } from '../constants/tableJoin';
+import { AllowedFields } from '../internalTypes';
 import { attachArrayWith } from './helperFunction';
 
 function throwInvalidJoinTypeError(type: string): never {
@@ -127,11 +128,21 @@ function throwInvalidPrimaryColumnError(tableName: string): never {
 
 function throwInvalidColumnNameError(
   field: string,
-  allowedNames: Set<string>,
+  allowedNames: AllowedFields,
 ): never {
   const allowed = attachArrayWith.comaAndSpace(Array.from(allowedNames));
   throw new Error(
     `Invalid column name ${field}. Allowed Column names are: ${allowed}.`,
+  );
+}
+
+function throwInvalidColumnOperationError(
+  field: string,
+  allowedNames: string[],
+): never {
+  const allowed = attachArrayWith.comaAndSpace(allowedNames);
+  throw new Error(
+    `Invalid column operator ${field}. Allowed Column operations are: ${allowed}.`,
   );
 }
 
@@ -153,6 +164,12 @@ function throwInvalidColumnNameRegexError(field: string): never {
 function throwInvalidColumnNameForGrpError(field: string): never {
   throw new Error(
     `Invalid column "${field}" for HAVING clause. Column should be part of GROUP BY or an aggregate function.`,
+  );
+}
+
+function throwInvalidFieldFuncCall(): never {
+  throw new Error(
+    'Invalid FieldFunction call: This method can only be executed within a valid query-building context.',
   );
 }
 
@@ -178,6 +195,8 @@ export const throwError = {
   invalidGrpColumnNameType: throwInvalidColumnNameForGrpError,
   invalidColNameLenType: throwInvalidColumnNameLenError,
   invalidColumnNameRegexType: throwInvalidColumnNameRegexError,
+  invalidColumnOpType: throwInvalidColumnOperationError,
+  invalidFieldFuncCallType: throwInvalidFieldFuncCall,
 };
 
 export const errorHandler = (query: string, error: Error) => {

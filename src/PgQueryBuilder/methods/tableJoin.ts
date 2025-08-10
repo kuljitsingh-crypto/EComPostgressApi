@@ -7,16 +7,17 @@ import {
   TABLE_JOIN_COND,
   TABLE_JOIN_TYPE,
 } from '../constants/tableJoin';
+import { AllowedFields } from '../internalTypes';
 import { throwError } from './errorHelper';
-import { attachArrayWith, FieldQuote } from './helperFunction';
+import { attachArrayWith, fieldQuote } from './helperFunction';
 
-const joinTableCond = (cond: JOIN_COLUMN, allowedFields: Set<string>) => {
+const joinTableCond = (cond: JOIN_COLUMN, allowedFields: AllowedFields) => {
   const onStr = attachArrayWith.and(
     Object.entries(cond).map(([baseColumn, joinColumn]) =>
       attachArrayWith.space([
-        FieldQuote(allowedFields, baseColumn),
+        fieldQuote(allowedFields, baseColumn),
         OP.eq,
-        FieldQuote(allowedFields, joinColumn),
+        fieldQuote(allowedFields, joinColumn),
       ]),
     ),
   );
@@ -25,7 +26,7 @@ const joinTableCond = (cond: JOIN_COLUMN, allowedFields: Set<string>) => {
 export class TableJoin {
   static prepareTableJoin<Model>(
     selfModelName: string,
-    allowedFields: Set<string>,
+    allowedFields: AllowedFields,
     include?: TABLE_JOIN_COND<Model>[],
   ) {
     if (!include || include.length < 1) {
@@ -65,7 +66,7 @@ export class TableJoin {
     return attachArrayWith.space(joins as string[]);
   }
   static #prepareJoinStr<T extends TABLE_JOIN_TYPE, Model>(
-    allowedFields: Set<string>,
+    allowedFields: AllowedFields,
     joinType: JOIN<T, Model>,
   ) {
     const { type, model, on, tableName: name, alias } = joinType;

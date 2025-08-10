@@ -1,4 +1,4 @@
-import { PG_DATA_TYPE, DBModel, aggregateFn } from '../PgQueryBuilder';
+import { PG_DATA_TYPE, DBModel, aggregateFn, fieldFn } from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
 
@@ -92,7 +92,31 @@ BasketE.init(
 // );
 
 BasketA.findAll({
+  // columns: ['a'],
   // columns: [[aggregateFn.COUNT('a'), 'b']],
+  columns: [
+    fieldFn.sqrt({
+      model: BasketB,
+      column: 'b',
+      where: { b: { eq: 3 } },
+    }),
+    // [
+    //   fieldFn.sqrt({
+    //     model: BasketB,
+    //     column: 'b',
+    //     where: { b: { eq: 3 } },
+    //   }),
+    //   'sum',
+    // ],
+    // [
+    //   fieldFn.add('a', {
+    //     model: BasketB,
+    //     column: 'b',
+    //     where: { b: { eq: 3 } },
+    //   }),
+    //   'sum',
+    // ],
+  ],
   // columns: { a: 'b' },
   // where: {
   //   fruit_a: { iStartsWith: 'a' },
@@ -110,11 +134,11 @@ BasketA.findAll({
     // a: { between: [1, 3], gte: 1 },
     // where: { a: { gt: 1 } },
     // b: { gt: 1 },
-    a: {
-      eq: {
-        ANY: { model: BasketB, column: 'b' },
-      },
-    },
+    // a: {
+    //   eq: {
+    //     ANY: { model: BasketB, column: 'b' },
+    //   },
+    // },
     // in: { model: BasketB, column: 'b' },
     // },
     // a:{in:{}}
@@ -209,11 +233,17 @@ BasketA.findAll({
 });
 
 BasketE.queryRawSql({
-  columns: ['Power(d,e)'],
+  columns: ['SIGN( d)'],
   // where: ['a & 1'],
 }).then((res) => {
   console.log('raw Query Result->', res);
 });
+
+// BasketA.queryRawSql(
+//   'SELECT a + (SELECT b FROM basket_b ) AS sum FROM basket_a',
+// ).then((res) => {
+//   console.log('raw Query Result->', res);
+// });
 
 export function run() {
   console.log('test model');

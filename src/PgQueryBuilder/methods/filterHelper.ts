@@ -10,8 +10,9 @@ import {
 } from '../constants/operators';
 import { Primitive } from '../globalTypes';
 import {
+  AllowedFields,
   FilterColumnValue,
-  InOperationSubQuery,
+  GroupByFields,
   ORDER_BY,
   PreparedValues,
   SelectQuery,
@@ -21,7 +22,6 @@ import {
   WhereClauseKeys,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
-import { FieldHelper } from './fieldHelper';
 import {
   attachArrayWith,
   getPreparedValues,
@@ -92,27 +92,10 @@ const prepareArrayData = (arr: Primitive[], type: string) => {
   return `(${arrayKeyword}[${attachArrayWith.coma(arr)}]::${type}[])`;
 };
 
-type SelectQueryBuilder<Model> = (
-  tableName: string,
-  allowedFields: Set<string>,
-  groupByFields: Set<string>,
-  preparedValues: PreparedValues,
-  selectQuery: SelectQuery<Model>,
-) => string;
-
-type SubQueryBuilder<Model> = (
-  tableName: string,
-  allowedFields: Set<string>,
-  groupByFields: Set<string>,
-  preparedValues: PreparedValues,
-  subQuery: Subquery<Model>,
-  orderBy?: ORDER_BY,
-) => string;
-
 export class TableFilter {
   static prepareFilterStatement<Model>(
-    allowedFields: Set<string>,
-    groupByFields: Set<string>,
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     filter?: WhereClause<Model>,
     options?: { isHavingFilter?: boolean },
@@ -146,10 +129,10 @@ export class TableFilter {
       : '';
   }
 
-  static #andOrFilterBuilder<Model>(
+  static #andOrFilterBuilder(
     key: OP_KEYS,
-    allowedFields: Set<string>,
-    groupByFields: Set<string>,
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     value: any,
     isHavingFilter: boolean,
@@ -178,9 +161,9 @@ export class TableFilter {
     return cond ? `(${cond})` : '';
   }
 
-  static #getQueryStatement<Model>(
-    allowedFields: Set<string>,
-    groupByFields: Set<string>,
+  static #getQueryStatement(
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
     singleQry: [WhereClauseKeys, any],
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
@@ -221,12 +204,12 @@ export class TableFilter {
     }
   }
 
-  static #buildQueryForSubQryOperator<Model>(
+  static #buildQueryForSubQryOperator(
     key: string,
     baseOperation: string,
     subQryOperation: string,
     preparedValues: PreparedValues,
-    groupByFields: Set<string>,
+    groupByFields: GroupByFields,
     value: any,
     isArrayKeywordReq: boolean = false,
   ) {
@@ -257,8 +240,8 @@ export class TableFilter {
   static #buildCondition<Model>(
     key: string,
     value: Record<SIMPLE_OP_KEYS, Primitive>,
-    allowedFields: Set<string>,
-    groupByFields: Set<string>,
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
   ) {

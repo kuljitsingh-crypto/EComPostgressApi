@@ -3,8 +3,10 @@ import { DB_KEYWORDS } from './constants/dbkeywords';
 import { ReferenceTable } from './constants/foreignkeyActions';
 import { Primitive, Table, TableValues } from './globalTypes';
 import {
+  AllowedFields,
   ExtraOptions,
   FindQueryAttributes,
+  GroupByFields,
   PreparedValues,
   QueryParams,
   RawQuery,
@@ -15,7 +17,7 @@ import { FieldHelper } from './methods/fieldHelper';
 import {
   attachArrayWith,
   createPlaceholder,
-  FieldQuote,
+  fieldQuote,
   getPreparedValues,
 } from './methods/helperFunction';
 import { QueryHelper } from './methods/queryHelper';
@@ -29,8 +31,8 @@ const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
 
 export class DBQuery {
   static tableName: string = '';
-  static tableColumns: Set<string> = new Set();
-  static #groupByFields: Set<string> = new Set();
+  static tableColumns: AllowedFields = new Set();
+  static #groupByFields: GroupByFields = new Set();
 
   static async findAll<Model>(queryParams?: QueryParams<Model>) {
     const preparedValues: PreparedValues = { index: 0, values: [] };
@@ -74,15 +76,13 @@ export class DBQuery {
     const keys: string[] = [];
     const valuePlaceholder: string[] = [];
     const allowedFields = FieldHelper.getAllowedFields(this.tableColumns);
-    const returnStr = ColumnHelper.getSelectColumns(
-      allowedFields,
-      returnOnly,
-      false,
-    );
+    const returnStr = ColumnHelper.getSelectColumns(allowedFields, returnOnly, {
+      isAggregateAllowed: false,
+    });
     const preparedValues: PreparedValues = { index: 0, values: [] };
     Object.entries(fields).forEach((entry) => {
       const [key, value] = entry;
-      keys.push(FieldQuote(allowedFields, key));
+      keys.push(fieldQuote(allowedFields, key));
       const placeholder = getPreparedValues(preparedValues, value);
       valuePlaceholder.push(placeholder);
     });
@@ -111,11 +111,9 @@ export class DBQuery {
   ) {
     const flatedValues: Primitive[] = [];
     const allowedFields = FieldHelper.getAllowedFields(this.tableColumns);
-    const returnStr = ColumnHelper.getSelectColumns(
-      allowedFields,
-      returnOnly,
-      false,
-    );
+    const returnStr = ColumnHelper.getSelectColumns(allowedFields, returnOnly, {
+      isAggregateAllowed: false,
+    });
     let incrementBy = 1;
     const valuePlaceholder = values.map((val, pIndex) => {
       if (val.length !== columns.length) {
@@ -167,7 +165,7 @@ export class DBModel extends DBQuery {
     const primaryKeys: string[] = [];
     const columns: string[] = [];
     const enums: string[] = [];
-    const tableColumns: Set<string> = new Set();
+    const tableColumns: AllowedFields = new Set();
     Object.entries(modelObj).forEach((entry) => {
       const [key, value] = entry as [T, TableValues];
       tableColumns.add(key);

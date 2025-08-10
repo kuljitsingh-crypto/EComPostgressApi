@@ -13,7 +13,9 @@ import { Primitive } from '../globalTypes';
 import {
   AliasFilter,
   AliasSubType,
+  AllowedFields,
   FilterColumnValue,
+  GroupByFields,
   InOperationSubQuery,
   ORDER_BY,
   PreparedValues,
@@ -32,7 +34,7 @@ import { TableFilter } from './filterHelper';
 import {
   attachArrayWith,
   aggregateFunctionCreator,
-  FieldQuote,
+  fieldQuote,
   getPreparedValues,
   isPrimitiveValue,
   prepareColumnForHavingClause,
@@ -65,8 +67,8 @@ const prepareFinalFindQry = (
 export class QueryHelper {
   static prepareQuery<Model>(
     preparedValues: PreparedValues,
-    refAllowedFields: Set<string>,
-    groupByFields: Set<string>,
+    refAllowedFields: AllowedFields,
+    groupByFields: GroupByFields,
     tableName: string,
     qry: QueryParams<Model>,
     useOnlyRefAllowedFields = false,
@@ -106,7 +108,7 @@ export class QueryHelper {
   static otherModelSubqueryBuilder<T extends InOperationSubQuery<Model>, Model>(
     key: string,
     preparedValues: PreparedValues,
-    groupByFields: Set<string>,
+    groupByFields: GroupByFields,
     value: T,
     isExistsFilter: boolean = true,
   ) {
@@ -119,7 +121,7 @@ export class QueryHelper {
       return throwError.invalidWhereClauseType(key);
     }
     const tableName = (model as any).tableName;
-    const tableColumns = new Set((model as any).tableColumns) as Set<string>;
+    const tableColumns = new Set((model as any).tableColumns) as AllowedFields;
     if (isExistsFilter) {
       tableColumns.add('1');
     }
@@ -154,14 +156,17 @@ export class QueryHelper {
   // Private Methods
   static #prepareSelectQuery<Model>(
     tableName: string,
-    allowedFields: Set<string>,
-    groupByFields: Set<string>,
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     selectQuery: SelectQuery<Model>,
   ) {
     const { isDistinct, columns, alias } = selectQuery;
     const distinctMaybe = isDistinct ? `${DB_KEYWORDS.distinct}` : '';
-    const colStr = ColumnHelper.getSelectColumns(allowedFields, columns);
+    const colStr = ColumnHelper.getSelectColumns(allowedFields, columns, {
+      preparedValues,
+      groupByFields,
+    });
     const tableAlias = QueryHelper.#prepareAliasSubQuery(
       tableName,
       preparedValues,
@@ -182,7 +187,7 @@ export class QueryHelper {
 
   static #prepareSetQuery<Model>(
     preparedValues: PreparedValues,
-    groupByFields: Set<string>,
+    groupByFields: GroupByFields,
     setQry?: SetQuery<Model>,
   ) {
     if (!setQry) {
@@ -270,8 +275,8 @@ export class QueryHelper {
   }
 
   static #prepareGroupByQuery(
-    allowedFields: Set<string>,
-    groupByFields: Set<string>,
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
     groupBy?: string[],
   ) {
     groupByFields.clear();
@@ -279,7 +284,7 @@ export class QueryHelper {
     const groupStatements: string[] = [DB_KEYWORDS.groupBy];
     const qry = attachArrayWith.coma(
       groupBy.map((key) => {
-        const validKey = FieldQuote(allowedFields, key);
+        const validKey = fieldQuote(allowedFields, key);
         groupByFields.add(validKey);
         return validKey;
       }),
@@ -288,12 +293,15 @@ export class QueryHelper {
     return attachArrayWith.space(groupStatements);
   }
 
-  static #prepareOrderByQuery(allowedFields: Set<string>, orderBy?: ORDER_BY) {
+  static #prepareOrderByQuery(
+    allowedFields: AllowedFields,
+    orderBy?: ORDER_BY,
+  ) {
     if (!orderBy || Object.keys(orderBy).length < 1) return '';
     const orderStatement: string[] = [DB_KEYWORDS.orderBy];
     const qry = Object.entries(orderBy)
       .map(([key, val]) => {
-        const validKey = FieldQuote(allowedFields, key);
+        const validKey = fieldQuote(allowedFields, key);
         if (typeof val === 'string') {
           return `${validKey} ${val}`;
         }
@@ -320,8 +328,8 @@ export class QueryHelper {
 
   static #prepareSubquery<Model>(
     tableName: string,
-    allowedFields: Set<string>,
-    groupByFields: Set<string>,
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     subQuery: Subquery<Model>,
     orderBy?: ORDER_BY,
@@ -368,8 +376,8 @@ export class QueryHelper {
   static #prepareAliasSubQuery<Model extends any = any>(
     tableName: string,
     preparedValues: PreparedValues,
-    allowedFields: Set<string>,
-    groupByFields: Set<string>,
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
     alias?: AliasSubType<Model>,
   ): string {
     const isPrimitiveAlias =
