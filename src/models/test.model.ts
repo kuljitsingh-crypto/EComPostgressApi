@@ -110,11 +110,11 @@ BasketA.findAll({
     // a: { between: [1, 3], gte: 1 },
     // where: { a: { gt: 1 } },
     // b: { gt: 1 },
-    // a: {
-    //   eq: {
-    //     ANY: [1, 2, 3],
-    //   },
-    // },
+    a: {
+      eq: {
+        ANY: { model: BasketB, column: 'b' },
+      },
+    },
     // in: { model: BasketB, column: 'b' },
     // },
     // a:{in:{}}

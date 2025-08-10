@@ -161,7 +161,7 @@ export class DBQuery {
 //============================================= DBModel ===================================================//
 
 export class DBModel extends DBQuery {
-  static init(modelObj: Table, option: ExtraOptions) {
+  static init<T extends string>(modelObj: Table<T>, option: ExtraOptions) {
     const { tableName, reference = {} } = option;
     this.tableName = tableName;
     const primaryKeys: string[] = [];
@@ -169,7 +169,7 @@ export class DBModel extends DBQuery {
     const enums: string[] = [];
     const tableColumns: Set<string> = new Set();
     Object.entries(modelObj).forEach((entry) => {
-      const [key, value] = entry;
+      const [key, value] = entry as [T, TableValues];
       tableColumns.add(key);
       columns.push(DBModel.#createColumn(key, value, primaryKeys, enums));
     });

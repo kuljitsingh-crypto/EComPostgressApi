@@ -103,6 +103,54 @@ export class QueryHelper {
     return query;
   }
 
+  static otherModelSubqueryBuilder<T extends InOperationSubQuery<Model>, Model>(
+    key: string,
+    preparedValues: PreparedValues,
+    groupByFields: Set<string>,
+    value: T,
+    isExistsFilter: boolean = true,
+  ) {
+    const { model, alias, column, orderBy, isDistinct, ...rest } =
+      value as InOperationSubQuery<Model>;
+    if (!model) {
+      return throwError.invalidModelType();
+    }
+    if (!rest.where && isExistsFilter) {
+      return throwError.invalidWhereClauseType(key);
+    }
+    const tableName = (model as any).tableName;
+    const tableColumns = new Set((model as any).tableColumns) as Set<string>;
+    if (isExistsFilter) {
+      tableColumns.add('1');
+    }
+    const selectQuery = isExistsFilter
+      ? { columns: ['1'], alias, isDistinct }
+      : { columns: [column], alias, isDistinct };
+    const subQryAllowedFields = FieldHelper.getAllowedFields(
+      tableColumns,
+      alias,
+      rest.join,
+    );
+    const selectQry = QueryHelper.#prepareSelectQuery(
+      tableName,
+      subQryAllowedFields,
+      groupByFields,
+      preparedValues,
+      selectQuery,
+    );
+    const subquery = QueryHelper.#prepareSubquery(
+      tableName,
+      subQryAllowedFields,
+      groupByFields,
+      preparedValues,
+      rest as any,
+    );
+    const operator = isExistsFilter ? OP[key as OP_KEYS] : key;
+    const subQryArr: string[] = operator ? [operator] : [];
+    subQryArr.push(`(${selectQry} ${subquery})`);
+    return attachArrayWith.space(subQryArr);
+  }
+
   // Private Methods
   static #prepareSelectQuery<Model>(
     tableName: string,
@@ -283,8 +331,6 @@ export class QueryHelper {
       allowedFields,
       groupByFields,
       preparedValues,
-      QueryHelper.#prepareSelectQuery,
-      QueryHelper.#prepareSubquery,
       where,
     );
     const limitStr = PaginationQuery.preparePaginationStatement(
@@ -303,8 +349,6 @@ export class QueryHelper {
       allowedFields,
       groupByFields,
       preparedValues,
-      QueryHelper.#prepareSelectQuery,
-      QueryHelper.#prepareSubquery,
       having,
       {
         isHavingFilter: true,

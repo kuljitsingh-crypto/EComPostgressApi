@@ -28,6 +28,7 @@ import {
   isPrimitiveValue,
   prepareColumnForHavingClause,
 } from './helperFunction';
+import { QueryHelper } from './queryHelper';
 
 const checkPrimitiveValueForOp = (op: string, value: Primitive) => {
   if (!isPrimitiveValue(value)) {
@@ -113,8 +114,6 @@ export class TableFilter {
     allowedFields: Set<string>,
     groupByFields: Set<string>,
     preparedValues: PreparedValues,
-    selectQueryBuilder: SelectQueryBuilder<Model>,
-    subQueryBuilder: SubQueryBuilder<Model>,
     filter?: WhereClause<Model>,
     options?: { isHavingFilter?: boolean },
   ) {
@@ -135,8 +134,6 @@ export class TableFilter {
             filter,
             preparedValues,
             isHavingFilter,
-            selectQueryBuilder,
-            subQueryBuilder,
           );
         })
         .filter(Boolean),
@@ -149,59 +146,6 @@ export class TableFilter {
       : '';
   }
 
-  static #otherModelSubqueryBuilder<
-    T extends InOperationSubQuery<Model>,
-    Model,
-  >(
-    key: string,
-    preparedValues: PreparedValues,
-    groupByFields: Set<string>,
-    value: T,
-    selectQueryBuilder: SelectQueryBuilder<Model>,
-    subQueryBuilder: SubQueryBuilder<Model>,
-    isExistsFilter: boolean = true,
-  ) {
-    const { model, alias, column, orderBy, isDistinct, ...rest } =
-      value as InOperationSubQuery<Model>;
-    if (!model) {
-      return throwError.invalidModelType();
-    }
-    if (!rest.where && isExistsFilter) {
-      return throwError.invalidWhereClauseType(key);
-    }
-    const tableName = (model as any).tableName;
-    const tableColumns = new Set((model as any).tableColumns) as Set<string>;
-    if (isExistsFilter) {
-      tableColumns.add('1');
-    }
-    const selectQuery = isExistsFilter
-      ? { columns: ['1'], alias, isDistinct }
-      : { columns: [column], alias, isDistinct };
-    const subQryAllowedFields = FieldHelper.getAllowedFields(
-      tableColumns,
-      alias,
-      rest.join,
-    );
-    const selectQry = selectQueryBuilder(
-      tableName,
-      subQryAllowedFields,
-      groupByFields,
-      preparedValues,
-      selectQuery,
-    );
-    const subquery = subQueryBuilder(
-      tableName,
-      subQryAllowedFields,
-      groupByFields,
-      preparedValues,
-      rest as any,
-    );
-    const operator = isExistsFilter ? OP[key as OP_KEYS] : key;
-    const subQryArr: string[] = operator ? [operator] : [];
-    subQryArr.push(`(${selectQry} ${subquery})`);
-    return attachArrayWith.space(subQryArr);
-  }
-
   static #andOrFilterBuilder<Model>(
     key: OP_KEYS,
     allowedFields: Set<string>,
@@ -209,8 +153,6 @@ export class TableFilter {
     preparedValues: PreparedValues,
     value: any,
     isHavingFilter: boolean,
-    selectQueryBuilder: SelectQueryBuilder<Model>,
-    subQueryBuilder: SubQueryBuilder<Model>,
   ) {
     if (!Array.isArray(value)) {
       return throwError.invalidArrayOPType(key);
@@ -229,8 +171,6 @@ export class TableFilter {
             filter,
             preparedValues,
             isHavingFilter,
-            selectQueryBuilder,
-            subQueryBuilder,
           );
         });
       })
@@ -244,8 +184,6 @@ export class TableFilter {
     singleQry: [WhereClauseKeys, any],
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
-    selectQueryBuilder: SelectQueryBuilder<Model>,
-    subQueryBuilder: SubQueryBuilder<Model>,
   ): string {
     const key = singleQry[0] as OP_KEYS;
     let value = singleQry[1];
@@ -260,18 +198,14 @@ export class TableFilter {
         preparedValues,
         value,
         isHavingFilter,
-        selectQueryBuilder,
-        subQueryBuilder,
       );
       return cond;
     } else if (subqueryOperator.has(key as any)) {
-      const finalSubQuery = TableFilter.#otherModelSubqueryBuilder(
+      const finalSubQuery = QueryHelper.otherModelSubqueryBuilder(
         key,
         preparedValues,
         groupByFields,
         value,
-        selectQueryBuilder,
-        subQueryBuilder,
         true,
       );
       return finalSubQuery;
@@ -283,8 +217,6 @@ export class TableFilter {
         groupByFields,
         preparedValues,
         isHavingFilter,
-        selectQueryBuilder,
-        subQueryBuilder,
       );
     }
   }
@@ -296,8 +228,6 @@ export class TableFilter {
     preparedValues: PreparedValues,
     groupByFields: Set<string>,
     value: any,
-    selectQueryBuilder: SelectQueryBuilder<Model>,
-    subQueryBuilder: SubQueryBuilder<Model>,
     isArrayKeywordReq: boolean = false,
   ) {
     if (Array.isArray(value)) {
@@ -314,13 +244,11 @@ export class TableFilter {
     if (typeof value !== 'object' || value === null) {
       return throwError.invalidObjectOPType(baseOperation);
     }
-    const subQry = TableFilter.#otherModelSubqueryBuilder(
+    const subQry = QueryHelper.otherModelSubqueryBuilder(
       subQryOperation,
       preparedValues,
       groupByFields,
       value,
-      selectQueryBuilder,
-      subQueryBuilder,
       false,
     );
     return `${key} ${baseOperation} ${subQry}`;
@@ -333,8 +261,6 @@ export class TableFilter {
     groupByFields: Set<string>,
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
-    selectQueryBuilder: SelectQueryBuilder<Model>,
-    subQueryBuilder: SubQueryBuilder<Model>,
   ) {
     const validKey = prepareColumnForHavingClause(
       key,
@@ -373,8 +299,6 @@ export class TableFilter {
             preparedValues,
             groupByFields,
             value,
-            selectQueryBuilder,
-            subQueryBuilder,
             true,
           );
           return subQry;
@@ -441,8 +365,6 @@ export class TableFilter {
             preparedValues,
             groupByFields,
             val,
-            selectQueryBuilder,
-            subQueryBuilder,
           );
           return subQry;
         }
