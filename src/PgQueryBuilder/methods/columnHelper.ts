@@ -69,7 +69,9 @@ export class ColumnHelper {
           preparedValues,
           groupByFields,
         );
-        const [column, fn] = fnJoiner.sepFnAndColumn(col);
+        const [column, fn] = shouldSkipFieldValidation
+          ? [col]
+          : fnJoiner.sepFnAndColumn(col);
         let validCol = shouldSkipFieldValidation
           ? column
           : fieldQuote(allowedFields, column);

@@ -28,6 +28,10 @@ function throwInvalidDataTypeError(type: any): never {
   throw new Error(`Unsupported data type for array: ${typeof type}`);
 }
 
+function throwInvalidOpDataTypeError(op: string): never {
+  throw new Error(`Unsupported data type for operator: ${op}.`);
+}
+
 function throwInvalidAnyOpTypeError(op: string): never {
   throw new Error(
     `For operator "${op}" with ANY/ALL, value must be an object containing "${DB_KEYWORDS.any}" or "${DB_KEYWORDS.all}" property.`,
@@ -197,6 +201,7 @@ export const throwError = {
   invalidColumnNameRegexType: throwInvalidColumnNameRegexError,
   invalidColumnOpType: throwInvalidColumnOperationError,
   invalidFieldFuncCallType: throwInvalidFieldFuncCall,
+  invalidOpDataType: throwInvalidOpDataTypeError,
 };
 
 export const errorHandler = (query: string, error: Error) => {

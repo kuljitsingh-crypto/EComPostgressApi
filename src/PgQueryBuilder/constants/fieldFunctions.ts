@@ -31,31 +31,29 @@ export const ADVANCE_SINGLE_FIELD_OP = {
   sin: 'SIN',
   cos: 'COS',
   tan: 'TAN',
+  upper: 'UPPER',
+  lower: 'LOWER',
+  initcap: 'INITCAP',
+  length: 'LENGTH',
+  charLength: 'CHAR_LENGTH',
+  bitLength: 'BIT_LENGTH',
+  octetLength: 'OCTET_LENGTH',
 } as const;
+
 export const ADVANCE_DOUBLE_FIELD_OP = {
   trunc: 'TRUNC',
   round: 'ROUND',
   power: 'POWER',
 } as const;
 
-// FLOOR(score) AS floor_score,
-//     ROUND(price, 2) AS rounded_price,
-//     TRUNC(value, 1) AS truncated_value,
-//     SQRT(area) AS square_root,
-//     POWER(base, 2) AS power_result,
-//     EXP(log_value) AS exponential,
-//     LN(natural_value) AS natural_log,
-//     LOG(base_value) AS logarithm,
-//     SIGN(difference) AS sign_value,
-//     RANDOM() AS random_number,
-//     PI() AS pi_value,
-//     DEGREES(radians) AS degree_value,
-//     RADIANS(degrees) AS radian_value,
-//     SIN(angle) AS sine_value,
-//     COS(angle) AS cosine_value,
-//     TAN(angle) AS tangent_value
+export const ADVANCE_STR_DOUBLE_FIELD_OP = {
+  strPos: 'STRPOS',
+  position: 'POSITION',
+};
 
 export type SimpleMathOpKeys = keyof typeof SIMPLE_MATH_FIELD_OP;
 export type AdvanceSingleFieldOpKeys = keyof typeof ADVANCE_SINGLE_FIELD_OP;
 export type AdvanceDoubleFieldOpKeys = keyof typeof ADVANCE_DOUBLE_FIELD_OP;
+export type AdvanceStrDoubleFieldOpKeys =
+  keyof typeof ADVANCE_STR_DOUBLE_FIELD_OP;
 export type FieldFunctionType = keyof typeof aggregateFunctionName;

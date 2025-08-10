@@ -95,11 +95,9 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
-    fieldFn.sqrt({
-      model: BasketB,
-      column: 'b',
-      where: { b: { eq: 3 } },
-    }),
+    // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.AVG('b') }), 'av'],
+    fieldFn.position('fruit_a', 'a'),
+    'fruit_a',
     // [
     //   fieldFn.sqrt({
     //     model: BasketB,

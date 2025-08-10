@@ -1,8 +1,11 @@
+import { DB_KEYWORDS } from '../constants/dbkeywords';
 import {
   ADVANCE_DOUBLE_FIELD_OP,
   ADVANCE_SINGLE_FIELD_OP,
+  ADVANCE_STR_DOUBLE_FIELD_OP,
   AdvanceDoubleFieldOpKeys,
   AdvanceSingleFieldOpKeys,
+  AdvanceStrDoubleFieldOpKeys,
   SIMPLE_MATH_FIELD_OP,
   SimpleMathOpKeys,
 } from '../constants/fieldFunctions';
@@ -19,6 +22,7 @@ import { attachArrayWith, fieldQuote } from './helperFunction';
 import { QueryHelper } from './queryHelper';
 
 type FieldOperand<Model> = string | number | InOperationSubQuery<Model>;
+type StringFieldOperand = string;
 type DoubleFieldOpCb = <Model>(
   a: string,
   b: FieldOperand<Model>,
@@ -28,7 +32,8 @@ type SingleFieldOpCb = <Model>(b: FieldOperand<Model>) => CallableField;
 type Ops =
   | SimpleMathOpKeys
   | AdvanceDoubleFieldOpKeys
-  | AdvanceSingleFieldOpKeys;
+  | AdvanceSingleFieldOpKeys
+  | AdvanceStrDoubleFieldOpKeys;
 
 type Func = {
   [key in Ops]: key extends AdvanceSingleFieldOpKeys
@@ -40,6 +45,11 @@ interface FieldFunction extends Func {}
 
 const attachOperator = (op: string, ...values: Primitive[]) =>
   `${op}(${attachArrayWith.coma(values)})`;
+
+const attachWithIn = (op: string, ...values: Primitive[]) =>
+  `${op}(${attachArrayWith.customSep(values, ` ${DB_KEYWORDS.in} `)})`;
+
+const inOperatorName = new Set([ADVANCE_STR_DOUBLE_FIELD_OP.position]);
 
 const prepareSimpleOperand = <Model>(
   colName: string,
@@ -138,6 +148,31 @@ const prepareAdvanceDoubleOperand = <Model>(
   }
 };
 
+const prepareStringAdvanceDoubleOperand = <Model>(
+  colName: string,
+  operand: StringFieldOperand,
+  operator: AdvanceStrDoubleFieldOpKeys,
+  preparedValues: PreparedValues,
+  groupByFields: GroupByFields,
+  allowedFields: AllowedFields,
+) => {
+  colName = fieldQuote(allowedFields, colName);
+  const op = ADVANCE_STR_DOUBLE_FIELD_OP[operator];
+  if (!op) {
+    return throwError.invalidColumnOpType(
+      op,
+      Object.keys(ADVANCE_STR_DOUBLE_FIELD_OP),
+    );
+  }
+  if (typeof operand === 'string') {
+    const operandStr = `'${operand}'`;
+    return inOperatorName.has(op)
+      ? attachWithIn(op, operandStr, colName)
+      : attachOperator(op, colName, operandStr);
+  }
+  return throwError.invalidOpDataType(op);
+};
+
 class FieldFunction {
   #fieldFunc = true;
   static #instance: FieldFunction | null = null;
@@ -163,6 +198,10 @@ class FieldFunction {
       // @ts-ignore - dynamic assignment
       this[op] = this.#doubleFieldAdvanceOpWrapper(op);
     }
+    for (let op in ADVANCE_STR_DOUBLE_FIELD_OP) {
+      // @ts-ignore - dynamic assignment
+      this[op] = this.#doubleStrFieldAdvanceOpWrapper(op);
+    }
   }
 
   #doubleFieldSimpleOpWrapper<Model>(op: SimpleMathOpKeys) {
@@ -179,6 +218,12 @@ class FieldFunction {
   #doubleFieldAdvanceOpWrapper<Model>(op: AdvanceDoubleFieldOpKeys) {
     return (a: string, b: FieldOperand<Model>) => {
       return this.#operateOnAdvanceDoubleFields(a, b, op);
+    };
+  }
+
+  #doubleStrFieldAdvanceOpWrapper<Model>(op: AdvanceStrDoubleFieldOpKeys) {
+    return (a: string, b: StringFieldOperand) => {
+      return this.#operateOnStrAdvanceDoubleFields(a, b, op);
     };
   }
 
@@ -244,6 +289,29 @@ class FieldFunction {
     ) => {
       this.#checkFunctionExecutionState();
       const value = prepareAdvanceDoubleOperand(
+        colName,
+        operand,
+        op,
+        preparedValues,
+        groupByFields,
+        allowedFields,
+      );
+      return { col: value, value: null, shouldSkipFieldValidation: true };
+    };
+  }
+
+  #operateOnStrAdvanceDoubleFields(
+    colName: string,
+    operand: StringFieldOperand,
+    op: AdvanceStrDoubleFieldOpKeys,
+  ) {
+    return (
+      preparedValues: PreparedValues,
+      groupByFields: GroupByFields,
+      allowedFields: AllowedFields,
+    ) => {
+      this.#checkFunctionExecutionState();
+      const value = prepareStringAdvanceDoubleOperand(
         colName,
         operand,
         op,
