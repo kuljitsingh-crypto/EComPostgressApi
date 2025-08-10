@@ -21,49 +21,58 @@ export type ORDER_BY = Record<
 export type PreparedValues = { index: number; values: Primitive[] };
 
 export type SubQueryFilterKey = DB_KEYWORDS_TYPE['any' | 'all'];
-export type SubQueryFilterRecord = {
-  [key in SubQueryFilterKey]?: Array<Primitive> | SubQueryFilter;
+export type SubQueryFilterRecord<Model> = {
+  [key in SubQueryFilterKey]?:
+    | SubQueryFilter<Model, 'WhereNotReq'>
+    | Array<Primitive>;
 };
-export type FilterColumnValue = Primitive | SubQueryFilterRecord;
+export type FilterColumnValue<Model> = Primitive | SubQueryFilterRecord<Model>;
 
-export type ConditionMap = {
-  in: Primitive[] | InOperationSubQuery;
-  notIn: Primitive[] | InOperationSubQuery;
+export type ConditionMap<Model> = {
+  in: Primitive[] | InOperationSubQuery<Model>;
+  notIn: Primitive[] | InOperationSubQuery<Model>;
   between: Primitive[];
   notBetween: Primitive[];
   isNull: null;
   notNull: null;
 };
 
-export type NormalOperators =
+export type NormalOperators<Model> =
   | {
-      [key in Exclude<SIMPLE_OP_KEYS, keyof ConditionMap>]?: FilterColumnValue;
+      [key in Exclude<
+        SIMPLE_OP_KEYS,
+        keyof ConditionMap<Model>
+      >]?: FilterColumnValue<Model>;
     }
-  | FilterColumnValue;
+  | FilterColumnValue<Model>;
 
-export type Condition<Key extends SIMPLE_OP_KEYS = SIMPLE_OP_KEYS> =
-  Key extends keyof ConditionMap
-    ? { [K in Key]: ConditionMap[K] }
-    : NormalOperators;
+export type Condition<
+  Model,
+  Key extends SIMPLE_OP_KEYS = SIMPLE_OP_KEYS,
+> = Key extends keyof ConditionMap<Model>
+  ? { [K in Key]: ConditionMap<Model>[K] }
+  : NormalOperators<Model>;
 
 export type ExistsFilter<Model, T extends SubqueryWhereReq = 'WhereNotReq'> = {
   model: Model;
   alias?: string;
 } & Subquery<T>;
-export type SubQueryFilter<T extends SubqueryWhereReq = 'WhereNotReq'> =
-  ExistsFilter<T> & {
-    orderBy?: ORDER_BY;
-    column: string;
-    isDistinct?: boolean;
-  };
+export type SubQueryFilter<
+  Model,
+  T extends SubqueryWhereReq = 'WhereNotReq',
+> = ExistsFilter<Model, T> & {
+  orderBy?: ORDER_BY;
+  column: string;
+  isDistinct?: boolean;
+};
 
-export type InOperationSubQuery = SubQueryFilter & {
+export type InOperationSubQuery<Model> = SubQueryFilter<Model> & {
   isDistinct?: boolean;
 };
 
 export type WhereClause<Model> =
   | {
-      [column: string]: Condition;
+      [column: string]: Condition<Model>;
     }
   | {
       $and: WhereClause<Model>[];
@@ -129,7 +138,7 @@ export type ExtraOptions = {
  * 1. {columnName:null} - return column name as define in columnKey
  * 2.{columnName:aliasName} - return column name as define in columnValue
  */
-export type FindQueryAttribute = Record<string, null | string> | string;
+export type FindQueryAttribute = [string, null | string] | string;
 export type FindQueryAttributes = FindQueryAttribute[];
 
 export type QueryParams<Model> = SelectQuery<Model> &

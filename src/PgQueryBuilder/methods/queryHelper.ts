@@ -31,7 +31,7 @@ import { FieldHelper } from './fieldHelper';
 import { TableFilter } from './filterHelper';
 import {
   attachArrayWith,
-  fieldFunctionCreator,
+  aggregateFunctionCreator,
   FieldQuote,
   getPreparedValues,
   isPrimitiveValue,
@@ -256,7 +256,7 @@ export class QueryHelper {
           }
           let orderStr = `${validKey} ${order}`;
           if (fn) {
-            orderStr = fieldFunctionCreator(validKey, fn) + ` ${order}`;
+            orderStr = aggregateFunctionCreator(validKey, fn) + ` ${order}`;
           }
           if (nullOption) {
             orderStr += ` ${nullOption}`;

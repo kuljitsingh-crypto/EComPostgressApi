@@ -5,7 +5,7 @@ import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   dynamicFieldQuote,
-  fieldFunctionCreator,
+  aggregateFunctionCreator,
   FieldQuote,
   fnJoiner,
 } from './helperFunction';
@@ -17,7 +17,7 @@ const getColNameAndAlias = (
   if (typeof col === 'string') {
     return { col, value: null };
   } else if (typeof col === 'object' && col !== null) {
-    const [column, value] = Object.entries(col)[0];
+    const [column, value] = col;
     return { col: column, value };
   }
   return throwError.invalidColumnNameType(col, allowedFields);
@@ -30,6 +30,8 @@ export class ColumnHelper {
     isAggregateAllowed = true,
   ) {
     if (!columns || !Array.isArray(columns) || columns.length < 1) return '*';
+    columns = columns.filter(Boolean);
+    if (columns.length < 1) return '*';
     const fields = columns
       .map((attr) => {
         const { col, value } = getColNameAndAlias(attr, allowedFields);
@@ -39,7 +41,10 @@ export class ColumnHelper {
           return throwError.invalidAggFuncPlaceType(fn, column);
         }
         if (fn) {
-          validCol = fieldFunctionCreator(validCol, fn as FieldFunctionType);
+          validCol = aggregateFunctionCreator(
+            validCol,
+            fn as FieldFunctionType,
+          );
         }
         if (value === null) {
           return validCol;

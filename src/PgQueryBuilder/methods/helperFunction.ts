@@ -29,7 +29,7 @@ const attachArrayWithAndSep = (array: Array<Primitive>) =>
 const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
   attachArrayWithSep(array, ', ');
 
-const fieldFunc = (fn: FieldFunctionType, column: string) => {
+const aggregateFunc = (fn: FieldFunctionType, column: string) => {
   const func = aggregateFunctionName[fn];
   if (!func) {
     return throwError.invalidAggFuncType(
@@ -67,7 +67,7 @@ const validateField = (field: string, allowed: Set<string>) => {
 
 //=================== export functions ======================//
 
-export const fieldFunctionCreator = (
+export const aggregateFunctionCreator = (
   field: string,
   functionName: FieldFunctionType,
   alias?: string,
@@ -109,7 +109,7 @@ export const prepareColumnForHavingClause = (
     }
     validKey = FieldQuote(allowedFields, k);
     if (fn) {
-      validKey = fieldFunctionCreator(validKey, fn as FieldFunctionType);
+      validKey = aggregateFunctionCreator(validKey, fn as FieldFunctionType);
     }
   } else {
     validKey = FieldQuote(allowedFields, key);
@@ -157,9 +157,10 @@ export const fnJoiner = {
 };
 
 export const aggregateFn = Object.freeze({
-  [aggregateFunctionName.COUNT]: (column: string) => fieldFunc('COUNT', column),
-  [aggregateFunctionName.AVG]: (column: string) => fieldFunc('AVG', column),
-  [aggregateFunctionName.MAX]: (column: string) => fieldFunc('MAX', column),
-  [aggregateFunctionName.MIN]: (column: string) => fieldFunc('MIN', column),
-  [aggregateFunctionName.SUM]: (column: string) => fieldFunc('SUM', column),
+  [aggregateFunctionName.COUNT]: (column: string) =>
+    aggregateFunc('COUNT', column),
+  [aggregateFunctionName.AVG]: (column: string) => aggregateFunc('AVG', column),
+  [aggregateFunctionName.MAX]: (column: string) => aggregateFunc('MAX', column),
+  [aggregateFunctionName.MIN]: (column: string) => aggregateFunc('MIN', column),
+  [aggregateFunctionName.SUM]: (column: string) => aggregateFunc('SUM', column),
 });

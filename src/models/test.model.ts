@@ -92,7 +92,7 @@ BasketE.init(
 // );
 
 BasketA.findAll({
-  //columns: [aggregateFn.COUNT('a'), { [aggregateFn.COUNT('fruit_a')]: 'c' }],
+  // columns: [[aggregateFn.COUNT('a'), 'b']],
   // columns: { a: 'b' },
   // where: {
   //   fruit_a: { iStartsWith: 'a' },
@@ -111,8 +111,9 @@ BasketA.findAll({
     // where: { a: { gt: 1 } },
     // b: { gt: 1 },
     // a: {
-    // eq: {
-    //   ANY: { model: BasketB, column: 'b' },
+    //   eq: {
+    //     ANY: [1, 2, 3],
+    //   },
     // },
     // in: { model: BasketB, column: 'b' },
     // },
@@ -171,7 +172,7 @@ BasketA.findAll({
   //   },
   // ],
   // orderBy: {
-  //   a: 'ASC',
+  //   a: 'DESC',
   //   // a: { order: 'DESC' },
 
   //   // fruit_a: 'DESC',
@@ -179,7 +180,7 @@ BasketA.findAll({
   // groupBy: ['fruit_a', 'a'],
   // groupBy: ['a'],
   // having: {
-  //   [aggregateFn.COUNT('a')]: { gt: 5 },
+  //   [aggregateFn.COUNT('a')]: { gt: 2 },
   // },
   // limit: 1,
   // offset: 1,
@@ -208,7 +209,7 @@ BasketA.findAll({
 });
 
 BasketE.queryRawSql({
-  columns: ['||/ d'],
+  columns: ['Power(d,e)'],
   // where: ['a & 1'],
 }).then((res) => {
   console.log('raw Query Result->', res);

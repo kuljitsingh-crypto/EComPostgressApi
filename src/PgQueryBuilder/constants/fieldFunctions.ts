@@ -6,6 +6,16 @@ export const aggregateFunctionName = {
   SUM: 'SUM',
 } as const;
 
-export const fieldFunction = {};
+export const fieldFunction = {
+  ADD: '+',
+  SUB: '-',
+  MULTIPLE: '*',
+  DIVIDE: '/',
+  MODULO: '%',
+  EXPONENT: '^',
+  SQUARE_ROOT: '|/',
+  CUBE_ROOT: '||/',
+  POWER: '',
+};
 
 export type FieldFunctionType = keyof typeof aggregateFunctionName;

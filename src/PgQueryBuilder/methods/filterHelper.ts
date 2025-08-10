@@ -69,7 +69,7 @@ const getArrayDataType = (value: Primitive[]) => {
   }
 };
 
-const getAnyAndAllFilterValue = (val: any, op: string) => {
+const getAnyAndAllFilterValue = <Model>(val: any, op: string) => {
   if (typeof val !== 'object' || val === null) {
     return throwError.invalidAnyAllOpType(op);
   }
@@ -79,7 +79,7 @@ const getAnyAndAllFilterValue = (val: any, op: string) => {
     return throwError.invalidAnySubQType();
   }
   const subqueryKeyword = hasAll ? DB_KEYWORDS.all : DB_KEYWORDS.any;
-  const subqueryVal: Array<Primitive> | SubQueryFilter = (val as any)[
+  const subqueryVal: Array<Primitive> | SubQueryFilter<Model> = (val as any)[
     subqueryKeyword
   ];
 
@@ -149,7 +149,10 @@ export class TableFilter {
       : '';
   }
 
-  static #otherModelSubqueryBuilder<T extends InOperationSubQuery, Model>(
+  static #otherModelSubqueryBuilder<
+    T extends InOperationSubQuery<Model>,
+    Model,
+  >(
     key: string,
     preparedValues: PreparedValues,
     groupByFields: Set<string>,
@@ -159,7 +162,7 @@ export class TableFilter {
     isExistsFilter: boolean = true,
   ) {
     const { model, alias, column, orderBy, isDistinct, ...rest } =
-      value as InOperationSubQuery;
+      value as InOperationSubQuery<Model>;
     if (!model) {
       return throwError.invalidModelType();
     }
@@ -340,8 +343,8 @@ export class TableFilter {
       isHavingFilter,
     );
 
-    const prepareQry = (entry: [string, FilterColumnValue]) => {
-      const [op, val] = entry as [SIMPLE_OP_KEYS, FilterColumnValue];
+    const prepareQry = (entry: [string, FilterColumnValue<Model>]) => {
+      const [op, val] = entry as [SIMPLE_OP_KEYS, FilterColumnValue<Model>];
       const operation = OP[op];
       if (!operation) {
         return throwError.invalidOperatorType(op, validOperations);
