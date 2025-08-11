@@ -18,7 +18,11 @@ import {
   PreparedValues,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
-import { attachArrayWith, fieldQuote } from './helperFunction';
+import {
+  attachArrayWith,
+  fieldQuote,
+  getPreparedValues,
+} from './helperFunction';
 import { QueryHelper } from './queryHelper';
 
 type FieldOperand<Model> = string | number | InOperationSubQuery<Model>;
@@ -165,10 +169,10 @@ const prepareStringAdvanceDoubleOperand = <Model>(
     );
   }
   if (typeof operand === 'string') {
-    const operandStr = `'${operand}'`;
+    const placeholder = getPreparedValues(preparedValues, operand);
     return inOperatorName.has(op)
-      ? attachWithIn(op, operandStr, colName)
-      : attachOperator(op, colName, operandStr);
+      ? attachWithIn(op, placeholder, colName)
+      : attachOperator(op, colName, placeholder);
   }
   return throwError.invalidOpDataType(op);
 };

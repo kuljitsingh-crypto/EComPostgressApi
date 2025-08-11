@@ -95,9 +95,9 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
-    // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.AVG('b') }), 'av'],
-    fieldFn.position('fruit_a', 'a'),
-    'fruit_a',
+    // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.avg('b') }), 'av'],
+    // fieldFn.position('fruit_a', 'a'),
+    // 'fruit_a',
     // [
     //   fieldFn.sqrt({
     //     model: BasketB,
@@ -127,6 +127,7 @@ BasketA.findAll({
   //   },
   // },
   where: {
+    // fruit_a: 'a OR 1=1',
     // fruit_a: { notMatch: 5 },
     // 1: '1',
     // a: { between: [1, 3], gte: 1 },

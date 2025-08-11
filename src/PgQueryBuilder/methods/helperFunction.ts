@@ -80,7 +80,8 @@ export const aggregateFunctionCreator = (
     );
   }
   const aliasMaybe = alias ? ` ${alias}` : '';
-  return `${func}(${field})${aliasMaybe}`;
+  const funcUpr = func.toUpperCase();
+  return `${funcUpr}(${field})${aliasMaybe}`;
 };
 
 export const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
@@ -157,10 +158,10 @@ export const fnJoiner = {
 };
 
 export const aggregateFn = Object.freeze({
-  [aggregateFunctionName.COUNT]: (column: string) =>
-    aggregateFunc('COUNT', column),
-  [aggregateFunctionName.AVG]: (column: string) => aggregateFunc('AVG', column),
-  [aggregateFunctionName.MAX]: (column: string) => aggregateFunc('MAX', column),
-  [aggregateFunctionName.MIN]: (column: string) => aggregateFunc('MIN', column),
-  [aggregateFunctionName.SUM]: (column: string) => aggregateFunc('SUM', column),
+  [aggregateFunctionName.count]: (column: string) =>
+    aggregateFunc('count', column),
+  [aggregateFunctionName.avg]: (column: string) => aggregateFunc('avg', column),
+  [aggregateFunctionName.max]: (column: string) => aggregateFunc('max', column),
+  [aggregateFunctionName.min]: (column: string) => aggregateFunc('min', column),
+  [aggregateFunctionName.sum]: (column: string) => aggregateFunc('sum', column),
 });

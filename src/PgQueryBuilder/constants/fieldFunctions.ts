@@ -1,9 +1,9 @@
 export const aggregateFunctionName = {
-  MIN: 'MIN',
-  MAX: 'MAX',
-  COUNT: 'COUNT',
-  AVG: 'AVG',
-  SUM: 'SUM',
+  min: 'min',
+  max: 'max',
+  count: 'count',
+  avg: 'avg',
+  sum: 'sum',
 } as const;
 
 export const COL_PREFIX = 'col#';
