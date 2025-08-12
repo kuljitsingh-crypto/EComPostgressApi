@@ -39,7 +39,10 @@ const aggregateFunc = (fn: FieldFunctionType, column: string) => {
   }
   return fnJoiner.joinFnAndColumn(func, column);
 };
-const simpleFieldValidate = (field: string) => {
+const simpleFieldValidate = (field: string | null) => {
+  if (typeof field !== 'string') {
+    return throwError.invalidColType();
+  }
   field = field.trim();
   if (field.length < MIN_COLUMN_LENGTH || field.length > MAX_COLUMN_LENGTH) {
     return throwError.invalidColNameLenType(field, {
@@ -57,12 +60,12 @@ const simpleFieldValidate = (field: string) => {
   return field;
 };
 
-const validateField = (field: string, allowed: AllowedFields) => {
+const validateField = (field: string | null, allowed: AllowedFields) => {
   field = simpleFieldValidate(field);
   if (!allowed.has(field)) {
     return throwError.invalidColumnNameType(field, allowed);
   }
-  return field;
+  return field as string;
 };
 
 //=================== export functions ======================//
@@ -91,7 +94,10 @@ export const dynamicFieldQuote = (field: string) => {
   return quote(field);
 };
 
-export const fieldQuote = (allowedFields: AllowedFields, str: string) => {
+export const fieldQuote = (
+  allowedFields: AllowedFields,
+  str: string | null,
+) => {
   str = validateField(str, allowedFields);
   return quote(str);
 };

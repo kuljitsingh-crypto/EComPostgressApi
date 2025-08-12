@@ -177,6 +177,13 @@ function throwInvalidFieldFuncCall(): never {
   );
 }
 
+function throwInvalidCol(): never {
+  throw new Error('Invalid Column type provided.');
+}
+function throwInvalidOperand(): never {
+  throw new Error('Invalid operand value provided.');
+}
+
 export const throwError = {
   invalidJoinType: throwInvalidJoinTypeError,
   invalidModelType: throwInvalidModelTypeError,
@@ -202,6 +209,8 @@ export const throwError = {
   invalidColumnOpType: throwInvalidColumnOperationError,
   invalidFieldFuncCallType: throwInvalidFieldFuncCall,
   invalidOpDataType: throwInvalidOpDataTypeError,
+  invalidColType: throwInvalidCol,
+  invalidOperandType: throwInvalidOperand,
 };
 
 export const errorHandler = (query: string, error: Error) => {

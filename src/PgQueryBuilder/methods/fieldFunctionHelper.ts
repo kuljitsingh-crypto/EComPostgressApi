@@ -44,17 +44,47 @@ type Func = {
     ? SingleFieldOpCb
     : DoubleFieldOpCb;
 };
+type AllowedOperand = 'number' | 'string' | 'all';
+type PrepareCb<Model> = {
+  col: string | null;
+  operand: FieldOperand<Model>;
+  operator: Ops;
+  preparedValues: PreparedValues;
+  groupByFields: GroupByFields;
+  allowedFields: AllowedFields;
+  operandAllowed: AllowedOperand;
+  operatorRef: Record<string, string>;
+  isNullColAllowed?: boolean;
+  shouldValidateStringOperandAsCol?: boolean;
+};
 
 interface FieldFunction extends Func {}
+
+const inOperator = new Set([ADVANCE_STR_DOUBLE_FIELD_OP.position]);
+const inBtwOperator: Set<string> = new Set(Object.values(SIMPLE_MATH_FIELD_OP));
 
 const attachOperator = (op: string, ...values: Primitive[]) =>
   `${op}(${attachArrayWith.coma(values)})`;
 
-const attachWithIn = (op: string, ...values: Primitive[]) =>
+const attachInBtwOperator = (op: string, ...values: Primitive[]) =>
+  attachArrayWith.space([values[0], op, values[1]]);
+
+const attachInOperator = (op: string, ...values: Primitive[]) =>
   `${op}(${attachArrayWith.customSep(values, ` ${DB_KEYWORDS.in} `)})`;
 
-const inOperatorName = new Set([ADVANCE_STR_DOUBLE_FIELD_OP.position]);
+const attachOp = (op: string, ...values: Primitive[]) => {
+  values = values.filter((v) => v !== null || v !== undefined);
+  if (inOperator.has(op)) {
+    values.reverse();
+  }
+  const opCb = inOperator.has(op)
+    ? attachInOperator
+    : inBtwOperator.has(op)
+      ? attachInBtwOperator
+      : attachOperator;
 
+  return opCb(op, ...values);
+};
 const prepareSimpleOperand = <Model>(
   colName: string,
   operand: FieldOperand<Model>,
@@ -170,10 +200,40 @@ const prepareStringAdvanceDoubleOperand = <Model>(
   }
   if (typeof operand === 'string') {
     const placeholder = getPreparedValues(preparedValues, operand);
-    return inOperatorName.has(op)
-      ? attachWithIn(op, placeholder, colName)
+    return inOperator.has(op)
+      ? attachInOperator(op, placeholder, colName)
       : attachOperator(op, colName, placeholder);
   }
+  return throwError.invalidOpDataType(op);
+};
+
+const prepare = <Model>(params: PrepareCb<Model>) => {
+  const {
+    col,
+    operand,
+    operator,
+    operandAllowed,
+    operatorRef,
+    preparedValues,
+    groupByFields,
+    allowedFields,
+    isNullColAllowed = false,
+    shouldValidateStringOperandAsCol = true,
+  } = params;
+  const validCol =
+    isNullColAllowed && col === null ? col : fieldQuote(allowedFields, col);
+  const op = operatorRef[operator];
+  if (!op) {
+    return throwError.invalidColumnOpType(op, Object.keys(operatorRef));
+  }
+  if (operandAllowed !== 'all' && typeof operand !== operandAllowed) {
+    return throwError.invalidOperandType();
+  }
+  if (typeof operand === 'number') {
+    const placeholder = getPreparedValues(preparedValues, operand);
+    return attachOp(op, validCol, placeholder);
+  }
+
   return throwError.invalidOpDataType(op);
 };
 
