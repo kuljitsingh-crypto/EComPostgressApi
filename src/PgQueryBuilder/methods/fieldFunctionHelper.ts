@@ -22,6 +22,7 @@ import {
   attachArrayWith,
   fieldQuote,
   getPreparedValues,
+  isValidSubQuery,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
 
@@ -45,6 +46,7 @@ type Func = {
     : DoubleFieldOpCb;
 };
 type AllowedOperand = 'number' | 'string' | 'all';
+type OperandType = 'single' | 'double' | 'multiple' | 'triple';
 type PrepareCb<Model> = {
   col: string | null;
   operand: FieldOperand<Model>;
@@ -54,14 +56,17 @@ type PrepareCb<Model> = {
   allowedFields: AllowedFields;
   operandAllowed: AllowedOperand;
   operatorRef: Record<string, string>;
-  isNullColAllowed?: boolean;
-  shouldValidateStringOperandAsCol?: boolean;
+  isNullColAllowed: boolean;
+  shouldValidateStringOperandAsCol: boolean;
 };
 
 interface FieldFunction extends Func {}
 
 const inOperator = new Set([ADVANCE_STR_DOUBLE_FIELD_OP.position]);
 const inBtwOperator: Set<string> = new Set(Object.values(SIMPLE_MATH_FIELD_OP));
+const stringColOp: Set<string> = new Set(
+  Object.keys(ADVANCE_STR_DOUBLE_FIELD_OP),
+);
 
 const attachOperator = (op: string, ...values: Primitive[]) =>
   `${op}(${attachArrayWith.coma(values)})`;
@@ -73,11 +78,11 @@ const attachInOperator = (op: string, ...values: Primitive[]) =>
   `${op}(${attachArrayWith.customSep(values, ` ${DB_KEYWORDS.in} `)})`;
 
 const attachOp = (op: string, ...values: Primitive[]) => {
-  values = values.filter((v) => v !== null || v !== undefined);
-  if (inOperator.has(op)) {
+  values = values.filter((v) => v !== null && v !== undefined);
+  if (inOperator.has(op as any)) {
     values.reverse();
   }
-  const opCb = inOperator.has(op)
+  const opCb = inOperator.has(op as any)
     ? attachInOperator
     : inBtwOperator.has(op)
       ? attachInBtwOperator
@@ -85,129 +90,8 @@ const attachOp = (op: string, ...values: Primitive[]) => {
 
   return opCb(op, ...values);
 };
-const prepareSimpleOperand = <Model>(
-  colName: string,
-  operand: FieldOperand<Model>,
-  operator: SimpleMathOpKeys,
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
-  allowedFields: AllowedFields,
-) => {
-  colName = fieldQuote(allowedFields, colName);
-  const op = SIMPLE_MATH_FIELD_OP[operator];
-  if (!op) {
-    return throwError.invalidColumnOpType(
-      op,
-      Object.keys(SIMPLE_MATH_FIELD_OP),
-    );
-  }
-  if (typeof operand === 'number') {
-    return attachArrayWith.space([colName, op, operand]);
-  } else if (typeof operand === 'string') {
-    operand = fieldQuote(allowedFields, operand);
-    return attachArrayWith.space([colName, op, operand]);
-  } else {
-    const query = QueryHelper.otherModelSubqueryBuilder(
-      '',
-      preparedValues,
-      groupByFields,
-      operand,
-      false,
-    );
-    return attachArrayWith.space([colName, op, query]);
-  }
-};
 
-const prepareAdvanceSingleOperand = <Model>(
-  operand: FieldOperand<Model>,
-  operator: AdvanceSingleFieldOpKeys,
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
-  allowedFields: AllowedFields,
-) => {
-  const op = ADVANCE_SINGLE_FIELD_OP[operator];
-  if (!op) {
-    return throwError.invalidColumnOpType(
-      op,
-      Object.keys(ADVANCE_SINGLE_FIELD_OP),
-    );
-  }
-  if (typeof operand === 'number') {
-    return attachOperator(op, operand);
-  } else if (typeof operand === 'string') {
-    operand = fieldQuote(allowedFields, operand);
-    return attachOperator(op, operand);
-  } else {
-    const query = QueryHelper.otherModelSubqueryBuilder(
-      '',
-      preparedValues,
-      groupByFields,
-      operand,
-      false,
-    );
-    return attachOperator(op, query);
-  }
-};
-
-const prepareAdvanceDoubleOperand = <Model>(
-  colName: string,
-  operand: FieldOperand<Model>,
-  operator: AdvanceDoubleFieldOpKeys,
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
-  allowedFields: AllowedFields,
-) => {
-  colName = fieldQuote(allowedFields, colName);
-  const op = ADVANCE_DOUBLE_FIELD_OP[operator];
-  if (!op) {
-    return throwError.invalidColumnOpType(
-      op,
-      Object.keys(ADVANCE_DOUBLE_FIELD_OP),
-    );
-  }
-  if (typeof operand === 'number') {
-    return attachOperator(op, colName, operand);
-  } else if (typeof operand === 'string') {
-    operand = fieldQuote(allowedFields, operand);
-    return attachOperator(op, colName, operand);
-  } else {
-    const query = QueryHelper.otherModelSubqueryBuilder(
-      '',
-      preparedValues,
-      groupByFields,
-      operand,
-      false,
-    );
-    return attachOperator(op, colName, query);
-  }
-};
-
-const prepareStringAdvanceDoubleOperand = <Model>(
-  colName: string,
-  operand: StringFieldOperand,
-  operator: AdvanceStrDoubleFieldOpKeys,
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
-  allowedFields: AllowedFields,
-) => {
-  colName = fieldQuote(allowedFields, colName);
-  const op = ADVANCE_STR_DOUBLE_FIELD_OP[operator];
-  if (!op) {
-    return throwError.invalidColumnOpType(
-      op,
-      Object.keys(ADVANCE_STR_DOUBLE_FIELD_OP),
-    );
-  }
-  if (typeof operand === 'string') {
-    const placeholder = getPreparedValues(preparedValues, operand);
-    return inOperator.has(op)
-      ? attachInOperator(op, placeholder, colName)
-      : attachOperator(op, colName, placeholder);
-  }
-  return throwError.invalidOpDataType(op);
-};
-
-const prepare = <Model>(params: PrepareCb<Model>) => {
+const prepareFields = <Model>(params: PrepareCb<Model>) => {
   const {
     col,
     operand,
@@ -232,10 +116,38 @@ const prepare = <Model>(params: PrepareCb<Model>) => {
   if (typeof operand === 'number') {
     const placeholder = getPreparedValues(preparedValues, operand);
     return attachOp(op, validCol, placeholder);
+  } else if (typeof operand === 'string') {
+    if (shouldValidateStringOperandAsCol) {
+      const validOperand = fieldQuote(allowedFields, operand);
+      return attachOp(op, col, validOperand);
+    } else {
+      const placeholder = getPreparedValues(preparedValues, operand);
+      return attachOp(op, col, placeholder);
+    }
+  } else if (isValidSubQuery(operand)) {
+    const query = QueryHelper.otherModelSubqueryBuilder(
+      '',
+      preparedValues,
+      groupByFields,
+      operand,
+      false,
+    );
+    return attachOp(op, col, query);
   }
 
   return throwError.invalidOpDataType(op);
 };
+
+const opGroups: {
+  type: OperandType;
+  allowed: AllowedOperand;
+  set: Partial<Record<Ops, string>>;
+}[] = [
+  { set: SIMPLE_MATH_FIELD_OP, type: 'double', allowed: 'all' },
+  { set: ADVANCE_SINGLE_FIELD_OP, type: 'single', allowed: 'all' },
+  { set: ADVANCE_DOUBLE_FIELD_OP, type: 'double', allowed: 'all' },
+  { set: ADVANCE_STR_DOUBLE_FIELD_OP, type: 'double', allowed: 'string' },
+] as const;
 
 class FieldFunction {
   #fieldFunc = true;
@@ -250,46 +162,57 @@ class FieldFunction {
   }
 
   #attachFieldMethods<Model>() {
-    for (let op in SIMPLE_MATH_FIELD_OP) {
-      // @ts-ignore - dynamic assignment
-      this[op] = this.#doubleFieldSimpleOpWrapper<Model>(op);
-    }
-    for (let op in ADVANCE_SINGLE_FIELD_OP) {
-      // @ts-ignore - dynamic assignment
-      this[op] = this.#SingleFieldAdvanceOpWrapper(op);
-    }
-    for (let op in ADVANCE_DOUBLE_FIELD_OP) {
-      // @ts-ignore - dynamic assignment
-      this[op] = this.#doubleFieldAdvanceOpWrapper(op);
-    }
-    for (let op in ADVANCE_STR_DOUBLE_FIELD_OP) {
-      // @ts-ignore - dynamic assignment
-      this[op] = this.#doubleStrFieldAdvanceOpWrapper(op);
-    }
+    let op: Ops;
+    opGroups.forEach(({ set, allowed, type }) => {
+      for (const op in set) {
+        // @ts-ignore
+        this[op] = this.#multiFieldOperator({
+          operandType: type,
+          op: op as Ops,
+          operandAllowed: allowed,
+          operatorRef: set,
+        });
+      }
+    });
   }
 
-  #doubleFieldSimpleOpWrapper<Model>(op: SimpleMathOpKeys) {
-    return (a: string, b: FieldOperand<Model>) => {
-      return this.#operateOnFields(a, b, op);
-    };
-  }
-  #SingleFieldAdvanceOpWrapper<Model>(op: AdvanceSingleFieldOpKeys) {
-    return (a: FieldOperand<Model>) => {
-      return this.#operateOnAdvanceSingleFields(a, op);
-    };
-  }
-
-  #doubleFieldAdvanceOpWrapper<Model>(op: AdvanceDoubleFieldOpKeys) {
-    return (a: string, b: FieldOperand<Model>) => {
-      return this.#operateOnAdvanceDoubleFields(a, b, op);
-    };
-  }
-
-  #doubleStrFieldAdvanceOpWrapper<Model>(op: AdvanceStrDoubleFieldOpKeys) {
-    return (a: string, b: StringFieldOperand) => {
-      return this.#operateOnStrAdvanceDoubleFields(a, b, op);
-    };
-  }
+  #multiFieldOperator = ({
+    operandType,
+    operandAllowed,
+    op,
+    operatorRef,
+  }: {
+    operandType: OperandType;
+    op: Ops;
+    operandAllowed: AllowedOperand;
+    operatorRef: Record<string, string>;
+  }) => {
+    switch (operandType) {
+      case 'single':
+        return <Model>(operand: FieldOperand<Model>) =>
+          this.#operateOnFields({
+            colName: null,
+            operand,
+            op,
+            operandAllowed,
+            shouldValidateStringOperandAsCol: true,
+            isNullColAllowed: true,
+            operatorRef,
+          });
+      case 'double':
+        return <Model>(col: string, operand: FieldOperand<Model>) => {
+          return this.#operateOnFields({
+            colName: col,
+            operand,
+            op,
+            operandAllowed,
+            shouldValidateStringOperandAsCol: !stringColOp.has(op),
+            isNullColAllowed: false,
+            operatorRef,
+          });
+        };
+    }
+  };
 
   #checkFunctionExecutionState() {
     if (!this.#fieldFunc) {
@@ -297,92 +220,41 @@ class FieldFunction {
     }
   }
 
-  #operateOnFields<Model>(
-    colName: string,
-    operand: FieldOperand<Model>,
-    op: SimpleMathOpKeys,
-  ) {
+  #operateOnFields<Model>({
+    colName,
+    operand,
+    operandAllowed,
+    op,
+    operatorRef,
+    isNullColAllowed,
+    shouldValidateStringOperandAsCol,
+  }: {
+    colName: string | null;
+    operand: FieldOperand<Model>;
+    op: Ops;
+    operatorRef: Record<string, string>;
+    operandAllowed: AllowedOperand;
+    isNullColAllowed: boolean;
+    shouldValidateStringOperandAsCol: boolean;
+  }) {
     return (
       preparedValues: PreparedValues,
       groupByFields: GroupByFields,
       allowedFields: AllowedFields,
     ) => {
       this.#checkFunctionExecutionState();
-      const value = prepareSimpleOperand(
-        colName,
+      const value = prepareFields<Model>({
+        col: colName,
         operand,
-        op,
+        operator: op,
         preparedValues,
         groupByFields,
         allowedFields,
-      );
-      return { col: value, value: null, shouldSkipFieldValidation: true };
-    };
-  }
-
-  #operateOnAdvanceSingleFields<Model>(
-    operand: FieldOperand<Model>,
-    op: AdvanceSingleFieldOpKeys,
-  ) {
-    return (
-      preparedValues: PreparedValues,
-      groupByFields: GroupByFields,
-      allowedFields: AllowedFields,
-    ) => {
-      this.#checkFunctionExecutionState();
-      const value = prepareAdvanceSingleOperand(
-        operand,
-        op,
-        preparedValues,
-        groupByFields,
-        allowedFields,
-      );
-      return { col: value, value: null, shouldSkipFieldValidation: true };
-    };
-  }
-
-  #operateOnAdvanceDoubleFields<Model>(
-    colName: string,
-    operand: FieldOperand<Model>,
-    op: AdvanceDoubleFieldOpKeys,
-  ) {
-    return (
-      preparedValues: PreparedValues,
-      groupByFields: GroupByFields,
-      allowedFields: AllowedFields,
-    ) => {
-      this.#checkFunctionExecutionState();
-      const value = prepareAdvanceDoubleOperand(
-        colName,
-        operand,
-        op,
-        preparedValues,
-        groupByFields,
-        allowedFields,
-      );
-      return { col: value, value: null, shouldSkipFieldValidation: true };
-    };
-  }
-
-  #operateOnStrAdvanceDoubleFields(
-    colName: string,
-    operand: StringFieldOperand,
-    op: AdvanceStrDoubleFieldOpKeys,
-  ) {
-    return (
-      preparedValues: PreparedValues,
-      groupByFields: GroupByFields,
-      allowedFields: AllowedFields,
-    ) => {
-      this.#checkFunctionExecutionState();
-      const value = prepareStringAdvanceDoubleOperand(
-        colName,
-        operand,
-        op,
-        preparedValues,
-        groupByFields,
-        allowedFields,
-      );
+        operatorRef,
+        operandAllowed,
+        isNullColAllowed,
+        shouldValidateStringOperandAsCol,
+      });
       return { col: value, value: null, shouldSkipFieldValidation: true };
     };
   }

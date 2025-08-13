@@ -4,7 +4,12 @@ import {
 } from '../constants/fieldFunctions';
 import { OP } from '../constants/operators';
 import { Primitive } from '../globalTypes';
-import { AllowedFields, GroupByFields, PreparedValues } from '../internalTypes';
+import {
+  AllowedFields,
+  GroupByFields,
+  InOperationSubQuery,
+  PreparedValues,
+} from '../internalTypes';
 import { throwError } from './errorHelper';
 
 const MIN_COLUMN_LENGTH = 1;
@@ -146,6 +151,19 @@ export const getPreparedValues = (
   preparedValues.values[preparedValues.index] = value;
   preparedValues.index++;
   return placeholder;
+};
+
+export const isValidSubQuery = <Model>(
+  subQuery: InOperationSubQuery<Model> | null,
+) => {
+  if (typeof subQuery !== 'object' || subQuery === null) {
+    return false;
+  }
+  const { model, column } = subQuery;
+  if (!model || !column || typeof column !== 'string') {
+    return false;
+  }
+  return true;
 };
 
 //===================================== Object wrapped functions =======================//

@@ -11,7 +11,7 @@ export const COL_PREFIX = 'col#';
 export const SIMPLE_MATH_FIELD_OP = {
   add: '+',
   sub: '-',
-  multi: '*',
+  multiple: '*',
   divide: '/',
   modulo: '%',
   exponent: '^',
@@ -49,7 +49,7 @@ export const ADVANCE_DOUBLE_FIELD_OP = {
 export const ADVANCE_STR_DOUBLE_FIELD_OP = {
   strPos: 'STRPOS',
   position: 'POSITION',
-};
+} as const;
 
 export type SimpleMathOpKeys = keyof typeof SIMPLE_MATH_FIELD_OP;
 export type AdvanceSingleFieldOpKeys = keyof typeof ADVANCE_SINGLE_FIELD_OP;

@@ -96,7 +96,7 @@ BasketA.findAll({
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
     // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.avg('b') }), 'av'],
-    // fieldFn.position('fruit_a', 'a'),
+    fieldFn.power('a', 'a'),
     // 'fruit_a',
     // [
     //   fieldFn.sqrt({
@@ -232,7 +232,7 @@ BasketA.findAll({
 });
 
 BasketE.queryRawSql({
-  columns: ['SIGN( d)'],
+  columns: ['SIGN(d)'],
   // where: ['a & 1'],
 }).then((res) => {
   console.log('raw Query Result->', res);
