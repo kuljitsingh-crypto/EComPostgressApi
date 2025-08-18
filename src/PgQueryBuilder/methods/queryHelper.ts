@@ -1,20 +1,11 @@
-import { PG_DATA_TYPE } from '../constants/dataTypes';
 import { DB_KEYWORDS } from '../constants/dbkeywords';
-import {
-  conditionalOperator,
-  OP,
-  OP_KEYS,
-  SIMPLE_OP_KEYS,
-  subqueryOperator,
-  validOperations,
-} from '../constants/operators';
+import { OP, OP_KEYS } from '../constants/operators';
 import { setOperation } from '../constants/setOperations';
 import { Primitive } from '../globalTypes';
 import {
   AliasFilter,
   AliasSubType,
   AllowedFields,
-  FilterColumnValue,
   GroupByFields,
   InOperationSubQuery,
   ORDER_BY,
@@ -23,9 +14,6 @@ import {
   SelectQuery,
   SetQuery,
   Subquery,
-  SubQueryFilter,
-  WhereClause,
-  WhereClauseKeys,
 } from '../internalTypes';
 import { ColumnHelper } from './columnHelper';
 import { throwError } from './errorHelper';
@@ -33,11 +21,9 @@ import { FieldHelper } from './fieldHelper';
 import { TableFilter } from './filterHelper';
 import {
   attachArrayWith,
-  aggregateFunctionCreator,
   fieldQuote,
-  getPreparedValues,
-  isPrimitiveValue,
-  prepareColumnForHavingClause,
+  isValidModel,
+  getAggregatedColumn,
 } from './helperFunction';
 import { PaginationQuery } from './paginationQuery';
 import { TableJoin } from './tableJoin';
@@ -114,7 +100,7 @@ export class QueryHelper {
   ) {
     const { model, alias, column, orderBy, isDistinct, ...rest } =
       value as InOperationSubQuery<Model>;
-    if (!model) {
+    if (!isValidModel(model)) {
       return throwError.invalidModelType();
     }
     if (!rest.where && isExistsFilter) {
@@ -149,7 +135,8 @@ export class QueryHelper {
     );
     const operator = isExistsFilter ? OP[key as OP_KEYS] : key;
     const subQryArr: string[] = operator ? [operator] : [];
-    subQryArr.push(`(${selectQry} ${subquery})`);
+    const q = attachArrayWith.space([selectQry, subquery]);
+    subQryArr.push(`(${q})`);
     return attachArrayWith.space(subQryArr);
   }
 
@@ -310,13 +297,16 @@ export class QueryHelper {
           if (!order) {
             return throwError.invalidOrderOptionType(key);
           }
-          let orderStr = `${validKey} ${order}`;
-          if (fn) {
-            orderStr = aggregateFunctionCreator(validKey, fn) + ` ${order}`;
-          }
-          if (nullOption) {
-            orderStr += ` ${nullOption}`;
-          }
+          const aggregatedColumn = getAggregatedColumn({
+            column: validKey,
+            allowedFields,
+            shouldSkipFieldValidation: true,
+          });
+          const orderStr = attachArrayWith.space([
+            aggregatedColumn,
+            order,
+            nullOption as any,
+          ]);
           return orderStr;
         }
       })

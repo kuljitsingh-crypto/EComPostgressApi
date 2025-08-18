@@ -8,9 +8,14 @@ import {
   AllowedFields,
   GroupByFields,
   InOperationSubQuery,
+  NonNullPrimitive,
   PreparedValues,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
+
+type FieldQuoteReturn<T extends boolean> = T extends false
+  ? string
+  : string | null;
 
 const MIN_COLUMN_LENGTH = 1;
 const MAX_COLUMN_LENGTH = 63;
@@ -19,8 +24,17 @@ const validAliasColumnNameRegex =
   /^([a-zA-Z_][a-zA-Z0-9_$]*\.[a-zA-Z_][a-zA-Z0-9_$]*)$/;
 const validExistsColumnNameRegex = /^[1]$/;
 
+const filterOutValidDbData = (a: Primitive) => {
+  if (a === null || typeof a === 'boolean' || typeof a === 'number') {
+    return true;
+  } else if (typeof a == 'string' && a.trim().length > 0) {
+    return true;
+  }
+  return false;
+};
+
 const attachArrayWithSep = (array: Array<Primitive>, sep: string) =>
-  array.join(sep);
+  array.filter(filterOutValidDbData).join(sep);
 
 const attachArrayWithSpaceSep = (array: Array<Primitive>) =>
   attachArrayWithSep(array, ' ');
@@ -33,6 +47,12 @@ const attachArrayWithAndSep = (array: Array<Primitive>) =>
 
 const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
   attachArrayWithSep(array, ', ');
+
+const fnJoiner = {
+  joinFnAndColumn: (fn: FieldFunctionType, column: string) => `${column},${fn}`,
+  sepFnAndColumn: (fnAndCol: string | null) =>
+    fnAndCol ? fnAndCol.split(',') : [fnAndCol],
+};
 
 const aggregateFunc = (fn: FieldFunctionType, column: string) => {
   const func = aggregateFunctionName[fn];
@@ -65,7 +85,7 @@ const simpleFieldValidate = (field: string | null) => {
   return field;
 };
 
-const validateField = (field: string | null, allowed: AllowedFields) => {
+const validateField = (field: string, allowed: AllowedFields) => {
   field = simpleFieldValidate(field);
   if (!allowed.has(field)) {
     return throwError.invalidColumnNameType(field, allowed);
@@ -73,9 +93,7 @@ const validateField = (field: string | null, allowed: AllowedFields) => {
   return field as string;
 };
 
-//=================== export functions ======================//
-
-export const aggregateFunctionCreator = (
+const aggregateFunctionCreator = (
   field: string,
   functionName: FieldFunctionType,
   alias?: string,
@@ -92,6 +110,36 @@ export const aggregateFunctionCreator = (
   return `${funcUpr}(${field})${aliasMaybe}`;
 };
 
+//=================== export functions ======================//
+
+export const getAggregatedColumn = <T extends boolean = false>({
+  column: col,
+  allowedFields,
+  isNullColAllowed,
+  shouldSkipFieldValidation = false,
+  isAggregateAllowed = true,
+}: {
+  column: string | null;
+  allowedFields: AllowedFields;
+  shouldSkipFieldValidation?: boolean;
+  isAggregateAllowed?: boolean;
+  isNullColAllowed?: T;
+}): FieldQuoteReturn<T> => {
+  const [column, fn] = shouldSkipFieldValidation
+    ? [col]
+    : fnJoiner.sepFnAndColumn(col);
+  let validCol = shouldSkipFieldValidation
+    ? (column as FieldQuoteReturn<T>)
+    : fieldQuote(allowedFields, column, isNullColAllowed);
+  if (!isAggregateAllowed && fn) {
+    return throwError.invalidAggFuncPlaceType(fn, column || 'null');
+  }
+  if (fn && validCol) {
+    validCol = aggregateFunctionCreator(validCol, fn as FieldFunctionType);
+  }
+  return validCol;
+};
+
 export const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
 
 export const dynamicFieldQuote = (field: string) => {
@@ -99,10 +147,17 @@ export const dynamicFieldQuote = (field: string) => {
   return quote(field);
 };
 
-export const fieldQuote = (
+export const fieldQuote = <T extends boolean = false>(
   allowedFields: AllowedFields,
   str: string | null,
-) => {
+  isNullColAllowed?: T,
+): FieldQuoteReturn<T> => {
+  if (str === null && isNullColAllowed) {
+    return str as any;
+  }
+  if (typeof str !== 'string') {
+    return throwError.invalidColumnNameType(str, allowedFields);
+  }
   str = validateField(str, allowedFields);
   return quote(str);
 };
@@ -116,7 +171,9 @@ export const prepareColumnForHavingClause = (
   let validKey: string;
   if (isHavingFilter) {
     const [k, fn] = fnJoiner.sepFnAndColumn(key);
-    if (!fn && !groupByFields.has(k)) {
+    if (!fn && !k) {
+      return throwError.invalidGrpColumnNameType(k || 'null');
+    } else if (k && !groupByFields.has(k)) {
       return throwError.invalidGrpColumnNameType(k);
     }
     validKey = fieldQuote(allowedFields, k);
@@ -140,8 +197,8 @@ export const isPrimitiveValue = (value: Primitive | undefined) => {
 };
 
 export const isNotNullPrimitiveValue = (
-  value: Primitive,
-): value is Primitive => {
+  value: unknown,
+): value is NonNullPrimitive => {
   return (
     typeof value === 'string' ||
     typeof value === 'number' ||
@@ -163,14 +220,42 @@ export const getPreparedValues = (
   return placeholder;
 };
 
+export const isValidModel = (model: any) => {
+  if (typeof model !== 'function') {
+    return false;
+  }
+  if (typeof model.tableName !== 'string') {
+    return false;
+  }
+  if (!(model.tableColumns instanceof Set)) {
+    return false;
+  }
+  return true;
+};
+
+export const isValidColumn = (column: any, isArrayAllowed = true): boolean => {
+  const isColumn =
+    (typeof column === 'string' || typeof column === 'function') && !!column;
+
+  if (isArrayAllowed && Array.isArray(column)) {
+    return isValidColumn(column[0], false);
+  }
+
+  return isColumn;
+};
+
 export const isValidSubQuery = <Model>(
   subQuery: InOperationSubQuery<Model> | null,
-) => {
+  isArrayAllowedInColumn = false,
+): subQuery is InOperationSubQuery<Model> => {
   if (typeof subQuery !== 'object' || subQuery === null) {
     return false;
   }
   const { model, column } = subQuery;
-  if (!model || !column || typeof column !== 'string') {
+  if (!isValidModel(model)) {
+    return false;
+  }
+  if (!isValidColumn(column, isArrayAllowedInColumn)) {
     return false;
   }
   return true;
@@ -184,11 +269,6 @@ export const attachArrayWith = {
   and: attachArrayWithAndSep,
   comaAndSpace: attachArrayWithComaAndSpaceSep,
   customSep: attachArrayWithSep,
-};
-
-export const fnJoiner = {
-  joinFnAndColumn: (fn: FieldFunctionType, column: string) => `${column},${fn}`,
-  sepFnAndColumn: (fnAndCol: string) => fnAndCol.split(','),
 };
 
 export const aggregateFn = Object.freeze({

@@ -8,6 +8,7 @@ import { Primitive } from './globalTypes';
 
 type SubqueryWhereReq = 'WhereReq' | 'WhereNotReq';
 
+export type NonNullPrimitive = string | number | boolean;
 export type ORDER_OPTION = 'ASC' | 'DESC';
 export type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
 export type PAGINATION = { limit: number; offset?: number };
@@ -64,7 +65,7 @@ export type SubQueryFilter<
   T extends SubqueryWhereReq = 'WhereNotReq',
 > = ExistsFilter<Model, T> & {
   orderBy?: ORDER_BY;
-  column: string;
+  column: SubQueryColumnAttribute;
   isDistinct?: boolean;
 };
 
@@ -150,6 +151,9 @@ export type FindQueryAttribute =
   | [string | CallableField, null | string]
   | string
   | CallableField;
+
+export type SubQueryColumnAttribute = string | CallableField;
+
 export type FindQueryAttributes = FindQueryAttribute[];
 
 export type QueryParams<Model> = SelectQuery<Model> &

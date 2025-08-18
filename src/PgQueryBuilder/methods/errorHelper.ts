@@ -131,10 +131,16 @@ function throwInvalidPrimaryColumnError(tableName: string): never {
 }
 
 function throwInvalidColumnNameError(
-  field: string,
+  field: any,
   allowedNames: AllowedFields,
 ): never {
   const allowed = attachArrayWith.comaAndSpace(Array.from(allowedNames));
+  field =
+    field === null
+      ? 'null'
+      : field === undefined
+        ? 'undefined'
+        : field.toString();
   throw new Error(
     `Invalid column name ${field}. Allowed Column names are: ${allowed}.`,
   );

@@ -23,6 +23,7 @@ import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   fieldQuote,
+  getAggregatedColumn,
   getPreparedValues,
   isNotNullPrimitiveValue,
   isValidSubQuery,
@@ -53,7 +54,8 @@ type FieldOperand<Model> =
   | number
   | boolean
   | InOperationSubQuery<Model>
-  | CombinedFun;
+  | CombinedFun
+  | CallableField;
 
 type FieldOperandInternal<Model> = FieldOperand<Model> | null;
 
@@ -81,8 +83,7 @@ type OperandType = 'single' | 'double' | 'multiple' | 'triple';
 type AttachType = 'in' | 'inBtw' | 'default';
 
 type PrepareCb<Model> = {
-  col: FieldOperandInternal<Model>;
-  operand: FieldOperandInternal<Model>;
+  colAndOperands: FieldOperandInternal<Model>[];
   attachBy: AttachType;
   operator: Ops;
   preparedValues: PreparedValues;
@@ -102,8 +103,7 @@ type MultiOperatorFieldCb = {
 };
 
 type FieldOperatorCb<Model> = {
-  colName: FieldOperandInternal<Model>;
-  operand: FieldOperandInternal<Model>;
+  colAndOperands: FieldOperandInternal<Model>[];
   op: Ops;
   operatorRef: Record<string, string>;
   operandAllowed: AllowedOperand;
@@ -112,6 +112,16 @@ type FieldOperatorCb<Model> = {
 };
 
 interface FieldFunction extends Func {}
+
+function isCallableFieldFn(
+  fn: CallableField | CombinedFun,
+): fn is CallableField {
+  return fn.length === 3;
+}
+
+function isCombinedFn(fn: CallableField | CombinedFun): fn is CombinedFun {
+  return fn.length === 0;
+}
 
 const attachOperator = (op: string, ...values: Primitive[]) =>
   `${op}(${attachArrayWith.coma(values)})`;
@@ -124,6 +134,9 @@ const attachInOperator = (op: string, ...values: Primitive[]) =>
 
 const attachOp = (op: string, attachBy: AttachType, ...values: Primitive[]) => {
   values = values.filter((v) => v !== null && v !== undefined);
+  if (values.length < 1) {
+    return throwError.invalidOpDataType(op);
+  }
   let opCb: (op: string, ...values: Primitive[]) => string = attachOperator;
   switch (attachBy) {
     case 'in': {
@@ -139,62 +152,60 @@ const attachOp = (op: string, attachBy: AttachType, ...values: Primitive[]) => {
   return opCb(op, ...values);
 };
 
-const getColName = <Model>(
-  col: FieldOperandInternal<Model>,
-  allowedFields: AllowedFields,
-  isStringCheckReq = false,
-) => {
-  if (typeof col === 'function') {
-    const { colName, isCol, ctx } = col();
-    const isValidCol =
-      typeof colName === 'string' &&
-      colName &&
-      isCol &&
-      isValidInternalContext(ctx);
-    if (!isValidCol) {
-      return throwError.invalidFieldFuncCallType();
-    }
-    return fieldQuote(allowedFields, colName);
-  } else if (isStringCheckReq && typeof col == 'string') {
-    return fieldQuote(allowedFields, col);
-  }
-  return null;
-};
 const getColOrValFrmCb = (
-  value: CombinedFun,
+  value: CombinedFun | CallableField,
   preparedValues: PreparedValues,
   allowedFields: AllowedFields,
+  groupByFields: GroupByFields,
+  isNullColAllowed: boolean,
 ) => {
-  const { ctx, ...rest } = value();
-  if (!isValidInternalContext(ctx)) {
-    return throwError.invalidFieldFuncCallType();
+  if (isCallableFieldFn(value)) {
+    const { col, ctx } = value(preparedValues, groupByFields, allowedFields);
+    if (isValidInternalContext(ctx)) {
+      return col;
+    }
   }
-  if (isNotNullPrimitiveValue(rest.value || null) && rest.isVal) {
-    return getPreparedValues(preparedValues, rest.value as Primitive);
-  }
-  if (typeof rest.colName === 'string' && rest.isCol) {
-    return fieldQuote(allowedFields, rest.colName);
+  if (isCombinedFn(value)) {
+    const { ctx, ...rest } = value();
+    if (!isValidInternalContext(ctx)) {
+      return throwError.invalidFieldFuncCallType();
+    }
+    if (isNotNullPrimitiveValue(rest.value || null) && rest.isVal) {
+      return getPreparedValues(preparedValues, rest.value as Primitive);
+    }
+    if (typeof rest.colName === 'string' && rest.isCol) {
+      return getAggregatedColumn({
+        column: rest.colName,
+        allowedFields,
+        isNullColAllowed,
+      });
+    }
   }
   return null;
 };
-
-const isSubquery = <Model>(
-  value: FieldOperandInternal<Model>,
-): value is InOperationSubQuery<Model> =>
-  typeof value === 'object' && value !== null && isValidSubQuery(value);
 
 const getColValue = <Model>(
   value: FieldOperandInternal<Model>,
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
   allowedFields: AllowedFields,
+  isNullColAllowed: boolean,
+  operandAllowed: AllowedOperand,
 ) => {
-  if (['number', 'boolean', 'string'].includes(typeof value)) {
-    const placeholder = getPreparedValues(preparedValues, value as Primitive);
-    return placeholder;
+  if (operandAllowed !== 'all' && typeof value !== operandAllowed) {
+    return throwError.invalidOperandType();
+  }
+  if (isNotNullPrimitiveValue(value)) {
+    return getPreparedValues(preparedValues, value as Primitive);
   } else if (typeof value === 'function') {
-    return getColOrValFrmCb(value, preparedValues, allowedFields);
-  } else if (isSubquery(value)) {
+    return getColOrValFrmCb(
+      value,
+      preparedValues,
+      allowedFields,
+      groupByFields,
+      isNullColAllowed,
+    );
+  } else if (isValidSubQuery(value)) {
     const query = QueryHelper.otherModelSubqueryBuilder(
       '',
       preparedValues,
@@ -207,10 +218,54 @@ const getColValue = <Model>(
   return null;
 };
 
+const resolveOperand = <Model>(
+  colAndOperands: FieldOperandInternal<Model>[],
+  allowedFields: AllowedFields,
+  preparedValues: PreparedValues,
+  groupByFields: GroupByFields,
+  isNullColAllowed: boolean,
+  operandAllowed: AllowedOperand,
+) => {
+  const [col, ...operands] = colAndOperands;
+  const operandsRef: Primitive[] = [];
+  if (col === null || typeof col === 'string') {
+    operandsRef.push(
+      getAggregatedColumn({
+        column: col,
+        allowedFields,
+        isNullColAllowed,
+      }),
+    );
+  } else {
+    operandsRef.push(
+      getColValue(
+        col,
+        preparedValues,
+        groupByFields,
+        allowedFields,
+        isNullColAllowed,
+        operandAllowed,
+      ),
+    );
+  }
+  operands.forEach((op) => {
+    operandsRef.push(
+      getColValue(
+        op,
+        preparedValues,
+        groupByFields,
+        allowedFields,
+        isNullColAllowed,
+        operandAllowed,
+      ),
+    );
+  });
+  return operandsRef;
+};
+
 const prepareFields = <Model>(params: PrepareCb<Model>) => {
   const {
-    col,
-    operand,
+    colAndOperands,
     operator,
     attachBy,
     operandAllowed,
@@ -220,31 +275,38 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
     allowedFields,
     isNullColAllowed = false,
   } = params;
-  const validCol =
-    col === null
-      ? col
-      : typeof col === 'string'
-        ? fieldQuote(allowedFields, col)
-        : getColName(operand, allowedFields);
-  if (validCol === null && !isNullColAllowed) {
-    return throwError.invalidColumnNameType('null', allowedFields);
-  }
+
   const op = operatorRef[operator];
   if (!op) {
     return throwError.invalidColumnOpType(op, Object.keys(operatorRef));
   }
-  if (operandAllowed !== 'all' && typeof operand !== operandAllowed) {
-    return throwError.invalidOperandType();
+  const operands = resolveOperand(
+    colAndOperands,
+    allowedFields,
+    preparedValues,
+    groupByFields,
+    isNullColAllowed,
+    operandAllowed,
+  );
+  return attachOp(op, attachBy, ...operands);
+};
+
+const getColAndOperands = <Model>(
+  type: OperandType,
+  ...operands: FieldOperandInternal<Model>[]
+): FieldOperandInternal<Model>[] => {
+  switch (type) {
+    case 'single':
+      return [null, operands[0]];
+    case 'double':
+      return operands.slice(0, 2);
+    case 'triple':
+      return operands.slice(0, 3);
+    case 'multiple':
+      return operands;
+    default:
+      return throwError.invalidOperandType();
   }
-  const operandValue =
-    typeof col === 'function' || isSubquery(col)
-      ? getColValue(col, preparedValues, groupByFields, allowedFields)
-      : getColValue(operand, preparedValues, groupByFields, allowedFields);
-  console.log(validCol, operand);
-  if (validCol === null && operandValue === null) {
-    return throwError.invalidOpDataType(op);
-  }
-  return attachOp(op, attachBy, validCol, operandValue);
 };
 
 const opGroups: {
@@ -298,20 +360,20 @@ class FieldFunction {
     return FieldFunction.#instance;
   }
 
-  column(col: string): ColFunc {
+  col(col: string): ColFunc {
     return () => {
       this.#checkFunctionExecutionState();
       return { colName: col, isCol: true, ctx: getInternalContext() };
     };
   }
-  value(val: Primitive): ValFunc {
+  val(val: Primitive): ValFunc {
     return () => {
       this.#checkFunctionExecutionState();
       return { value: val, isVal: true, ctx: getInternalContext() };
     };
   }
 
-  #attachFieldMethods<Model>() {
+  #attachFieldMethods() {
     let op: Ops;
     opGroups.forEach(({ set, allowed, type, attachBy }) => {
       for (const op in set) {
@@ -329,34 +391,17 @@ class FieldFunction {
 
   #multiFieldOperator = (args: MultiOperatorFieldCb) => {
     const { operandType, operandAllowed, op, operatorRef, attachBy } = args;
-    switch (operandType) {
-      case 'single':
-        return <Model>(operand: FieldOperandInternal<Model>) =>
-          this.#operateOnFields({
-            colName: null,
-            operand,
-            op,
-            operandAllowed,
-            isNullColAllowed: true,
-            operatorRef,
-            attachBy,
-          });
-      case 'double':
-        return <Model>(
-          col: FieldOperandInternal<Model>,
-          operand: FieldOperandInternal<Model>,
-        ) => {
-          return this.#operateOnFields({
-            colName: col,
-            operand,
-            op,
-            operandAllowed,
-            isNullColAllowed: false,
-            operatorRef,
-            attachBy,
-          });
-        };
-    }
+    return <Model>(...ops: FieldOperandInternal<Model>[]) => {
+      const colAndOperands = getColAndOperands(operandType, ...ops);
+      return this.#operateOnFields({
+        colAndOperands,
+        op,
+        operandAllowed,
+        isNullColAllowed: operandType === 'single',
+        operatorRef,
+        attachBy,
+      });
+    };
   };
 
   #checkFunctionExecutionState() {
@@ -367,8 +412,7 @@ class FieldFunction {
 
   #operateOnFields<Model>(args: FieldOperatorCb<Model>) {
     const {
-      colName,
-      operand,
+      colAndOperands,
       operandAllowed,
       op,
       operatorRef,
@@ -382,8 +426,7 @@ class FieldFunction {
     ) => {
       this.#checkFunctionExecutionState();
       const value = prepareFields<Model>({
-        col: colName,
-        operand,
+        colAndOperands,
         operator: op,
         preparedValues,
         groupByFields,

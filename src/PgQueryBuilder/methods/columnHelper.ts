@@ -13,9 +13,7 @@ import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   dynamicFieldQuote,
-  aggregateFunctionCreator,
-  fieldQuote,
-  fnJoiner,
+  getAggregatedColumn,
 } from './helperFunction';
 
 const isValidArray = (
@@ -84,21 +82,12 @@ export class ColumnHelper {
           preparedValues,
           groupByFields,
         );
-        const [column, fn] = shouldSkipFieldValidation
-          ? [col]
-          : fnJoiner.sepFnAndColumn(col);
-        let validCol = shouldSkipFieldValidation
-          ? column
-          : fieldQuote(allowedFields, column);
-        if (!isAggregateAllowed && fn) {
-          return throwError.invalidAggFuncPlaceType(fn, column);
-        }
-        if (fn) {
-          validCol = aggregateFunctionCreator(
-            validCol,
-            fn as FieldFunctionType,
-          );
-        }
+        const validCol = getAggregatedColumn({
+          column: col,
+          shouldSkipFieldValidation,
+          isAggregateAllowed,
+          allowedFields,
+        });
         if (value === null) {
           return validCol;
         } else if (typeof value === 'string') {

@@ -95,10 +95,23 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
-    'a',
+    // 'a',
+    fieldFn.abs(fieldFn.sub(aggregateFn.avg('a'), 5)),
     // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.avg('b') }), 'av'],
     // fieldFn.power(fieldFn.val(5), fieldFn.col('a')),
-    fieldFn.strPos('fruit_a', 'a'),
+    // [
+    //   fieldFn.sub(
+    //     { model: BasketB, column: aggregateFn.avg('b') },
+    //     fieldFn.col('a'),
+    //   ),
+    //   'sub',
+    // ],
+    // fieldFn.abs(
+    //   fieldFn.sub('a', {
+    //     model: BasketB,
+    //     column: aggregateFn.avg('b'),
+    //   }),
+    // ),
     // 'fruit_a',
     // [
     //   fieldFn.sqrt({
@@ -241,7 +254,13 @@ BasketE.queryRawSql({
 });
 
 BasketA.queryRawSql(
-  'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
+  'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
+
+  // 'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t;',
+  // 'SELECT a,ABS(a-AVG(a))  FROM basket_a',
+  // 'SELECT a,ABS(a - (SELECT AVG(ABS(b - AVG(b) OVER ())) FROM basket_b)) AS deviation FROM basket_a;',
+  // 'SELECT a, ABS(a - (SELECT AVG(b) FROM basket_b)) AS deviation FROM basket_a;',
+  // 'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
 ).then((res) => {
   console.log('raw Query Result->', res);
 });

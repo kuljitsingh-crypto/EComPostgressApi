@@ -9,7 +9,7 @@ import {
 } from '../constants/tableJoin';
 import { AllowedFields } from '../internalTypes';
 import { throwError } from './errorHelper';
-import { attachArrayWith, fieldQuote } from './helperFunction';
+import { attachArrayWith, fieldQuote, isValidModel } from './helperFunction';
 
 const joinTableCond = (cond: JOIN_COLUMN, allowedFields: AllowedFields) => {
   const onStr = attachArrayWith.and(
@@ -74,7 +74,7 @@ export class TableJoin {
     if (!joinName) {
       return throwError.invalidJoinType(type);
     }
-    if (!name && !model) {
+    if (!name && !isValidModel(model)) {
       return throwError.invalidModelType();
     }
     const tableName = name || (model as any).tableName;
