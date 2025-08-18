@@ -139,7 +139,12 @@ export type CallableField = (
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
   allowedFields: AllowedFields,
-) => { col: string; value: string | null; shouldSkipFieldValidation?: boolean };
+) => {
+  col: string;
+  value: string | null;
+  shouldSkipFieldValidation?: boolean;
+  ctx: symbol;
+};
 
 export type FindQueryAttribute =
   | [string | CallableField, null | string]

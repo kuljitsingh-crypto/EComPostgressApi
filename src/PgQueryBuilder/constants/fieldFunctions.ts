@@ -8,7 +8,7 @@ export const aggregateFunctionName = {
 
 export const COL_PREFIX = 'col#';
 
-export const SIMPLE_MATH_FIELD_OP = {
+export const MATH_FIELD_OP = {
   add: '+',
   sub: '-',
   multiple: '*',
@@ -17,7 +17,7 @@ export const SIMPLE_MATH_FIELD_OP = {
   exponent: '^',
 } as const;
 
-export const ADVANCE_SINGLE_FIELD_OP = {
+export const SINGLE_FIELD_OP = {
   abs: 'ABS',
   ceil: 'CEIL',
   floor: 'FLOOR',
@@ -40,20 +40,22 @@ export const ADVANCE_SINGLE_FIELD_OP = {
   octetLength: 'OCTET_LENGTH',
 } as const;
 
-export const ADVANCE_DOUBLE_FIELD_OP = {
+export const DOUBLE_FIELD_OP = {
   trunc: 'TRUNC',
   round: 'ROUND',
   power: 'POWER',
 } as const;
 
-export const ADVANCE_STR_DOUBLE_FIELD_OP = {
+export const STR_FIELD_OP = {
   strPos: 'STRPOS',
-  position: 'POSITION',
 } as const;
 
-export type SimpleMathOpKeys = keyof typeof SIMPLE_MATH_FIELD_OP;
-export type AdvanceSingleFieldOpKeys = keyof typeof ADVANCE_SINGLE_FIELD_OP;
-export type AdvanceDoubleFieldOpKeys = keyof typeof ADVANCE_DOUBLE_FIELD_OP;
-export type AdvanceStrDoubleFieldOpKeys =
-  keyof typeof ADVANCE_STR_DOUBLE_FIELD_OP;
+export const STR_IN_FIELD_OP = { position: 'POSITION' } as const;
+
+export type SimpleMathOpKeys = keyof typeof MATH_FIELD_OP;
+export type SingleFieldOpKeys = keyof typeof SINGLE_FIELD_OP;
+export type DoubleFieldOpKeys = keyof typeof DOUBLE_FIELD_OP;
+export type StrFieldOpKeys =
+  | keyof typeof STR_FIELD_OP
+  | keyof typeof STR_IN_FIELD_OP;
 export type FieldFunctionType = keyof typeof aggregateFunctionName;

@@ -95,8 +95,10 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
+    'a',
     // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.avg('b') }), 'av'],
-    fieldFn.power('a', 'a'),
+    // fieldFn.power(fieldFn.val(5), fieldFn.col('a')),
+    fieldFn.strPos('fruit_a', 'a'),
     // 'fruit_a',
     // [
     //   fieldFn.sqrt({
@@ -238,12 +240,12 @@ BasketE.queryRawSql({
   console.log('raw Query Result->', res);
 });
 
-// BasketA.queryRawSql(
-//   'SELECT a + (SELECT b FROM basket_b ) AS sum FROM basket_a',
-// ).then((res) => {
-//   console.log('raw Query Result->', res);
-// });
+BasketA.queryRawSql(
+  'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
+).then((res) => {
+  console.log('raw Query Result->', res);
+});
 
 export function run() {
-  console.log('test model');
+  console.log('test model running');
 }

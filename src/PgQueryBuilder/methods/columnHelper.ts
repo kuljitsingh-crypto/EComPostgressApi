@@ -2,11 +2,13 @@ import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { FieldFunctionType } from '../constants/fieldFunctions';
 import {
   AllowedFields,
+  CallableField,
   FindQueryAttribute,
   FindQueryAttributes,
   GroupByFields,
   PreparedValues,
 } from '../internalTypes';
+import { isValidInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
@@ -15,6 +17,15 @@ import {
   fieldQuote,
   fnJoiner,
 } from './helperFunction';
+
+const isValidArray = (
+  col: FindQueryAttribute,
+): col is [string | CallableField, string | null] => {
+  if (col === null) return false;
+  if (!Array.isArray(col)) return false;
+  if (col.filter(Boolean).length < 1) return false;
+  return true;
+};
 
 const getColNameAndAlias = (
   col: FindQueryAttribute,
@@ -29,8 +40,12 @@ const getColNameAndAlias = (
   if (typeof col === 'string') {
     return { col, value: null };
   } else if (typeof col === 'function' && preparedValues && groupByFields) {
-    return col(preparedValues, groupByFields, allowedFields);
-  } else if (typeof col === 'object' && col !== null) {
+    const { ctx, ...rest } = col(preparedValues, groupByFields, allowedFields);
+    if (!isValidInternalContext(ctx)) {
+      return throwError.invalidFieldFuncCallType();
+    }
+    return rest;
+  } else if (isValidArray(col)) {
     const [column, value] = col;
     const { col: validColumn, shouldSkipFieldValidation } = getColNameAndAlias(
       column,

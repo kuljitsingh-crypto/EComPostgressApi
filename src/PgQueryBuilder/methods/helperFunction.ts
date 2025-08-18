@@ -139,6 +139,16 @@ export const isPrimitiveValue = (value: Primitive | undefined) => {
   );
 };
 
+export const isNotNullPrimitiveValue = (
+  value: Primitive,
+): value is Primitive => {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  );
+};
+
 export const createPlaceholder = (val: number) => {
   return `$${val}`;
 };
