@@ -24,6 +24,7 @@ import {
   fieldQuote,
   isValidModel,
   getAggregatedColumn,
+  getJoinAndOtherSubqueryFields,
 } from './helperFunction';
 import { PaginationQuery } from './paginationQuery';
 import { TableJoin } from './tableJoin';
@@ -59,10 +60,11 @@ export class QueryHelper {
     qry: QueryParams<Model>,
     useOnlyRefAllowedFields = false,
   ) {
-    const { columns, isDistinct, orderBy, alias, set, ...rest } = qry;
+    const { columns, isDistinct, orderBy, alias, set, ...restQry } = qry;
+    const { join, restSubquery: rest } = getJoinAndOtherSubqueryFields(restQry);
     const allowedFields = useOnlyRefAllowedFields
       ? refAllowedFields
-      : FieldHelper.getAllowedFields(refAllowedFields, alias, rest.join as any);
+      : FieldHelper.getAllowedFields(refAllowedFields, alias, join);
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
       allowedFields,

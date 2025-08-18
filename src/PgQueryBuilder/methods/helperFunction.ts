@@ -3,13 +3,18 @@ import {
   FieldFunctionType,
 } from '../constants/fieldFunctions';
 import { OP } from '../constants/operators';
+import { TABLE_JOIN, TableJoinType } from '../constants/tableJoin';
 import { Primitive } from '../globalTypes';
 import {
   AllowedFields,
   GroupByFields,
   InOperationSubQuery,
+  Join,
   NonNullPrimitive,
   PreparedValues,
+  Subquery,
+  SubqueryWhereReq,
+  WhereAndOtherSubQuery,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
 
@@ -259,6 +264,29 @@ export const isValidSubQuery = <Model>(
     return false;
   }
   return true;
+};
+
+export const getJoinAndOtherSubqueryFields = <
+  Model,
+  T extends SubqueryWhereReq = 'WhereNotReq',
+>(
+  subQuery: Subquery<Model> = {},
+) => {
+  return Object.entries(subQuery).reduce(
+    (pre, acc) => {
+      const [key, value] = acc;
+      if (key in TABLE_JOIN) {
+        (pre.join as any)[key] = value;
+      } else {
+        (pre.restSubquery as any)[key] = value;
+      }
+      return pre;
+    },
+    {
+      join: {} as Record<TableJoinType, Join<Model>>,
+      restSubquery: {} as WhereAndOtherSubQuery<Model, T>,
+    },
+  );
 };
 
 //===================================== Object wrapped functions =======================//

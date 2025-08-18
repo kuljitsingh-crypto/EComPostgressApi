@@ -1,17 +1,17 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { OP } from '../constants/operators';
 import {
-  JOIN,
-  JOIN_COLUMN,
+  Join,
+  JoinCond,
   TABLE_JOIN,
-  TABLE_JOIN_COND,
-  TABLE_JOIN_TYPE,
+  TableJoin,
+  TableJoinType,
 } from '../constants/tableJoin';
 import { AllowedFields } from '../internalTypes';
 import { throwError } from './errorHelper';
 import { attachArrayWith, fieldQuote, isValidModel } from './helperFunction';
 
-const joinTableCond = (cond: JOIN_COLUMN, allowedFields: AllowedFields) => {
+const joinTableCond = (cond: JoinCond, allowedFields: AllowedFields) => {
   const onStr = attachArrayWith.and(
     Object.entries(cond).map(([baseColumn, joinColumn]) =>
       attachArrayWith.space([
@@ -27,7 +27,7 @@ export class TableJoin {
   static prepareTableJoin<Model>(
     selfModelName: string,
     allowedFields: AllowedFields,
-    include?: TABLE_JOIN_COND<Model>[],
+    include?: TableJoin<Model>[],
   ) {
     if (!include || include.length < 1) {
       return '';
@@ -65,9 +65,9 @@ export class TableJoin {
     });
     return attachArrayWith.space(joins as string[]);
   }
-  static #prepareJoinStr<T extends TABLE_JOIN_TYPE, Model>(
+  static #prepareJoinStr<T extends TableJoinType, Model>(
     allowedFields: AllowedFields,
-    joinType: JOIN<T, Model>,
+    joinType: Join<T, Model>,
   ) {
     const { type, model, on, tableName: name, alias } = joinType;
     const joinName = TABLE_JOIN[type];

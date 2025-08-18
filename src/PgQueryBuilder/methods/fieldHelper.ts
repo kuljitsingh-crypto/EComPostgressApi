@@ -1,16 +1,12 @@
-import {
-  OTHER_JOIN,
-  TABLE_JOIN_COND,
-  TABLE_JOIN_TYPE,
-} from '../constants/tableJoin';
-import { AliasSubType, AllowedFields } from '../internalTypes';
+import { OtherJoin, TableJoin, TableJoinType } from '../constants/tableJoin';
+import { AliasSubType, AllowedFields, Join } from '../internalTypes';
 import { throwError } from './errorHelper';
 
 export class FieldHelper {
   static getAllowedFields<Model>(
     selfAllowedFields: AllowedFields,
     alias?: AliasSubType<Model>,
-    include?: TABLE_JOIN_COND<Model>[],
+    include?: Record<TableJoinType, Join<Model>>,
   ) {
     const modelFields = FieldHelper.#initializeModelFields(
       selfAllowedFields,
@@ -108,8 +104,8 @@ export class FieldHelper {
     return allowedNames;
   }
 
-  static #addJoinModelFields<T extends TABLE_JOIN_TYPE, Model>(
-    joinType: OTHER_JOIN<T, Model>,
+  static #addJoinModelFields<T extends TableJoinType, Model>(
+    joinType: OtherJoin<T, Model>,
     modelFields: string[],
   ) {
     const { model, alias } = joinType;
