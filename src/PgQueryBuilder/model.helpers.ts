@@ -32,14 +32,14 @@ const enumQrySuffix = `EXCEPTION WHEN duplicate_object THEN null; END $$;`;
 export class DBQuery {
   static tableName: string = '';
   static tableColumns: AllowedFields = new Set();
-  static #groupByFields: GroupByFields = new Set();
 
   static async findAll<Model>(queryParams?: QueryParams<Model>) {
     const preparedValues: PreparedValues = { index: 0, values: [] };
+    const groupByFields: GroupByFields = new Set();
     const findAllQuery = QueryHelper.prepareQuery(
       preparedValues,
       this.tableColumns,
-      DBQuery.#groupByFields,
+      groupByFields,
       this.tableName,
       queryParams || {},
     );

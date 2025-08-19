@@ -18,6 +18,11 @@ export type PAGINATION = { limit: number; offset?: number };
 export type GroupByFields = Set<string>;
 export type AllowedFields = Set<string>;
 
+export type ModelAndAlias<Model> = {
+  model: Model;
+  alias?: string;
+};
+
 export type ORDER_BY = Record<
   string,
   | ORDER_OPTION
@@ -59,10 +64,10 @@ export type Condition<
   ? { [K in Key]: ConditionMap<Model>[K] }
   : NormalOperators<Model>;
 
-export type ExistsFilter<Model, T extends SubqueryWhereReq = 'WhereNotReq'> = {
-  model: Model;
-  alias?: string;
-} & Subquery<Model, T>;
+export type ExistsFilter<
+  Model,
+  T extends SubqueryWhereReq = 'WhereNotReq',
+> = ModelAndAlias<Model> & Subquery<Model, T>;
 
 export type SubQueryFilter<
   Model,
@@ -77,12 +82,17 @@ export type InOperationSubQuery<Model> = SubQueryFilter<Model>;
 
 export type SelfJoinSubQuery<Model> = Subquery<Model> & {
   orderBy?: ORDER_BY;
-  column: SubQueryColumnAttribute;
+  column?: SubQueryColumnAttribute;
   isDistinct?: boolean;
   alias?: string;
 };
 
-export type JoinSubQuery<Model> = SubQueryFilter<Model>;
+export type JoinSubQuery<Model> = ModelAndAlias<Model> &
+  Subquery<Model> & {
+    orderBy?: ORDER_BY;
+    column?: SubQueryColumnAttribute;
+    isDistinct?: boolean;
+  };
 
 export type JoinCond<Model> = Record<
   BaseColumn,
@@ -105,8 +115,12 @@ export type TableJoin<T extends TableJoinType, Model> = T extends 'selfJoin'
     ? CrossJoin<Model>
     : OtherJoin<Model>;
 
+export type JoinQuery<Type extends TableJoinType, Model> =
+  | TableJoin<Type, Model>
+  | TableJoin<Type, Model>[];
+
 export type Join<Model extends any> = {
-  [Type in TableJoinType]: TableJoin<Type, Model>;
+  [Type in TableJoinType]: JoinQuery<Type, Model>;
 };
 
 export type WhereClause<Model> =

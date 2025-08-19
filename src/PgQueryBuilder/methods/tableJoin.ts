@@ -1,17 +1,19 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { OP } from '../constants/operators';
-import {
-  Join,
-  JoinCond,
-  TABLE_JOIN,
-  TableJoin,
-  TableJoinType,
-} from '../constants/tableJoin';
-import { AllowedFields } from '../internalTypes';
+import { TABLE_JOIN, TableJoinType } from '../constants/tableJoin';
+import { AllowedFields, Join, JoinCond, JoinQuery } from '../internalTypes';
 import { throwError } from './errorHelper';
-import { attachArrayWith, fieldQuote, isValidModel } from './helperFunction';
+import {
+  attachArrayWith,
+  fieldQuote,
+  isEmptyObject,
+  isValidModel,
+} from './helperFunction';
 
-const joinTableCond = (cond: JoinCond, allowedFields: AllowedFields) => {
+const joinTableCond = <Model>(
+  cond: JoinCond<Model>,
+  allowedFields: AllowedFields,
+) => {
   const onStr = attachArrayWith.and(
     Object.entries(cond).map(([baseColumn, joinColumn]) =>
       attachArrayWith.space([
@@ -27,9 +29,9 @@ export class TableJoin {
   static prepareTableJoin<Model>(
     selfModelName: string,
     allowedFields: AllowedFields,
-    include?: TableJoin<Model>[],
+    join?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
   ) {
-    if (!include || include.length < 1) {
+    if (isEmptyObject(join)) {
       return '';
     }
     const joins = include.map((joinType) => {
@@ -67,7 +69,7 @@ export class TableJoin {
   }
   static #prepareJoinStr<T extends TableJoinType, Model>(
     allowedFields: AllowedFields,
-    joinType: Join<T, Model>,
+    joinType: Join<Model>,
   ) {
     const { type, model, on, tableName: name, alias } = joinType;
     const joinName = TABLE_JOIN[type];
