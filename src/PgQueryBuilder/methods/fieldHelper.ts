@@ -1,39 +1,26 @@
-import { OtherJoin, TableJoin, TableJoinType } from '../constants/tableJoin';
-import { AliasSubType, AllowedFields, Join } from '../internalTypes';
+import { TableJoinType } from '../constants/tableJoin';
+import {
+  AliasSubType,
+  AllowedFields,
+  Join,
+  JoinQuery,
+  ModelAndAlias,
+  OtherJoin,
+} from '../internalTypes';
 import { throwError } from './errorHelper';
+import { isNonEmptyObject } from './helperFunction';
 
 export class FieldHelper {
   static getAllowedFields<Model>(
     selfAllowedFields: AllowedFields,
     alias?: AliasSubType<Model>,
-    include?: Record<TableJoinType, Join<Model>>,
+    include?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
   ) {
     const modelFields = FieldHelper.#initializeModelFields(
       selfAllowedFields,
       alias,
     );
-    if (include && Array.isArray(include) && include.length > 0) {
-      include.forEach((joinType) => {
-        const { type } = joinType;
-        switch (type) {
-          case 'INNER':
-          case 'LEFT':
-          case 'RIGHT':
-          case 'FULLOUTER': {
-            FieldHelper.#addJoinModelFields(joinType, modelFields);
-            break;
-          }
-          case 'CROSS': {
-            const { model, alias } = joinType;
-            FieldHelper.#addJoinModelFields(
-              { model, on: {}, alias, type },
-              modelFields,
-            );
-            break;
-          }
-        }
-      });
-    }
+    FieldHelper.#getJoinFieldNames(modelFields, include);
     return new Set(modelFields);
   }
 
@@ -59,6 +46,7 @@ export class FieldHelper {
     }
     return alias.query.model as any;
   }
+
   static getAliasName<Model>(alias?: AliasSubType<Model>): string | null {
     const aliasStr =
       typeof alias === 'object' && alias !== null && alias.as
@@ -68,6 +56,30 @@ export class FieldHelper {
           : null;
     return aliasStr;
   }
+
+  static #getJoinFieldNames = <Model>(
+    modelFields: string[],
+    include?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
+  ) => {
+    if (isNonEmptyObject(include)) {
+      Object.entries(include).forEach((joinType) => {
+        const [type, join] = joinType;
+        switch (type) {
+          case 'leftJoin':
+          case 'innerJoin':
+          case 'rightJoin':
+          case 'fullJoin':
+          case 'crossJoin': {
+            FieldHelper.#addJoinModelFields(
+              join as OtherJoin<Model> | OtherJoin<Model>[],
+              modelFields,
+            );
+            break;
+          }
+        }
+      });
+    }
+  };
 
   static #getAliasNames<Model>(
     aliasNames: string[],
@@ -104,14 +116,17 @@ export class FieldHelper {
     return allowedNames;
   }
 
-  static #addJoinModelFields<T extends TableJoinType, Model>(
-    joinType: OtherJoin<T, Model>,
+  static #addJoinModelFields<Model>(
+    join: OtherJoin<Model> | OtherJoin<Model>[],
     modelFields: string[],
   ) {
-    const { model, alias } = joinType;
-    const tableNames = (model as any).tableColumns;
-    const aliasTableNames = FieldHelper.#aliasFieldNames(tableNames, alias);
-    modelFields.push(...tableNames, ...aliasTableNames);
+    const joinArrays = Array.isArray(join) ? join : [join];
+    joinArrays.forEach((joinType) => {
+      const { model, alias } = joinType;
+      const tableNames = (model as any).tableColumns;
+      const aliasTableNames = FieldHelper.#aliasFieldNames(tableNames, alias);
+      modelFields.push(...tableNames, ...aliasTableNames);
+    });
   }
 
   static #initializeModelFields<Model>(

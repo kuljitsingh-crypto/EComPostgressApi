@@ -10,6 +10,7 @@ import {
   GroupByFields,
   InOperationSubQuery,
   Join,
+  JoinQuery,
   NonNullPrimitive,
   PreparedValues,
   Subquery,
@@ -266,26 +267,16 @@ export const isValidSubQuery = <Model>(
   return true;
 };
 
-export const getJoinAndOtherSubqueryFields = <
-  Model,
-  T extends SubqueryWhereReq = 'WhereNotReq',
->(
-  subQuery: Subquery<Model> = {},
-) => {
-  return Object.entries(subQuery).reduce(
+export const getJoinSubqueryFields = <Model>(subQuery: Subquery<Model>) => {
+  return Object.entries(subQuery || {}).reduce(
     (pre, acc) => {
       const [key, value] = acc;
       if (key in TABLE_JOIN) {
-        (pre.join as any)[key] = value;
-      } else {
-        (pre.restSubquery as any)[key] = value;
+        (pre as any)[key] = value;
       }
       return pre;
     },
-    {
-      join: {} as Record<TableJoinType, Join<Model>>,
-      restSubquery: {} as WhereAndOtherSubQuery<Model, T>,
-    },
+    {} as Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
   );
 };
 
@@ -307,3 +298,12 @@ export const aggregateFn = Object.freeze({
   [aggregateFunctionName.min]: (column: string) => aggregateFunc('min', column),
   [aggregateFunctionName.sum]: (column: string) => aggregateFunc('sum', column),
 });
+
+export const isEmptyObject = (obj: unknown) =>
+  typeof obj === 'object' &&
+  obj !== null &&
+  !Array.isArray(obj) &&
+  Object.keys(obj).length > 0;
+
+export const isNonEmptyObject = (obj: unknown): obj is object =>
+  !isEmptyObject(obj);

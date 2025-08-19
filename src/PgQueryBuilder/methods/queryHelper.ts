@@ -1,13 +1,14 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { OP, OP_KEYS } from '../constants/operators';
 import { setOperation } from '../constants/setOperations';
-import { Primitive } from '../globalTypes';
+import { TableJoinType } from '../constants/tableJoin';
 import {
   AliasFilter,
   AliasSubType,
   AllowedFields,
   GroupByFields,
   InOperationSubQuery,
+  JoinQuery,
   ORDER_BY,
   PreparedValues,
   QueryParams,
@@ -24,7 +25,7 @@ import {
   fieldQuote,
   isValidModel,
   getAggregatedColumn,
-  getJoinAndOtherSubqueryFields,
+  getJoinSubqueryFields,
 } from './helperFunction';
 import { PaginationQuery } from './paginationQuery';
 import { TableJoin } from './tableJoin';
@@ -60,8 +61,8 @@ export class QueryHelper {
     qry: QueryParams<Model>,
     useOnlyRefAllowedFields = false,
   ) {
-    const { columns, isDistinct, orderBy, alias, set, ...restQry } = qry;
-    const { join, restSubquery: rest } = getJoinAndOtherSubqueryFields(restQry);
+    const { columns, isDistinct, orderBy, alias, set, ...rest } = qry;
+    const join = getJoinSubqueryFields(rest);
     const allowedFields = useOnlyRefAllowedFields
       ? refAllowedFields
       : FieldHelper.getAllowedFields(refAllowedFields, alias, join);
@@ -82,6 +83,7 @@ export class QueryHelper {
       groupByFields,
       preparedValues,
       rest,
+      join,
       orderBy,
     );
     const setQry = QueryHelper.#prepareSetQuery(
@@ -102,6 +104,7 @@ export class QueryHelper {
   ) {
     const { model, alias, column, orderBy, isDistinct, ...rest } =
       value as InOperationSubQuery<Model>;
+    const join = getJoinSubqueryFields(rest);
     if (!isValidModel(model)) {
       return throwError.invalidModelType();
     }
@@ -116,10 +119,11 @@ export class QueryHelper {
     const selectQuery = isExistsFilter
       ? { columns: ['1'], alias, isDistinct }
       : { columns: [column], alias, isDistinct };
+
     const subQryAllowedFields = FieldHelper.getAllowedFields(
       tableColumns,
       alias,
-      rest.join,
+      join,
     );
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
@@ -133,7 +137,8 @@ export class QueryHelper {
       subQryAllowedFields,
       groupByFields,
       preparedValues,
-      rest as any,
+      rest,
+      join,
     );
     const operator = isExistsFilter ? OP[key as OP_KEYS] : key;
     const subQryArr: string[] = operator ? [operator] : [];
@@ -189,13 +194,14 @@ export class QueryHelper {
       return throwError.invalidSetQueryType(true);
     }
     const { type, columns, model, orderBy, alias, set, ...rest } = setQry;
+    const join = getJoinSubqueryFields(rest);
     const queries: string[] = [setOperation[type]];
     const tableName = (model as any).tableName;
     const tableColumns = (model as any).tableColumns;
     const allowedFields = FieldHelper.getAllowedFields(
       tableColumns,
       alias,
-      rest.join as any,
+      join,
     );
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
@@ -213,6 +219,7 @@ export class QueryHelper {
       groupByFields,
       preparedValues,
       rest,
+      join,
       orderBy,
     );
     const setSubqry = QueryHelper.#prepareSetQuery(
@@ -324,9 +331,10 @@ export class QueryHelper {
     groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     subQuery: Subquery<Model>,
+    join: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
     orderBy?: ORDER_BY,
   ) {
-    const { where, groupBy, limit, offset, join, having } = subQuery || {};
+    const { where, groupBy, limit, offset, having } = subQuery || {};
     const whereStatement = TableFilter.prepareFilterStatement(
       allowedFields,
       groupByFields,
