@@ -15,6 +15,7 @@ import {
   SelectQuery,
   SetQuery,
   Subquery,
+  SubqueryMultiColFlag,
 } from '../internalTypes';
 import { ColumnHelper } from './columnHelper';
 import { throwError } from './errorHelper';
@@ -23,9 +24,10 @@ import { TableFilter } from './filterHelper';
 import {
   attachArrayWith,
   fieldQuote,
-  isValidModel,
   getAggregatedColumn,
   getJoinSubqueryFields,
+  isValidModel,
+  isValidSubQuery,
 } from './helperFunction';
 import { PaginationQuery } from './paginationQuery';
 import { TableJoin } from './tableJoin';
@@ -37,7 +39,14 @@ const prepareFinalFindQry = (
 ) => {
   const rowQueries: string[] = [];
   if (setQry && subQry) {
-    const firstQry = `${DB_KEYWORDS.select} * ${DB_KEYWORDS.from} (${selectQry} ${setQry}) ${DB_KEYWORDS.as} results`;
+    const firstQry = attachArrayWith.space([
+      DB_KEYWORDS.select,
+      '*',
+      DB_KEYWORDS.from,
+      `(${selectQry} ${setQry})`,
+      DB_KEYWORDS.as,
+      'results',
+    ]);
     rowQueries.push(firstQry);
     rowQueries.push(subQry);
   } else if (setQry && !subQry) {
@@ -95,17 +104,24 @@ export class QueryHelper {
     return query;
   }
 
-  static otherModelSubqueryBuilder<T extends InOperationSubQuery<Model>, Model>(
+  static otherModelSubqueryBuilder<
+    M extends SubqueryMultiColFlag,
+    T extends InOperationSubQuery<Model, 'WhereNotReq', M>,
+    Model,
+  >(
     key: string,
     preparedValues: PreparedValues,
     groupByFields: GroupByFields,
     value: T,
     isExistsFilter: boolean = true,
   ) {
-    const { model, alias, column, orderBy, isDistinct, ...rest } =
-      value as InOperationSubQuery<Model>;
+    const { model, alias, orderBy, column, columns, isDistinct, ...rest } =
+      value as any;
     const join = getJoinSubqueryFields(rest);
-    if (!isValidModel(model)) {
+    const validSubquery = isExistsFilter
+      ? isValidModel(model)
+      : isValidSubQuery(value);
+    if (!validSubquery) {
       return throwError.invalidModelType();
     }
     if (!rest.where && isExistsFilter) {
@@ -118,7 +134,11 @@ export class QueryHelper {
     }
     const selectQuery = isExistsFilter
       ? { columns: ['1'], alias, isDistinct }
-      : { columns: [column], alias, isDistinct };
+      : column
+        ? { columns: [column], alias, isDistinct }
+        : Array.isArray(columns)
+          ? { columns, alias, isDistinct }
+          : { alias, isDistinct };
 
     const subQryAllowedFields = FieldHelper.getAllowedFields(
       tableColumns,
@@ -299,7 +319,7 @@ export class QueryHelper {
       .map(([key, val]) => {
         const validKey = fieldQuote(allowedFields, key);
         if (typeof val === 'string') {
-          return `${validKey} ${val}`;
+          return attachArrayWith.space([validKey, val]);
         }
         if (typeof val === 'object' && val !== null) {
           const { order, nullOption, fn } = val;

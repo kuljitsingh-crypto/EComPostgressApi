@@ -54,7 +54,7 @@ const prepareQryForPrimitiveOp = (
   value: Primitive,
 ) => {
   const valPlaceholder = getPreparedValues(preparedValues, value);
-  return `${key} ${operation} ${valPlaceholder}`;
+  return attachArrayWith.space([key, operation, valPlaceholder]);
 };
 
 const getArrayDataType = (value: Primitive[]) => {
@@ -222,7 +222,12 @@ export class TableFilter {
       const arrayQry = isArrayKeywordReq
         ? prepareArrayData(placeholders, dataType)
         : `(${attachArrayWith.coma(placeholders)})`;
-      return `${key} ${baseOperation} ${subQryOperation}${arrayQry}`;
+      return attachArrayWith.space([
+        key,
+        baseOperation,
+        subQryOperation,
+        arrayQry,
+      ]);
     }
     if (typeof value !== 'object' || value === null) {
       return throwError.invalidObjectOPType(baseOperation);
@@ -234,7 +239,7 @@ export class TableFilter {
       value,
       false,
     );
-    return `${key} ${baseOperation} ${subQry}`;
+    return attachArrayWith.space([key, baseOperation, subQry]);
   }
 
   static #buildCondition<Model>(
@@ -304,7 +309,7 @@ export class TableFilter {
         }
         case 'notNull':
         case 'isNull': {
-          return `${key} ${operation} ${DB_KEYWORDS.null}`;
+          return attachArrayWith.space([key, operation, DB_KEYWORDS.null]);
         }
         case 'startsWith':
         case 'iStartsWith': {
@@ -360,7 +365,13 @@ export class TableFilter {
             return throwError.invalidArrayOPType(op, { exact: 2 });
           }
           const placeholders = preparePlachldrForArray(val, preparedValues);
-          return `${validKey} ${operation} ${placeholders[0]} ${OP.$and} ${placeholders[1]}`;
+          return attachArrayWith.space([
+            validKey,
+            operation,
+            placeholders[0],
+            OP.$and,
+            placeholders[1],
+          ]);
         }
         default:
           return throwError.invalidOperatorType(op, validOperations);

@@ -1,7 +1,12 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { OP } from '../constants/operators';
 import { TABLE_JOIN, TableJoinType } from '../constants/tableJoin';
-import { AllowedFields, Join, JoinCond, JoinQuery } from '../internalTypes';
+import {
+  AllowedFields,
+  TableJoin as JoinType,
+  JoinCond,
+  JoinQuery,
+} from '../internalTypes';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
@@ -67,9 +72,10 @@ export class TableJoin {
     });
     return attachArrayWith.space(joins as string[]);
   }
+
   static #prepareJoinStr<T extends TableJoinType, Model>(
     allowedFields: AllowedFields,
-    joinType: Join<Model>,
+    joinType: JoinType<T, Model>[],
   ) {
     const { type, model, on, tableName: name, alias } = joinType;
     const joinName = TABLE_JOIN[type];

@@ -53,7 +53,7 @@ type FieldOperand<Model> =
   | string
   | number
   | boolean
-  | InOperationSubQuery<Model>
+  | InOperationSubQuery<Model, 'WhereNotReq', 'single'>
   | CombinedFun
   | CallableField;
 

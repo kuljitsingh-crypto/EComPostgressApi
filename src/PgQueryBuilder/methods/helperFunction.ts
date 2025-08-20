@@ -14,6 +14,7 @@ import {
   NonNullPrimitive,
   PreparedValues,
   Subquery,
+  SubqueryMultiColFlag,
   SubqueryWhereReq,
   WhereAndOtherSubQuery,
 } from '../internalTypes';
@@ -239,29 +240,36 @@ export const isValidModel = (model: any) => {
   return true;
 };
 
-export const isValidColumn = (column: any, isArrayAllowed = true): boolean => {
+export const isValidColumn = (
+  column: any,
+  arrayAllowedUptoLvl = 0,
+  lvl = 0,
+): boolean => {
   const isColumn =
     (typeof column === 'string' || typeof column === 'function') && !!column;
-
+  const isArrayAllowed = lvl <= arrayAllowedUptoLvl;
   if (isArrayAllowed && Array.isArray(column)) {
-    return isValidColumn(column[0], false);
+    return lvl === arrayAllowedUptoLvl
+      ? isValidColumn(column[0], arrayAllowedUptoLvl, lvl + 1)
+      : column.every((col) => isValidColumn(col, arrayAllowedUptoLvl, lvl + 1));
   }
 
   return isColumn;
 };
 
-export const isValidSubQuery = <Model>(
-  subQuery: InOperationSubQuery<Model> | null,
+export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
+  subQuery: InOperationSubQuery<Model, 'WhereNotReq', W> | null,
   isArrayAllowedInColumn = false,
-): subQuery is InOperationSubQuery<Model> => {
+): subQuery is InOperationSubQuery<Model, 'WhereNotReq', W> => {
   if (typeof subQuery !== 'object' || subQuery === null) {
     return false;
   }
-  const { model, column } = subQuery;
+  const { model, column, columns } = subQuery as any;
+  const arrayAllowedUptoLvl = column ? 0 : columns ? 1 : -1;
   if (!isValidModel(model)) {
     return false;
   }
-  if (!isValidColumn(column, isArrayAllowedInColumn)) {
+  if (!isValidColumn(column || columns, arrayAllowedUptoLvl)) {
     return false;
   }
   return true;

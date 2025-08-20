@@ -11,6 +11,7 @@ type BaseColumn = ColumnRef;
 type TargetColumn = ColumnRef;
 
 export type SubqueryWhereReq = 'WhereReq' | 'WhereNotReq';
+export type SubqueryMultiColFlag = 'multi' | 'single';
 export type NonNullPrimitive = string | number | boolean;
 export type ORDER_OPTION = 'ASC' | 'DESC';
 export type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
@@ -39,9 +40,9 @@ export type SubQueryFilterRecord<Model> = {
 };
 export type FilterColumnValue<Model> = Primitive | SubQueryFilterRecord<Model>;
 
-export type ConditionMap<Model> = {
-  in: Primitive[] | InOperationSubQuery<Model>;
-  notIn: Primitive[] | InOperationSubQuery<Model>;
+export type ConditionMap<Model, T extends SubqueryWhereReq = 'WhereNotReq'> = {
+  in: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
+  notIn: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
   between: Primitive[];
   notBetween: Primitive[];
   isNull: null;
@@ -72,39 +73,46 @@ export type ExistsFilter<
 export type SubQueryFilter<
   Model,
   T extends SubqueryWhereReq = 'WhereNotReq',
+  M extends SubqueryMultiColFlag = 'single',
 > = ExistsFilter<Model, T> & {
   orderBy?: ORDER_BY;
-  column: SubQueryColumnAttribute;
   isDistinct?: boolean;
-};
+} & (M extends 'single'
+    ? { column: SubQueryColumnAttribute }
+    : { columns: FindQueryAttributes });
 
-export type InOperationSubQuery<Model> = SubQueryFilter<Model>;
+export type InOperationSubQuery<
+  Model,
+  T extends SubqueryWhereReq,
+  M extends SubqueryMultiColFlag,
+> = SubQueryFilter<Model, T, M>;
 
-export type SelfJoinSubQuery<Model> = Subquery<Model> & {
+export type SelfJoinSubQuery<Model> = Subquery<Model, 'WhereNotReq'> & {
   orderBy?: ORDER_BY;
-  column?: SubQueryColumnAttribute;
+  columns?: FindQueryAttributes;
   isDistinct?: boolean;
   alias?: string;
 };
 
 export type JoinSubQuery<Model> = ModelAndAlias<Model> &
-  Subquery<Model> & {
+  Subquery<Model, 'WhereNotReq'> & {
     orderBy?: ORDER_BY;
-    column?: SubQueryColumnAttribute;
     isDistinct?: boolean;
+    columns?: FindQueryAttributes;
   };
 
-export type JoinCond<Model> = Record<
-  BaseColumn,
-  TargetColumn | InOperationSubQuery<Model>
->;
+export type JoinCond<
+  Model,
+  T extends SubqueryWhereReq,
+  M extends SubqueryMultiColFlag,
+> = Record<BaseColumn, TargetColumn | InOperationSubQuery<Model, T, M>>;
 
-export type OtherJoin<Model extends any> = {
-  on: JoinCond<Model>;
+export type OtherJoin<Model> = {
+  on: JoinCond<Model, 'WhereNotReq', 'single'>;
 } & JoinSubQuery<Model>;
 
-type SelfJoin<Model extends any> = {
-  on: JoinCond<Model>;
+type SelfJoin<Model> = {
+  on: JoinCond<Model, 'WhereNotReq', 'single'>;
 } & SelfJoinSubQuery<Model>;
 
 type CrossJoin<Model extends any> = JoinSubQuery<Model>;
@@ -119,7 +127,7 @@ export type JoinQuery<Type extends TableJoinType, Model> =
   | TableJoin<Type, Model>
   | TableJoin<Type, Model>[];
 
-export type Join<Model extends any> = {
+export type Join<Model> = {
   [Type in TableJoinType]: JoinQuery<Type, Model>;
 };
 
@@ -224,7 +232,7 @@ export type SubQueryColumnAttribute = string | CallableField;
 export type FindQueryAttributes = FindQueryAttribute[];
 
 export type QueryParams<Model> = SelectQuery<Model> &
-  Subquery<Model> & {
+  Subquery<Model, 'WhereNotReq'> & {
     orderBy?: ORDER_BY;
     set?: SetQuery<Model>;
   };
