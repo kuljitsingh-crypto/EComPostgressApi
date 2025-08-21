@@ -311,7 +311,7 @@ export const isEmptyObject = (obj: unknown) =>
   typeof obj === 'object' &&
   obj !== null &&
   !Array.isArray(obj) &&
-  Object.keys(obj).length > 0;
+  Object.keys(obj).length < 1;
 
 export const isNonEmptyObject = (obj: unknown): obj is object =>
   !isEmptyObject(obj);

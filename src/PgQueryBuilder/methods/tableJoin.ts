@@ -6,27 +6,67 @@ import {
   TableJoin as JoinType,
   JoinCond,
   JoinQuery,
+  SelfJoin,
+  CrossJoin,
+  OtherJoin,
+  PreparedValues,
+  GroupByFields,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   fieldQuote,
+  getJoinSubqueryFields,
   isEmptyObject,
   isValidModel,
+  isValidSubQuery,
 } from './helperFunction';
+import { QueryHelper } from './queryHelper';
+
+type UpdatedSelfJoin<Model> = SelfJoin<Model> & {
+  type: 'selfJoin';
+  name: string;
+};
+type UpdatedCrossJoin<Model> = CrossJoin<Model> & { type: 'crossJoin' };
+type UpdatedOtherJoin<Model> = OtherJoin<Model> & {
+  type: 'innerJoin' | 'leftJoin' | 'rightJoin' | 'fullJoin';
+};
+type UpdatedJoin<Model> =
+  | UpdatedCrossJoin<Model>
+  | UpdatedOtherJoin<Model>
+  | UpdatedSelfJoin<Model>;
+
+const isCrossJoin = <Model>(
+  join: UpdatedJoin<Model>,
+): join is UpdatedCrossJoin<Model> => join.type === 'crossJoin';
+
+const isSelfJoin = <Model>(
+  join: UpdatedJoin<Model>,
+): join is UpdatedSelfJoin<Model> => join.type === 'selfJoin';
 
 const joinTableCond = <Model>(
-  cond: JoinCond<Model>,
+  cond: JoinCond<Model, 'WhereNotReq', 'single'>,
   allowedFields: AllowedFields,
+  preparedValues: PreparedValues,
+  groupByFields: GroupByFields,
 ) => {
   const onStr = attachArrayWith.and(
-    Object.entries(cond).map(([baseColumn, joinColumn]) =>
-      attachArrayWith.space([
+    Object.entries(cond).map(([baseColumn, joinColumn]) => {
+      const value =
+        typeof joinColumn === 'string'
+          ? fieldQuote(allowedFields, joinColumn)
+          : QueryHelper.otherModelSubqueryBuilder(
+              '',
+              preparedValues,
+              groupByFields,
+              joinColumn,
+            );
+      return attachArrayWith.space([
         fieldQuote(allowedFields, baseColumn),
         OP.eq,
-        fieldQuote(allowedFields, joinColumn),
-      ]),
-    ),
+        value,
+      ]);
+    }),
   );
   return onStr ? `(${onStr})` : '';
 };
@@ -34,62 +74,102 @@ export class TableJoin {
   static prepareTableJoin<Model>(
     selfModelName: string,
     allowedFields: AllowedFields,
-    join?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
+    preparedValues: PreparedValues,
+    groupByFields: GroupByFields,
+    include?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
   ) {
-    if (isEmptyObject(join)) {
+    if (isEmptyObject(include)) {
       return '';
     }
-    const joins = include.map((joinType) => {
-      switch (joinType.type) {
-        case 'SELF': {
-          const { type, on, alias } = joinType;
-          const updatedInclude = {
-            type,
-            tableName: selfModelName,
-            on,
-            alias,
-          };
-          return TableJoin.#prepareJoinStr(allowedFields, updatedInclude);
-        }
-        case 'INNER':
-        case 'FULLOUTER':
-        case 'LEFT':
-        case 'RIGHT':
-          return TableJoin.#prepareJoinStr(allowedFields, joinType);
-        case 'CROSS': {
-          const { type, model, alias } = joinType;
-          const updatedInclude = {
-            type,
-            model,
-            on: {},
-            alias,
-          };
-          return TableJoin.#prepareJoinStr(allowedFields, updatedInclude);
-        }
-        default:
-          return throwError.invalidJoinType((include as any).type);
-      }
+    const join = getJoinSubqueryFields(include as any);
+    const joinArr: string[] = [];
+    Object.entries(join).forEach((j) => {
+      const [key, value] = j as [
+        TableJoinType,
+        JoinQuery<TableJoinType, Model>,
+      ];
+      const valArr = Array.isArray(value) ? value : [value];
+      TableJoin.#prepareMultiJoinStrs(
+        selfModelName,
+        key,
+        allowedFields,
+        preparedValues,
+        groupByFields,
+        joinArr,
+        valArr,
+      );
     });
-    return attachArrayWith.space(joins as string[]);
+
+    return attachArrayWith.space(joinArr);
   }
 
-  static #prepareJoinStr<T extends TableJoinType, Model>(
+  static #getJoinModelName<Model>(join: UpdatedJoin<Model>): string {
+    if (isSelfJoin(join)) {
+      return join.name;
+    }
+    if (!isValidModel(join.model)) {
+      return throwError.invalidModelType();
+    }
+    return (join.model as any).tableName;
+  }
+
+  static #prepareMultiJoinStrs<Model>(
+    selfModelName: NamedCurve,
+    type: TableJoinType,
     allowedFields: AllowedFields,
-    joinType: JoinType<T, Model>[],
+    preparedValues: PreparedValues,
+    groupByFields: GroupByFields,
+    joins: string[],
+    joinQueries: (OtherJoin<Model> | SelfJoin<Model> | CrossJoin<Model>)[],
   ) {
-    const { type, model, on, tableName: name, alias } = joinType;
+    joinQueries.forEach((join: any) => {
+      join.type = type;
+      if (type === 'selfJoin') {
+        join.name = selfModelName;
+      }
+      const joinQry = TableJoin.#prepareJoinStr(
+        allowedFields,
+        preparedValues,
+        groupByFields,
+        join,
+      );
+      joins.push(joinQry);
+    });
+  }
+
+  static #prepareJoinStr<Model>(
+    allowedFields: AllowedFields,
+    preparedValues: PreparedValues,
+    groupByFields: GroupByFields,
+    join: UpdatedJoin<Model>,
+  ) {
+    const { type, alias, ...restJoin } = join;
     const joinName = TABLE_JOIN[type];
     if (!joinName) {
       return throwError.invalidJoinType(type);
     }
-    if (!name && !isValidModel(model)) {
-      return throwError.invalidModelType();
+    const onQuery = isCrossJoin(join) ? null : join.on;
+    const isSubquery = isValidSubQuery(restJoin as any);
+    const table = isSubquery
+      ? QueryHelper.otherModelSubqueryBuilder(
+          '',
+          preparedValues,
+          groupByFields,
+          restJoin as any,
+        )
+      : TableJoin.#getJoinModelName(join);
+    const onStr =
+      onQuery === null
+        ? null
+        : joinTableCond(onQuery, allowedFields, preparedValues, groupByFields);
+    const joinArr: string[] = [joinName];
+    joinArr.push(table);
+    if (alias) {
+      joinArr.push(`${DB_KEYWORDS.as} ${alias}`);
     }
-    const tableName = name || (model as any).tableName;
-    const onStr = type === 'CROSS' ? 'true' : joinTableCond(on, allowedFields);
-    const aliasMaybe = alias
-      ? ` ${DB_KEYWORDS.as} ${alias} ${DB_KEYWORDS.on}`
-      : ` ${DB_KEYWORDS.on}`;
-    return attachArrayWith.space([joinName, tableName, aliasMaybe, onStr]);
+    if (onStr) {
+      joinArr.push(`${DB_KEYWORDS.on} ${onStr}`);
+    }
+    return attachArrayWith.space(joinArr);
   }
 }

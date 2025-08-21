@@ -111,11 +111,11 @@ export type OtherJoin<Model> = {
   on: JoinCond<Model, 'WhereNotReq', 'single'>;
 } & JoinSubQuery<Model>;
 
-type SelfJoin<Model> = {
+export type SelfJoin<Model> = {
   on: JoinCond<Model, 'WhereNotReq', 'single'>;
 } & SelfJoinSubQuery<Model>;
 
-type CrossJoin<Model extends any> = JoinSubQuery<Model>;
+export type CrossJoin<Model extends any> = JoinSubQuery<Model>;
 
 export type TableJoin<T extends TableJoinType, Model> = T extends 'selfJoin'
   ? SelfJoin<Model>

@@ -1,7 +1,6 @@
 import { PG_DATA_TYPE, DBModel, aggregateFn, fieldFn } from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
-
 export class BasketB extends DBModel {}
 export class BasketC extends DBModel {}
 export class BasketD extends DBModel {}
@@ -96,7 +95,7 @@ BasketA.findAll({
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
     // 'a',
-    fieldFn.abs(fieldFn.sub(aggregateFn.avg('a'), 5)),
+    // fieldFn.abs(fieldFn.sub(aggregateFn.avg('a'), 5)),
     // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.avg('b') }), 'av'],
     // fieldFn.power(fieldFn.val(5), fieldFn.col('a')),
     // [
@@ -188,6 +187,18 @@ BasketA.findAll({
     // fruit_a: 'Apple',
     // a: 1,
   },
+  leftJoin: [
+    {
+      model: BasketB,
+      alias: 'basket_b',
+      on: { fruit_a: 'basket_b.fruit_b' },
+    },
+    {
+      model: BasketC,
+      alias: 'basket_c',
+      on: { fruit_a: 'basket_c.fruit_c' },
+    },
+  ],
   //   where: {
   //     'basket_b.fruit_b': 'Orange',
   //   },
@@ -246,24 +257,24 @@ BasketA.findAll({
   console.log(res);
 });
 
-BasketE.queryRawSql({
-  columns: ['SIGN(d)'],
-  // where: ['a & 1'],
-}).then((res) => {
-  console.log('raw Query Result->', res);
-});
+// BasketE.queryRawSql({
+//   columns: ['SIGN(d)'],
+//   // where: ['a & 1'],
+// }).then((res) => {
+//   console.log('raw Query Result->', res);
+// });
 
-BasketA.queryRawSql(
-  'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
+// BasketA.queryRawSql(
+//   'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
 
-  // 'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t;',
-  // 'SELECT a,ABS(a-AVG(a))  FROM basket_a',
-  // 'SELECT a,ABS(a - (SELECT AVG(ABS(b - AVG(b) OVER ())) FROM basket_b)) AS deviation FROM basket_a;',
-  // 'SELECT a, ABS(a - (SELECT AVG(b) FROM basket_b)) AS deviation FROM basket_a;',
-  // 'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
-).then((res) => {
-  console.log('raw Query Result->', res);
-});
+//   // 'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t;',
+//   // 'SELECT a,ABS(a-AVG(a))  FROM basket_a',
+//   // 'SELECT a,ABS(a - (SELECT AVG(ABS(b - AVG(b) OVER ())) FROM basket_b)) AS deviation FROM basket_a;',
+//   // 'SELECT a, ABS(a - (SELECT AVG(b) FROM basket_b)) AS deviation FROM basket_a;',
+//   // 'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
+// ).then((res) => {
+//   console.log('raw Query Result->', res);
+// });
 
 export function run() {
   console.log('test model running');

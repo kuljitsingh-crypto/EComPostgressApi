@@ -366,7 +366,13 @@ export class QueryHelper {
       limit,
       offset,
     );
-    const joinStr = TableJoin.prepareTableJoin(tableName, allowedFields, join);
+    const joinStr = TableJoin.prepareTableJoin(
+      tableName,
+      allowedFields,
+      preparedValues,
+      groupByFields,
+      join,
+    );
     const groupByStr = QueryHelper.#prepareGroupByQuery(
       allowedFields,
       groupByFields,
