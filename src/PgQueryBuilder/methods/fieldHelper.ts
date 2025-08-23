@@ -2,13 +2,14 @@ import { TableJoinType } from '../constants/tableJoin';
 import {
   AliasSubType,
   AllowedFields,
+  FindQueryAttributes,
   Join,
   JoinQuery,
   ModelAndAlias,
   OtherJoin,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
-import { isNonEmptyObject } from './helperFunction';
+import { isNonEmptyObject, simpleFieldValidate } from './helperFunction';
 
 export class FieldHelper {
   static getAllowedFields<Model>(
@@ -116,6 +117,28 @@ export class FieldHelper {
     return allowedNames;
   }
 
+  static #getColumnsAliasNames = (
+    columns: FindQueryAttributes = [],
+    alias = '',
+  ) => {
+    columns = Array.isArray(columns) ? columns : [columns];
+    return columns.reduce((pre, acc) => {
+      if (
+        Array.isArray(acc) &&
+        acc.length === 2 &&
+        typeof acc[1] === 'string' &&
+        !!acc[1]
+      ) {
+        const validField = simpleFieldValidate(acc[1]);
+        if (typeof alias == 'string' && alias) {
+          pre.push(`${alias}.${validField}`);
+        }
+        pre.push(validField);
+      }
+      return pre;
+    }, [] as string[]);
+  };
+
   static #addJoinModelFields<Model>(
     join: OtherJoin<Model> | OtherJoin<Model>[],
     modelFields: string[],
@@ -125,7 +148,11 @@ export class FieldHelper {
       const { model, alias } = joinType;
       const tableNames = (model as any).tableColumns;
       const aliasTableNames = FieldHelper.#aliasFieldNames(tableNames, alias);
-      modelFields.push(...tableNames, ...aliasTableNames);
+      const columnAlias = FieldHelper.#getColumnsAliasNames(
+        joinType.columns,
+        alias,
+      );
+      modelFields.push(...tableNames, ...columnAlias, ...aliasTableNames);
     });
   }
 

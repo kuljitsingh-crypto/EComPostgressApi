@@ -11,6 +11,12 @@ export const OP = {
   between: 'BETWEEN',
   isNull: 'IS',
   notNull: 'IS NOT',
+  isTrue: 'IS TRUE',
+  notTrue: 'IS NOT TRUE',
+  isFalse: 'IS FALSE',
+  notFalse: 'IS NOT FALSE',
+  isUnknown: 'IS UNKNOWN',
+  notUnknown: 'IS NOT UNKNOWN',
   notLike: 'NOT LIKE',
   notILike: 'NOT ILIKE',
   notIn: 'NOT IN',
@@ -29,16 +35,24 @@ export const OP = {
   $notExists: 'NOT EXISTS',
   $and: 'AND',
   $or: 'OR',
+  $matches: '',
+  ANY: 'ANY',
+  ALL: 'ALL',
 } as const;
 
 export const conditionalOperator = new Set(['$or', '$and'] as const);
 export const subqueryOperator = new Set(['$exists', '$notExists'] as const);
-
+export const matchQueryOperator = new Set(['$matches'] as const);
 export const validOperations = Object.keys(OP).join(', ');
 
 export type OP_KEYS = keyof typeof OP;
 
 export type SIMPLE_OP_KEYS = Exclude<
   OP_KEYS,
-  '$and' | '$or' | '$exists' | '$notExists'
+  '$and' | '$or' | '$exists' | '$notExists' | '$matches'
+>;
+
+export type SUBQUERY_OP_KEYS = Extract<
+  OP_KEYS,
+  'eq' | 'neq' | 'lte' | 'lt' | 'gte' | 'gt'
 >;

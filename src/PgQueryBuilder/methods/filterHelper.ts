@@ -2,6 +2,7 @@ import { PG_DATA_TYPE } from '../constants/dataTypes';
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import {
   conditionalOperator,
+  matchQueryOperator,
   OP,
   OP_KEYS,
   SIMPLE_OP_KEYS,
@@ -13,19 +14,19 @@ import {
   AllowedFields,
   FilterColumnValue,
   GroupByFields,
-  ORDER_BY,
+  InOperationSubQuery,
   PreparedValues,
-  SelectQuery,
-  Subquery,
   SubQueryFilter,
   WhereClause,
   WhereClauseKeys,
 } from '../internalTypes';
+import { ColumnHelper } from './columnHelper';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   getPreparedValues,
   isPrimitiveValue,
+  isValidSubQuery,
   prepareColumnForHavingClause,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
@@ -36,12 +37,21 @@ const checkPrimitiveValueForOp = (op: string, value: Primitive) => {
   }
 };
 
-const preparePlachldrForArray = (
-  values: Primitive[],
+const preparePlachldrForArray = <Model>(
+  values: (Primitive | InOperationSubQuery<Model, 'WhereNotReq', 'single'>)[],
   preparedValues: PreparedValues,
+  groupByFields: GroupByFields,
 ) => {
   const placeholderArr = values.map((val) => {
-    const placeholder = getPreparedValues(preparedValues, val);
+    const placeholder = isPrimitiveValue(val as any)
+      ? getPreparedValues(preparedValues, val as any)
+      : QueryHelper.otherModelSubqueryBuilder(
+          '',
+          preparedValues,
+          groupByFields,
+          val as any,
+          false,
+        );
     return placeholder;
   });
   return placeholderArr;
@@ -108,7 +118,7 @@ export class TableFilter {
     } else {
       filterStatements.push(DB_KEYWORDS.where);
     }
-    const qry = attachArrayWith.space(
+    const qry = attachArrayWith.and(
       Object.entries(filter)
         .map((filter) => {
           return TableFilter.#getQueryStatement(
@@ -129,6 +139,97 @@ export class TableFilter {
       : '';
   }
 
+  static #getQueryStatement(
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
+    singleQry: [WhereClauseKeys, any],
+    preparedValues: PreparedValues,
+    isHavingFilter: boolean,
+    shouldSkipFieldValidation = false,
+  ): string {
+    const key = singleQry[0] as OP_KEYS;
+    let value = singleQry[1];
+    if (isPrimitiveValue(value)) {
+      value = { eq: value };
+    }
+    if (conditionalOperator.has(key as any)) {
+      return TableFilter.#andOrFilterBuilder(
+        key,
+        allowedFields,
+        groupByFields,
+        preparedValues,
+        value,
+        isHavingFilter,
+        shouldSkipFieldValidation,
+      );
+    } else if (subqueryOperator.has(key as any)) {
+      return QueryHelper.otherModelSubqueryBuilder(
+        key,
+        preparedValues,
+        groupByFields,
+        value,
+        true,
+      );
+    } else if (matchQueryOperator.has(key as any)) {
+      return TableFilter.#matchQueryOperator(
+        key,
+        value,
+        allowedFields,
+        groupByFields,
+        preparedValues,
+        isHavingFilter,
+      );
+    } else {
+      return TableFilter.#buildCondition(
+        key,
+        value,
+        allowedFields,
+        groupByFields,
+        preparedValues,
+        isHavingFilter,
+        shouldSkipFieldValidation,
+      );
+    }
+  }
+
+  static #matchQueryOperator = (
+    key: OP_KEYS,
+    value: any,
+    allowedFields: AllowedFields,
+    groupByFields: GroupByFields,
+    preparedValues: PreparedValues,
+    isHavingFilter: boolean,
+  ) => {
+    if (!Array.isArray(value)) {
+      return throwError.invalidArrayOPType(key);
+    }
+    if (value.length < 1) {
+      return throwError.invalidArrayOPType(key, { min: 1 });
+    }
+    const validMatches = value.filter(Boolean).map((val) => {
+      if (!Array.isArray(val)) {
+        return throwError.invalidArrayOPType(key);
+      }
+      if (val.length < 2) {
+        return throwError.invalidArrayOPType(key, { min: 2 });
+      }
+      const column = ColumnHelper.getSelectColumns(allowedFields, [val[0]], {
+        preparedValues,
+        groupByFields,
+        isAggregateAllowed: false,
+      });
+      return TableFilter.#getQueryStatement(
+        allowedFields,
+        groupByFields,
+        [column, val[1]],
+        preparedValues,
+        isHavingFilter,
+        true,
+      );
+    });
+    return attachArrayWith.and(validMatches);
+  };
+
   static #andOrFilterBuilder(
     key: OP_KEYS,
     allowedFields: AllowedFields,
@@ -136,6 +237,7 @@ export class TableFilter {
     preparedValues: PreparedValues,
     value: any,
     isHavingFilter: boolean,
+    shouldSkipFieldValidation: boolean,
   ) {
     if (!Array.isArray(value)) {
       return throwError.invalidArrayOPType(key);
@@ -154,54 +256,12 @@ export class TableFilter {
             filter,
             preparedValues,
             isHavingFilter,
+            shouldSkipFieldValidation,
           );
         });
       })
       .join(sep);
     return cond ? `(${cond})` : '';
-  }
-
-  static #getQueryStatement(
-    allowedFields: AllowedFields,
-    groupByFields: GroupByFields,
-    singleQry: [WhereClauseKeys, any],
-    preparedValues: PreparedValues,
-    isHavingFilter: boolean,
-  ): string {
-    const key = singleQry[0] as OP_KEYS;
-    let value = singleQry[1];
-    if (isPrimitiveValue(value)) {
-      value = { eq: value };
-    }
-    if (conditionalOperator.has(key as any)) {
-      const cond = TableFilter.#andOrFilterBuilder(
-        key,
-        allowedFields,
-        groupByFields,
-        preparedValues,
-        value,
-        isHavingFilter,
-      );
-      return cond;
-    } else if (subqueryOperator.has(key as any)) {
-      const finalSubQuery = QueryHelper.otherModelSubqueryBuilder(
-        key,
-        preparedValues,
-        groupByFields,
-        value,
-        true,
-      );
-      return finalSubQuery;
-    } else {
-      return TableFilter.#buildCondition(
-        key,
-        value,
-        allowedFields,
-        groupByFields,
-        preparedValues,
-        isHavingFilter,
-      );
-    }
   }
 
   static #buildQueryForSubQryOperator(
@@ -212,16 +272,26 @@ export class TableFilter {
     groupByFields: GroupByFields,
     value: any,
     isArrayKeywordReq: boolean = false,
+    minArrayLenReq = 1,
+    sep = 'coma' as 'coma' | 'and',
   ) {
     if (Array.isArray(value)) {
-      if (value.length < 1) {
-        return throwError.invalidArrayOPType(baseOperation, { min: 1 });
+      if (value.length < minArrayLenReq) {
+        return throwError.invalidArrayOPType(baseOperation, {
+          min: minArrayLenReq,
+        });
       }
-      const placeholders = preparePlachldrForArray(value, preparedValues);
+      const placeholders = preparePlachldrForArray(
+        value,
+        preparedValues,
+        groupByFields,
+      );
       const dataType = getArrayDataType(value);
       const arrayQry = isArrayKeywordReq
         ? prepareArrayData(placeholders, dataType)
-        : `(${attachArrayWith.coma(placeholders)})`;
+        : sep === 'and'
+          ? attachArrayWith.and(placeholders)
+          : `(${attachArrayWith.coma(placeholders)})`;
       return attachArrayWith.space([
         key,
         baseOperation,
@@ -249,12 +319,15 @@ export class TableFilter {
     groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
+    shouldSkipFieldValidation: boolean,
+    returnRaw = false,
   ) {
     const validKey = prepareColumnForHavingClause(
       key,
       groupByFields,
       allowedFields,
       isHavingFilter,
+      shouldSkipFieldValidation,
     );
 
     const prepareQry = (entry: [string, FilterColumnValue<Model>]) => {
@@ -279,7 +352,11 @@ export class TableFilter {
               val as Primitive,
             );
           }
-          const { key, value } = getAnyAndAllFilterValue(val, op);
+          const { key, value } = isValidSubQuery(
+            val as InOperationSubQuery<Model, 'WhereNotReq', 'single'>,
+          )
+            ? { value: val, key: '' }
+            : getAnyAndAllFilterValue(val, op);
           const subQry = TableFilter.#buildQueryForSubQryOperator(
             validKey,
             operation,
@@ -290,6 +367,19 @@ export class TableFilter {
             true,
           );
           return subQry;
+        }
+        case 'ALL':
+        case 'ANY': {
+          return TableFilter.#buildCondition(
+            key,
+            { eq: { [op]: val } } as any,
+            allowedFields,
+            groupByFields,
+            preparedValues,
+            isHavingFilter,
+            shouldSkipFieldValidation,
+            true,
+          );
         }
         case 'like':
         case 'iLike':
@@ -311,6 +401,13 @@ export class TableFilter {
         case 'isNull': {
           return attachArrayWith.space([key, operation, DB_KEYWORDS.null]);
         }
+        case 'isTrue':
+        case 'notTrue':
+        case 'isFalse':
+        case 'notFalse':
+        case 'isUnknown':
+        case 'notUnknown':
+          return attachArrayWith.space([key, operation]);
         case 'startsWith':
         case 'iStartsWith': {
           checkPrimitiveValueForOp(op, val as any);
@@ -358,26 +455,24 @@ export class TableFilter {
         }
         case 'between':
         case 'notBetween': {
-          if (!Array.isArray(val)) {
-            return throwError.invalidArrayOPType(op);
-          }
-          if (val.length !== 2) {
-            return throwError.invalidArrayOPType(op, { exact: 2 });
-          }
-          const placeholders = preparePlachldrForArray(val, preparedValues);
-          return attachArrayWith.space([
+          const subQry = TableFilter.#buildQueryForSubQryOperator(
             validKey,
             operation,
-            placeholders[0],
-            OP.$and,
-            placeholders[1],
-          ]);
+            '',
+            preparedValues,
+            groupByFields,
+            val,
+            false,
+            2,
+            'and',
+          );
+          return subQry;
         }
         default:
           return throwError.invalidOperatorType(op, validOperations);
       }
     };
     const cond = attachArrayWith.and(Object.entries(value).map(prepareQry));
-    return cond ? `(${cond})` : '';
+    return cond ? (returnRaw ? cond : `(${cond})`) : '';
   }
 }

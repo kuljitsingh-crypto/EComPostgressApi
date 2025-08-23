@@ -60,6 +60,7 @@ const joinTableCond = <Model>(
               preparedValues,
               groupByFields,
               joinColumn,
+              false,
             );
       return attachArrayWith.space([
         fieldQuote(allowedFields, baseColumn),
@@ -89,7 +90,7 @@ export class TableJoin {
         JoinQuery<TableJoinType, Model>,
       ];
       const valArr = Array.isArray(value) ? value : [value];
-      TableJoin.#prepareMultiJoinStrs(
+      TableJoin.#prepareMultiJoinStars(
         selfModelName,
         key,
         allowedFields,
@@ -113,7 +114,7 @@ export class TableJoin {
     return (join.model as any).tableName;
   }
 
-  static #prepareMultiJoinStrs<Model>(
+  static #prepareMultiJoinStars<Model>(
     selfModelName: NamedCurve,
     type: TableJoinType,
     allowedFields: AllowedFields,
@@ -156,6 +157,7 @@ export class TableJoin {
           preparedValues,
           groupByFields,
           restJoin as any,
+          false,
         )
       : TableJoin.#getJoinModelName(join);
     const onStr =

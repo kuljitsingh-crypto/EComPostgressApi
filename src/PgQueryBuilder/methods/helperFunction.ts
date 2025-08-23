@@ -71,26 +71,6 @@ const aggregateFunc = (fn: FieldFunctionType, column: string) => {
   }
   return fnJoiner.joinFnAndColumn(func, column);
 };
-const simpleFieldValidate = (field: string | null) => {
-  if (typeof field !== 'string') {
-    return throwError.invalidColType();
-  }
-  field = field.trim();
-  if (field.length < MIN_COLUMN_LENGTH || field.length > MAX_COLUMN_LENGTH) {
-    return throwError.invalidColNameLenType(field, {
-      min: MIN_COLUMN_LENGTH,
-      max: MAX_COLUMN_LENGTH,
-    });
-  }
-  const isValidRegexField =
-    validColumnNameRegex.test(field) ||
-    validAliasColumnNameRegex.test(field) ||
-    validExistsColumnNameRegex.test(field);
-  if (!isValidRegexField) {
-    return throwError.invalidColumnNameRegexType(field);
-  }
-  return field;
-};
 
 const validateField = (field: string, allowed: AllowedFields) => {
   field = simpleFieldValidate(field);
@@ -118,6 +98,27 @@ const aggregateFunctionCreator = (
 };
 
 //=================== export functions ======================//
+
+export const simpleFieldValidate = (field: string | null) => {
+  if (typeof field !== 'string') {
+    return throwError.invalidColType();
+  }
+  field = field.trim();
+  if (field.length < MIN_COLUMN_LENGTH || field.length > MAX_COLUMN_LENGTH) {
+    return throwError.invalidColNameLenType(field, {
+      min: MIN_COLUMN_LENGTH,
+      max: MAX_COLUMN_LENGTH,
+    });
+  }
+  const isValidRegexField =
+    validColumnNameRegex.test(field) ||
+    validAliasColumnNameRegex.test(field) ||
+    validExistsColumnNameRegex.test(field);
+  if (!isValidRegexField) {
+    return throwError.invalidColumnNameRegexType(field);
+  }
+  return field;
+};
 
 export const getAggregatedColumn = <T extends boolean = false>({
   column: col,
@@ -174,8 +175,12 @@ export const prepareColumnForHavingClause = (
   groupByFields: GroupByFields,
   allowedFields: AllowedFields,
   isHavingFilter: boolean,
+  shouldSkipFieldValidation = false,
 ) => {
   let validKey: string;
+  if (shouldSkipFieldValidation) {
+    return key;
+  }
   if (isHavingFilter) {
     const [k, fn] = fnJoiner.sepFnAndColumn(key);
     if (!fn && !k) {

@@ -1,7 +1,7 @@
 import { DB_KEYWORDS_TYPE } from './constants/dbkeywords';
 import { FieldFunctionType } from './constants/fieldFunctions';
 import { Reference } from './constants/foreignkeyActions';
-import { SIMPLE_OP_KEYS } from './constants/operators';
+import { SIMPLE_OP_KEYS, SUBQUERY_OP_KEYS } from './constants/operators';
 import { SetOperationType } from './constants/setOperations';
 import { TableJoinType } from './constants/tableJoin';
 import { Primitive } from './globalTypes';
@@ -39,14 +39,25 @@ export type SubQueryFilterRecord<Model> = {
     | Array<Primitive>;
 };
 export type FilterColumnValue<Model> = Primitive | SubQueryFilterRecord<Model>;
+export type FilterColumnValueWithQubQuery<Model> =
+  | Primitive
+  | SubQueryFilterRecord<Model>
+  | InOperationSubQuery<Model, 'WhereNotReq', 'single'>;
 
 export type ConditionMap<Model, T extends SubqueryWhereReq = 'WhereNotReq'> = {
   in: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
   notIn: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
-  between: Primitive[];
-  notBetween: Primitive[];
+  between: (Primitive | InOperationSubQuery<Model, T, 'single'>)[];
+  notBetween: (Primitive | InOperationSubQuery<Model, T, 'single'>)[];
+  $matches: Array<[string | CallableField, Condition<Model>]>;
   isNull: null;
   notNull: null;
+  isTrue: null;
+  isFalse: null;
+  isUnknown: null;
+  notUnknown: null;
+  notTrue: null;
+  notFalse: null;
 };
 
 export type NormalOperators<Model> =
@@ -58,12 +69,18 @@ export type NormalOperators<Model> =
     }
   | FilterColumnValue<Model>;
 
+export type NormalOperatorsWithSubquery<Model> = {
+  [key in SUBQUERY_OP_KEYS]?: FilterColumnValueWithQubQuery<Model>;
+};
+
 export type Condition<
   Model,
   Key extends SIMPLE_OP_KEYS = SIMPLE_OP_KEYS,
 > = Key extends keyof ConditionMap<Model>
   ? { [K in Key]: ConditionMap<Model>[K] }
-  : NormalOperators<Model>;
+  : Key extends SUBQUERY_OP_KEYS
+    ? NormalOperatorsWithSubquery<Model>
+    : NormalOperators<Model>;
 
 export type ExistsFilter<
   Model,
@@ -140,6 +157,9 @@ export type WhereClause<Model> =
     }
   | {
       $or: WhereClause<Model>[];
+    }
+  | {
+      $matches: Array<[string | CallableField, Condition<Model>]>;
     }
   | { $exists: ExistsFilter<Model, 'WhereReq'> }
   | { $notExists: ExistsFilter<Model, 'WhereReq'> };
