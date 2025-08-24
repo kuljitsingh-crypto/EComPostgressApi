@@ -1,10 +1,10 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
-import { FieldFunctionType } from '../constants/fieldFunctions';
 import {
   AllowedFields,
   CallableField,
   FindQueryAttribute,
   FindQueryAttributes,
+  FourCallableField,
   GroupByFields,
   PreparedValues,
 } from '../internalTypes';
@@ -13,6 +13,7 @@ import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   dynamicFieldQuote,
+  fieldQuote,
   getAggregatedColumn,
 } from './helperFunction';
 
@@ -25,33 +26,60 @@ const isValidArray = (
   return true;
 };
 
+const callableCol = (
+  col: CallableField | FourCallableField,
+  allowedFields: AllowedFields,
+  isAggregateAllowed: boolean,
+  preparedValues: PreparedValues,
+  groupByFields: GroupByFields,
+) => {
+  if (col.length === 4) {
+    return (col as FourCallableField)(
+      preparedValues,
+      groupByFields,
+      allowedFields,
+      isAggregateAllowed,
+    );
+  } else if (col.length == 3) {
+    return (col as CallableField)(preparedValues, groupByFields, allowedFields);
+  }
+  return throwError.invalidColType();
+};
+
 const getColNameAndAlias = (
   col: FindQueryAttribute,
   allowedFields: AllowedFields,
+  isAggregateAllowed: boolean,
   preparedValues?: PreparedValues,
   groupByFields?: GroupByFields,
 ): {
   col: string;
-  value: string | null;
-  shouldSkipFieldValidation?: boolean;
+  alias: string | null;
 } => {
   if (typeof col === 'string') {
-    return { col, value: null };
+    return { col: fieldQuote(allowedFields, col), alias: null };
   } else if (typeof col === 'function' && preparedValues && groupByFields) {
-    const { ctx, ...rest } = col(preparedValues, groupByFields, allowedFields);
+    const { ctx, ...rest } = callableCol(
+      col,
+      allowedFields,
+      isAggregateAllowed,
+      preparedValues,
+      groupByFields,
+    );
     if (!isValidInternalContext(ctx)) {
       return throwError.invalidFieldFuncCallType();
     }
     return rest;
   } else if (isValidArray(col)) {
-    const [column, value] = col;
-    const { col: validColumn, shouldSkipFieldValidation } = getColNameAndAlias(
+    const [column, alias] = col;
+    const { col: validColumn } = getColNameAndAlias(
       column,
       allowedFields,
+      isAggregateAllowed,
       preparedValues,
       groupByFields,
     );
-    return { col: validColumn, value, shouldSkipFieldValidation };
+    return { col: validColumn, alias };
   }
   return throwError.invalidColumnNameType(col.toString(), allowedFields);
 };
@@ -76,24 +104,20 @@ export class ColumnHelper {
     } = options || {};
     const fields = columns
       .map((attr) => {
-        const { col, value, shouldSkipFieldValidation } = getColNameAndAlias(
+        const { col, alias } = getColNameAndAlias(
           attr,
           allowedFields,
+          isAggregateAllowed,
           preparedValues,
           groupByFields,
         );
-        const validCol = getAggregatedColumn({
-          column: col,
-          shouldSkipFieldValidation,
-          isAggregateAllowed,
-          allowedFields,
-        });
-        if (value === null) {
-          return validCol;
-        } else if (typeof value === 'string') {
-          const validValue = dynamicFieldQuote(value);
+
+        if (alias === null) {
+          return col;
+        } else if (typeof alias === 'string') {
+          const validValue = dynamicFieldQuote(alias);
           allowedFields.add(validValue);
-          return attachArrayWith.space([validCol, DB_KEYWORDS.as, validValue]);
+          return attachArrayWith.space([col, DB_KEYWORDS.as, validValue]);
         }
         return null;
       })

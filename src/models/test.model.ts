@@ -94,8 +94,10 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
-    'a',
-    'fruit_a',
+    // 'a',
+    // 'fruit_a',
+    // fieldFn.abs(fieldFn.col('a')),
+    [aggregateFn.avg(fieldFn.power('a', 2)), 'd'],
     // [fieldFn.abs(fieldFn.sub('a', fieldFn.col('t.avg_a'))), 'deviation'],
 
     // fieldFn.abs(fieldFn.sub(aggregateFn.avg('a'), 5)),
@@ -144,6 +146,7 @@ BasketA.findAll({
   //   },
   // },
   where: {
+    // a: { arrayOverlap: [1, 2] },
     // fruit_a: { iLike: { ALL: ['a%', 'o%'] } },
     // fruit_a:{startsWith:}
     // a: { isTrue: null },
@@ -296,7 +299,8 @@ BasketA.findAll({
 // });
 
 BasketA.queryRawSql(
-  "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
+  'SELECT AVg(POW(a,2)),AVG(a) AS deviation FROM basket_a;',
+  // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
   // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
 
   // 'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t WHERE (ABS(a - t.avg_a)  > 2 );',

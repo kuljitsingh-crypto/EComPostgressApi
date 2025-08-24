@@ -31,13 +31,16 @@ export const OP = {
   iMatch: '~*',
   notMatch: '!~',
   iNotMatch: '!~*',
+  ANY: 'ANY',
+  ALL: 'ALL',
+  arrayContains: '@>',
+  arrayContainBy: '<@',
+  arrayOverlap: '&&',
   $exists: 'EXISTS',
   $notExists: 'NOT EXISTS',
   $and: 'AND',
   $or: 'OR',
   $matches: '',
-  ANY: 'ANY',
-  ALL: 'ALL',
 } as const;
 
 export const conditionalOperator = new Set(['$or', '$and'] as const);
@@ -77,4 +80,9 @@ export type ARRAY_OP_KEYS = Extract<
   | 'iMatch'
   | 'notMatch'
   | 'iNotMatch'
+>;
+
+export type ARRAY_OPERATION_KEYS = Extract<
+  OP_KEYS,
+  'arrayContains' | 'arrayContainBy' | 'arrayOverlap'
 >;

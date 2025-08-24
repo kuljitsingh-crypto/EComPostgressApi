@@ -438,8 +438,7 @@ class FieldFunction {
       });
       return {
         col: value,
-        value: null,
-        shouldSkipFieldValidation: true,
+        alias: null,
         ctx: getInternalContext(),
       };
     };

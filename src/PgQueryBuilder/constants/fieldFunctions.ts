@@ -58,4 +58,4 @@ export type DoubleFieldOpKeys = keyof typeof DOUBLE_FIELD_OP;
 export type StrFieldOpKeys =
   | keyof typeof STR_FIELD_OP
   | keyof typeof STR_IN_FIELD_OP;
-export type FieldFunctionType = keyof typeof aggregateFunctionName;
+export type AggregateFunctionType = keyof typeof aggregateFunctionName;

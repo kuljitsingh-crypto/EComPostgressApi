@@ -1,8 +1,9 @@
 import { DB_KEYWORDS_TYPE } from './constants/dbkeywords';
-import { FieldFunctionType } from './constants/fieldFunctions';
+import { AggregateFunctionType } from './constants/fieldFunctions';
 import { Reference } from './constants/foreignkeyActions';
 import {
   ARRAY_OP_KEYS,
+  ARRAY_OPERATION_KEYS,
   PRIMITIVE_OP_KEYS,
   SIMPLE_OP_KEYS,
   SUBQUERY_OP_KEYS,
@@ -32,7 +33,11 @@ export type ModelAndAlias<Model> = {
 export type ORDER_BY = Record<
   string,
   | ORDER_OPTION
-  | { order: ORDER_OPTION; nullOption?: NULL_OPTION; fn?: FieldFunctionType }
+  | {
+      order: ORDER_OPTION;
+      nullOption?: NULL_OPTION;
+      fn?: AggregateFunctionType;
+    }
 >;
 
 export type PreparedValues = { index: number; values: Primitive[] };
@@ -94,7 +99,9 @@ export type Condition<
       ? { [K in Key]: string }
       : Key extends ARRAY_OP_KEYS
         ? { [K in Key]: FilterColumnValueWithArray<Model> }
-        : NormalOperators<Model>;
+        : Key extends ARRAY_OPERATION_KEYS
+          ? { [K in Key]: Primitive[] }
+          : NormalOperators<Model>;
 
 export type ExistsFilter<
   Model,
@@ -251,17 +258,29 @@ export type CallableField = (
   allowedFields: AllowedFields,
 ) => {
   col: string;
-  value: string | null;
-  shouldSkipFieldValidation?: boolean;
+  alias: string | null;
+  ctx: symbol;
+};
+
+export type FourCallableField = (
+  preparedValues: PreparedValues,
+  groupByFields: GroupByFields,
+  allowedFields: AllowedFields,
+  isAggregateAllowed: boolean,
+) => {
+  col: string;
+  alias: string | null;
   ctx: symbol;
 };
 
 export type FindQueryAttribute =
-  | [string | CallableField, null | string]
+  | [string | CallableField | FourCallableField, null | string]
   | string
-  | CallableField;
+  | CallableField
+  | FourCallableField;
 
 export type SubQueryColumnAttribute = string | CallableField;
+export type SubQueryColumnAttribute2 = string | FourCallableField;
 
 export type FindQueryAttributes = FindQueryAttribute[];
 

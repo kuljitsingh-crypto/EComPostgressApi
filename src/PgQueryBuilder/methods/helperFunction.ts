@@ -1,6 +1,6 @@
 import {
   aggregateFunctionName,
-  FieldFunctionType,
+  AggregateFunctionType,
 } from '../constants/fieldFunctions';
 import { OP } from '../constants/operators';
 import { TABLE_JOIN, TableJoinType } from '../constants/tableJoin';
@@ -56,12 +56,13 @@ const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
   attachArrayWithSep(array, ', ');
 
 const fnJoiner = {
-  joinFnAndColumn: (fn: FieldFunctionType, column: string) => `${column},${fn}`,
+  joinFnAndColumn: (fn: AggregateFunctionType, column: string) =>
+    `${column},${fn}`,
   sepFnAndColumn: (fnAndCol: string | null) =>
     fnAndCol ? fnAndCol.split(',') : [fnAndCol],
 };
 
-const aggregateFunc = (fn: FieldFunctionType, column: string) => {
+const aggregateFunc = (fn: AggregateFunctionType, column: string) => {
   const func = aggregateFunctionName[fn];
   if (!func) {
     return throwError.invalidAggFuncType(
@@ -82,7 +83,7 @@ const validateField = (field: string, allowed: AllowedFields) => {
 
 const aggregateFunctionCreator = (
   field: string,
-  functionName: FieldFunctionType,
+  functionName: AggregateFunctionType,
   alias?: string,
 ) => {
   const func = aggregateFunctionName[functionName];
@@ -143,7 +144,7 @@ export const getAggregatedColumn = <T extends boolean = false>({
     return throwError.invalidAggFuncPlaceType(fn, column || 'null');
   }
   if (fn && validCol) {
-    validCol = aggregateFunctionCreator(validCol, fn as FieldFunctionType);
+    validCol = aggregateFunctionCreator(validCol, fn as AggregateFunctionType);
   }
   return validCol;
 };
@@ -190,7 +191,10 @@ export const prepareColumnForHavingClause = (
     }
     validKey = fieldQuote(allowedFields, k);
     if (fn) {
-      validKey = aggregateFunctionCreator(validKey, fn as FieldFunctionType);
+      validKey = aggregateFunctionCreator(
+        validKey,
+        fn as AggregateFunctionType,
+      );
     }
   } else {
     validKey = fieldQuote(allowedFields, key);

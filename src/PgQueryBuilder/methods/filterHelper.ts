@@ -145,7 +145,6 @@ export class TableFilter {
     singleQry: [WhereClauseKeys, any],
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
-    shouldSkipFieldValidation = false,
   ): string {
     const key = singleQry[0] as OP_KEYS;
     let value = singleQry[1];
@@ -160,7 +159,6 @@ export class TableFilter {
         preparedValues,
         value,
         isHavingFilter,
-        shouldSkipFieldValidation,
       );
     } else if (subqueryOperator.has(key as any)) {
       return QueryHelper.otherModelSubqueryBuilder(
@@ -187,7 +185,6 @@ export class TableFilter {
         groupByFields,
         preparedValues,
         isHavingFilter,
-        shouldSkipFieldValidation,
       );
     }
   }
@@ -224,7 +221,6 @@ export class TableFilter {
         [column, val[1]],
         preparedValues,
         isHavingFilter,
-        true,
       );
     });
     return attachArrayWith.and(validMatches);
@@ -237,7 +233,6 @@ export class TableFilter {
     preparedValues: PreparedValues,
     value: any,
     isHavingFilter: boolean,
-    shouldSkipFieldValidation: boolean,
   ) {
     if (!Array.isArray(value)) {
       return throwError.invalidArrayOPType(key);
@@ -256,7 +251,6 @@ export class TableFilter {
             filter,
             preparedValues,
             isHavingFilter,
-            shouldSkipFieldValidation,
           );
         });
       })
@@ -319,7 +313,6 @@ export class TableFilter {
     groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
-    shouldSkipFieldValidation: boolean,
     returnRaw = false,
   ) {
     const validKey = prepareColumnForHavingClause(
@@ -327,7 +320,6 @@ export class TableFilter {
       groupByFields,
       allowedFields,
       isHavingFilter,
-      shouldSkipFieldValidation,
     );
 
     const prepareQry = (entry: [string, FilterColumnValue<Model>]) => {
@@ -377,7 +369,6 @@ export class TableFilter {
             groupByFields,
             preparedValues,
             isHavingFilter,
-            shouldSkipFieldValidation,
             true,
           );
         }
@@ -468,6 +459,21 @@ export class TableFilter {
             val,
           );
           return subQry;
+        }
+        case 'arrayContainBy':
+        case 'arrayContains':
+        case 'arrayOverlap': {
+          const subQuery = TableFilter.#buildQueryForSubQryOperator(
+            validKey,
+            operation,
+            '',
+            preparedValues,
+            groupByFields,
+            val,
+            true,
+            1,
+          );
+          return subQuery;
         }
         case 'between':
         case 'notBetween': {
