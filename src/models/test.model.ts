@@ -144,7 +144,9 @@ BasketA.findAll({
   //   },
   // },
   where: {
-    a: { isTrue: null },
+    // fruit_a: { iLike: { ALL: ['a%', 'o%'] } },
+    // fruit_a:{startsWith:}
+    // a: { isTrue: null },
     // a: {
     //   between: [
     //     1,
@@ -294,9 +296,10 @@ BasketA.findAll({
 // });
 
 BasketA.queryRawSql(
+  "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
   // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
 
-  'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t WHERE (ABS(a - t.avg_a)  > 2 );',
+  // 'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t WHERE (ABS(a - t.avg_a)  > 2 );',
   // 'SELECT a,ABS(a-AVG(a))  FROM basket_a',
   // 'SELECT a,ABS(a - (SELECT AVG(ABS(b - AVG(b) OVER ())) FROM basket_b)) AS deviation FROM basket_a;',
   // 'SELECT a, ABS(a - (SELECT AVG(b) FROM basket_b)) AS deviation FROM basket_a;',

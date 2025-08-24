@@ -1,7 +1,12 @@
 import { DB_KEYWORDS_TYPE } from './constants/dbkeywords';
 import { FieldFunctionType } from './constants/fieldFunctions';
 import { Reference } from './constants/foreignkeyActions';
-import { SIMPLE_OP_KEYS, SUBQUERY_OP_KEYS } from './constants/operators';
+import {
+  ARRAY_OP_KEYS,
+  PRIMITIVE_OP_KEYS,
+  SIMPLE_OP_KEYS,
+  SUBQUERY_OP_KEYS,
+} from './constants/operators';
 import { SetOperationType } from './constants/setOperations';
 import { TableJoinType } from './constants/tableJoin';
 import { Primitive } from './globalTypes';
@@ -39,10 +44,15 @@ export type SubQueryFilterRecord<Model> = {
     | Array<Primitive>;
 };
 export type FilterColumnValue<Model> = Primitive | SubQueryFilterRecord<Model>;
-export type FilterColumnValueWithQubQuery<Model> =
+export type FilterColumnValueWithSubQuery<Model> =
   | Primitive
   | SubQueryFilterRecord<Model>
   | InOperationSubQuery<Model, 'WhereNotReq', 'single'>;
+
+export type FilterColumnValueWithArray<Model> =
+  | Primitive
+  | SubQueryFilterRecord<Model>
+  | Primitive[];
 
 export type ConditionMap<Model, T extends SubqueryWhereReq = 'WhereNotReq'> = {
   in: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
@@ -70,7 +80,7 @@ export type NormalOperators<Model> =
   | FilterColumnValue<Model>;
 
 export type NormalOperatorsWithSubquery<Model> = {
-  [key in SUBQUERY_OP_KEYS]?: FilterColumnValueWithQubQuery<Model>;
+  [key in SUBQUERY_OP_KEYS]?: FilterColumnValueWithSubQuery<Model>;
 };
 
 export type Condition<
@@ -80,7 +90,11 @@ export type Condition<
   ? { [K in Key]: ConditionMap<Model>[K] }
   : Key extends SUBQUERY_OP_KEYS
     ? NormalOperatorsWithSubquery<Model>
-    : NormalOperators<Model>;
+    : Key extends PRIMITIVE_OP_KEYS
+      ? { [K in Key]: string }
+      : Key extends ARRAY_OP_KEYS
+        ? { [K in Key]: FilterColumnValueWithArray<Model> }
+        : NormalOperators<Model>;
 
 export type ExistsFilter<
   Model,

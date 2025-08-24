@@ -389,13 +389,28 @@ export class TableFilter {
         case 'iMatch':
         case 'notMatch':
         case 'iNotMatch': {
-          checkPrimitiveValueForOp(op, val as any);
-          return prepareQryForPrimitiveOp(
-            preparedValues,
+          if (isPrimitiveValue(val as any)) {
+            return prepareQryForPrimitiveOp(
+              preparedValues,
+              validKey,
+              operation,
+              val as Primitive,
+            );
+          }
+          const updatedVal = Array.isArray(val)
+            ? { [DB_KEYWORDS.any]: val }
+            : val;
+          const { key, value } = getAnyAndAllFilterValue(updatedVal, op);
+          const subQry = TableFilter.#buildQueryForSubQryOperator(
             validKey,
             operation,
-            val as Primitive,
+            key,
+            preparedValues,
+            groupByFields,
+            value,
+            true,
           );
+          return subQry;
         }
         case 'notNull':
         case 'isNull': {
@@ -408,6 +423,7 @@ export class TableFilter {
         case 'isUnknown':
         case 'notUnknown':
           return attachArrayWith.space([key, operation]);
+
         case 'startsWith':
         case 'iStartsWith': {
           checkPrimitiveValueForOp(op, val as any);

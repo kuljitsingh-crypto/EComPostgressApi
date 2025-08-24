@@ -56,3 +56,25 @@ export type SUBQUERY_OP_KEYS = Extract<
   OP_KEYS,
   'eq' | 'neq' | 'lte' | 'lt' | 'gte' | 'gt'
 >;
+
+export type PRIMITIVE_OP_KEYS = Extract<
+  OP_KEYS,
+  | 'startsWith'
+  | 'endsWith'
+  | 'substring'
+  | 'iStartsWith'
+  | 'iEndsWith'
+  | 'iSubstring'
+>;
+
+export type ARRAY_OP_KEYS = Extract<
+  OP_KEYS,
+  | 'like'
+  | 'iLike'
+  | 'notLike'
+  | 'notILike'
+  | 'match'
+  | 'iMatch'
+  | 'notMatch'
+  | 'iNotMatch'
+>;
