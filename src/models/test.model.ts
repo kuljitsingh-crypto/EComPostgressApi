@@ -97,9 +97,8 @@ BasketA.findAll({
     // 'a',
     // 'fruit_a',
     // fieldFn.abs(fieldFn.col('a')),
-    [aggregateFn.avg(fieldFn.power('a', 2)), 'd'],
+    // [aggregateFn.avg(fieldFn.power('a', 2)), 'd'],
     // [fieldFn.abs(fieldFn.sub('a', fieldFn.col('t.avg_a'))), 'deviation'],
-
     // fieldFn.abs(fieldFn.sub(aggregateFn.avg('a'), 5)),
     // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.avg('b') }), 'av'],
     // fieldFn.power(fieldFn.val(5), fieldFn.col('a')),
@@ -146,6 +145,7 @@ BasketA.findAll({
   //   },
   // },
   where: {
+    // $matches: [[aggregateFn.avg('a'), { gt: 2 }]],
     // a: { arrayOverlap: [1, 2] },
     // fruit_a: { iLike: { ALL: ['a%', 'o%'] } },
     // fruit_a:{startsWith:}
