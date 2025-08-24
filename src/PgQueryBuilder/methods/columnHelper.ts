@@ -12,6 +12,7 @@ import { isValidInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
+  callableCol,
   dynamicFieldQuote,
   fieldQuote,
   getAggregatedColumn,
@@ -24,26 +25,6 @@ const isValidArray = (
   if (!Array.isArray(col)) return false;
   if (col.filter(Boolean).length < 1) return false;
   return true;
-};
-
-const callableCol = (
-  col: CallableField | FourCallableField,
-  allowedFields: AllowedFields,
-  isAggregateAllowed: boolean,
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
-) => {
-  if (col.length === 4) {
-    return (col as FourCallableField)(
-      preparedValues,
-      groupByFields,
-      allowedFields,
-      isAggregateAllowed,
-    );
-  } else if (col.length == 3) {
-    return (col as CallableField)(preparedValues, groupByFields, allowedFields);
-  }
-  return throwError.invalidColType();
 };
 
 const getColNameAndAlias = (

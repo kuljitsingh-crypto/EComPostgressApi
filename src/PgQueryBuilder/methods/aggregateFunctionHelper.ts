@@ -12,7 +12,7 @@ import {
 } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
-import { fieldQuote } from './helperFunction';
+import { callableCol, fieldQuote } from './helperFunction';
 
 type Options = {
   isDistinct?: boolean;
@@ -42,6 +42,7 @@ class AggregateFunction {
         const funcUpr = fn.toUpperCase();
         return `${funcUpr}(${col})`;
       };
+
       if (typeof column === 'string') {
         let field = fieldQuote(allowedFields, column);
         return {
@@ -50,19 +51,13 @@ class AggregateFunction {
           ctx: getInternalContext(),
         };
       } else if (typeof column === 'function') {
-        const col =
-          column.length === 4
-            ? column(
-                preparedValues,
-                groupByFields,
-                allowedFields,
-                isAggregateAllowed,
-              )
-            : (column as CallableField)(
-                preparedValues,
-                groupByFields,
-                allowedFields,
-              );
+        const col = callableCol(
+          column,
+          allowedFields,
+          isAggregateAllowed,
+          preparedValues,
+          groupByFields,
+        );
         col.col = prepareAggFn(col.col, fn);
         return col;
       }

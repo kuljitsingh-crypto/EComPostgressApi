@@ -7,6 +7,8 @@ import { TABLE_JOIN, TableJoinType } from '../constants/tableJoin';
 import { Primitive } from '../globalTypes';
 import {
   AllowedFields,
+  CallableField,
+  FourCallableField,
   GroupByFields,
   InOperationSubQuery,
   Join,
@@ -324,3 +326,23 @@ export const isEmptyObject = (obj: unknown) =>
 
 export const isNonEmptyObject = (obj: unknown): obj is object =>
   !isEmptyObject(obj);
+
+export const callableCol = (
+  col: CallableField | FourCallableField,
+  allowedFields: AllowedFields,
+  isAggregateAllowed: boolean,
+  preparedValues: PreparedValues,
+  groupByFields: GroupByFields,
+) => {
+  if (col.length === 4) {
+    return (col as FourCallableField)(
+      preparedValues,
+      groupByFields,
+      allowedFields,
+      isAggregateAllowed,
+    );
+  } else if (col.length == 3) {
+    return (col as CallableField)(preparedValues, groupByFields, allowedFields);
+  }
+  return throwError.invalidColType();
+};
