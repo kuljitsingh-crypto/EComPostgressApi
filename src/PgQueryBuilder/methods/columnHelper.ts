@@ -4,18 +4,15 @@ import {
   CallableField,
   FindQueryAttribute,
   FindQueryAttributes,
-  FourCallableField,
   GroupByFields,
   PreparedValues,
 } from '../internalTypes';
-import { isValidInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
-  callableCol,
   dynamicFieldQuote,
   fieldQuote,
-  getAggregatedColumn,
+  validCallableColCtx,
 } from './helperFunction';
 
 const isValidArray = (
@@ -40,16 +37,13 @@ const getColNameAndAlias = (
   if (typeof col === 'string') {
     return { col: fieldQuote(allowedFields, col), alias: null };
   } else if (typeof col === 'function' && preparedValues && groupByFields) {
-    const { ctx, ...rest } = callableCol(
+    const rest = validCallableColCtx(
       col,
       allowedFields,
       isAggregateAllowed,
       preparedValues,
       groupByFields,
     );
-    if (!isValidInternalContext(ctx)) {
-      return throwError.invalidFieldFuncCallType();
-    }
     return rest;
   } else if (isValidArray(col)) {
     const [column, alias] = col;

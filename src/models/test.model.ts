@@ -94,12 +94,14 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
+    aggregateFn.avg('a'),
     // 'a',
     // 'fruit_a',
     // fieldFn.abs(fieldFn.col('a')),
     // [aggregateFn.avg(fieldFn.power('a', 2)), 'd'],
     // [fieldFn.abs(fieldFn.sub('a', fieldFn.col('t.avg_a'))), 'deviation'],
-    // fieldFn.abs(fieldFn.sub(aggregateFn.avg('a'), 5)),
+    // fieldFn.abs(fieldFn.sub(5, aggregateFn.avg('a'))),
+    // fieldFn.abs(fieldFn.sub(5, fieldFn.col('a'))),
     // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.avg('b') }), 'av'],
     // fieldFn.power(fieldFn.val(5), fieldFn.col('a')),
     // [
@@ -254,12 +256,11 @@ BasketA.findAll({
   //     on: { fruit_a: 'basket_c.fruit_c' },
   //   },
   // ],
-  // orderBy: {
-  //   a: 'DESC',
-  //   // a: { order: 'DESC' },
-
-  //   // fruit_a: 'DESC',
-  // },
+  orderBy: [
+    aggregateFn.avg('a'),
+    // ['a', 'DESC'],
+    // ['fruit_a', 'ASC'],
+  ],
   // groupBy: ['fruit_a', 'a'],
   // groupBy: ['a'],
   // having: {

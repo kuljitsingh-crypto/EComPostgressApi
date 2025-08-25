@@ -23,10 +23,11 @@ import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   fieldQuote,
-  getAggregatedColumn,
   getPreparedValues,
+  isCallableColumn,
   isNotNullPrimitiveValue,
   isValidSubQuery,
+  validCallableColCtx,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
 
@@ -113,12 +114,6 @@ type FieldOperatorCb<Model> = {
 
 interface FieldFunction extends Func {}
 
-function isCallableFieldFn(
-  fn: CallableField | CombinedFun,
-): fn is CallableField {
-  return fn.length === 3;
-}
-
 function isCombinedFn(fn: CallableField | CombinedFun): fn is CombinedFun {
   return fn.length === 0;
 }
@@ -159,11 +154,15 @@ const getColOrValFrmCb = (
   groupByFields: GroupByFields,
   isNullColAllowed: boolean,
 ) => {
-  if (isCallableFieldFn(value)) {
-    const { col, ctx } = value(preparedValues, groupByFields, allowedFields);
-    if (isValidInternalContext(ctx)) {
-      return col;
-    }
+  if (isCallableColumn(value)) {
+    const { col } = validCallableColCtx(
+      value,
+      allowedFields,
+      true,
+      preparedValues,
+      groupByFields,
+    );
+    return col;
   }
   if (isCombinedFn(value)) {
     const { ctx, ...rest } = value();
@@ -174,11 +173,7 @@ const getColOrValFrmCb = (
       return getPreparedValues(preparedValues, rest.value as Primitive);
     }
     if (typeof rest.colName === 'string' && rest.isCol) {
-      return getAggregatedColumn({
-        column: rest.colName,
-        allowedFields,
-        isNullColAllowed,
-      });
+      return fieldQuote(allowedFields, rest.colName, isNullColAllowed);
     }
   }
   return null;
@@ -226,29 +221,24 @@ const resolveOperand = <Model>(
   isNullColAllowed: boolean,
   operandAllowed: AllowedOperand,
 ) => {
-  const [col, ...operands] = colAndOperands;
   const operandsRef: Primitive[] = [];
-  if (col === null || typeof col === 'string') {
-    operandsRef.push(
-      getAggregatedColumn({
-        column: col,
-        allowedFields,
-        isNullColAllowed,
-      }),
-    );
-  } else {
-    operandsRef.push(
-      getColValue(
-        col,
-        preparedValues,
-        groupByFields,
-        allowedFields,
-        isNullColAllowed,
-        operandAllowed,
-      ),
-    );
-  }
-  operands.forEach((op) => {
+  // For Now primitive data type treated as value , For Column use fieldFn.col
+  // const [col, ...operands] = colAndOperands;
+  // if (col === null || typeof col === 'string') {
+  //   operandsRef.push(fieldQuote(allowedFields, col, isNullColAllowed));
+  // } else {
+  //   operandsRef.push(
+  //     getColValue(
+  //       col,
+  //       preparedValues,
+  //       groupByFields,
+  //       allowedFields,
+  //       isNullColAllowed,
+  //       operandAllowed,
+  //     ),
+  //   );
+  // }
+  colAndOperands.forEach((op) => {
     operandsRef.push(
       getColValue(
         op,

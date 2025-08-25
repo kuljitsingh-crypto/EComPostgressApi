@@ -24,11 +24,11 @@ import { TableFilter } from './filterHelper';
 import {
   attachArrayWith,
   fieldQuote,
-  getAggregatedColumn,
   getJoinSubqueryFields,
   isValidModel,
   isValidSubQuery,
 } from './helperFunction';
+import { OrderByQuery } from './orderBy';
 import { PaginationQuery } from './paginationQuery';
 import { TableJoin } from './tableJoin';
 
@@ -109,7 +109,7 @@ export class QueryHelper {
     T extends InOperationSubQuery<Model, 'WhereNotReq', M>,
     Model,
   >(
-    key: string,
+    existFilterKey: string,
     preparedValues: PreparedValues,
     groupByFields: GroupByFields,
     value: T,
@@ -125,7 +125,7 @@ export class QueryHelper {
       return throwError.invalidModelType();
     }
     if (!rest.where && isExistsFilter) {
-      return throwError.invalidWhereClauseType(key);
+      return throwError.invalidWhereClauseType(existFilterKey);
     }
     const tableName = (model as any).tableName;
     const tableColumns = new Set((model as any).tableColumns) as AllowedFields;
@@ -160,7 +160,9 @@ export class QueryHelper {
       rest,
       join,
     );
-    const operator = isExistsFilter ? OP[key as OP_KEYS] : key;
+    const operator = isExistsFilter
+      ? OP[existFilterKey as OP_KEYS]
+      : existFilterKey;
     const subQryArr: string[] = operator ? [operator] : [];
     const q = attachArrayWith.space([selectQry, subquery]);
     subQryArr.push(`(${q})`);
@@ -309,42 +311,6 @@ export class QueryHelper {
     return attachArrayWith.space(groupStatements);
   }
 
-  static #prepareOrderByQuery(
-    allowedFields: AllowedFields,
-    orderBy?: ORDER_BY,
-  ) {
-    if (!orderBy || Object.keys(orderBy).length < 1) return '';
-    const orderStatement: string[] = [DB_KEYWORDS.orderBy];
-    const qry = Object.entries(orderBy)
-      .map(([key, val]) => {
-        const validKey = fieldQuote(allowedFields, key);
-        if (typeof val === 'string') {
-          return attachArrayWith.space([validKey, val]);
-        }
-        if (typeof val === 'object' && val !== null) {
-          const { order, nullOption, fn } = val;
-          if (!order) {
-            return throwError.invalidOrderOptionType(key);
-          }
-          const aggregatedColumn = getAggregatedColumn({
-            column: validKey,
-            allowedFields,
-            shouldSkipFieldValidation: true,
-          });
-          const orderStr = attachArrayWith.space([
-            aggregatedColumn,
-            order,
-            nullOption as any,
-          ]);
-          return orderStr;
-        }
-      })
-      .filter(Boolean)
-      .join(', ');
-    orderStatement.push(qry);
-    return attachArrayWith.space(orderStatement);
-  }
-
   static #prepareSubquery<Model>(
     tableName: string,
     allowedFields: AllowedFields,
@@ -352,7 +318,7 @@ export class QueryHelper {
     preparedValues: PreparedValues,
     subQuery: Subquery<Model>,
     join: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
-    orderBy?: ORDER_BY,
+    orderBy?: ORDER_BY<Model>,
   ) {
     const { where, groupBy, limit, offset, having } = subQuery || {};
     const whereStatement = TableFilter.prepareFilterStatement(
@@ -378,7 +344,12 @@ export class QueryHelper {
       groupByFields,
       groupBy,
     );
-    const orderStr = QueryHelper.#prepareOrderByQuery(allowedFields, orderBy);
+    const orderStr = OrderByQuery.prepareOrderByQuery(
+      allowedFields,
+      preparedValues,
+      groupByFields,
+      orderBy,
+    );
     const havingStatement = TableFilter.prepareFilterStatement(
       allowedFields,
       groupByFields,

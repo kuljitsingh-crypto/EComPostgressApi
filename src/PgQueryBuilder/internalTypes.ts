@@ -30,14 +30,15 @@ export type ModelAndAlias<Model> = {
   alias?: string;
 };
 
-export type ORDER_BY = Record<
-  string,
-  | ORDER_OPTION
-  | {
-      order: ORDER_OPTION;
-      nullOption?: NULL_OPTION;
-      fn?: AggregateFunctionType;
-    }
+type SingleOrderByField<Model> =
+  | string
+  | CallableField
+  | InOperationSubQuery<Model, 'WhereNotReq', 'single'>;
+
+export type ORDER_BY<Model> = Array<
+  | SingleOrderByField<Model>
+  | [SingleOrderByField<Model>, ORDER_OPTION]
+  | [SingleOrderByField<Model>, ORDER_OPTION, NULL_OPTION]
 >;
 
 export type PreparedValues = { index: number; values: Primitive[] };
@@ -113,7 +114,7 @@ export type SubQueryFilter<
   T extends SubqueryWhereReq = 'WhereNotReq',
   M extends SubqueryMultiColFlag = 'single',
 > = ExistsFilter<Model, T> & {
-  orderBy?: ORDER_BY;
+  orderBy?: ORDER_BY<Model>;
   isDistinct?: boolean;
 } & (M extends 'single'
     ? { column: SubQueryColumnAttribute }
@@ -126,7 +127,7 @@ export type InOperationSubQuery<
 > = SubQueryFilter<Model, T, M>;
 
 export type SelfJoinSubQuery<Model> = Subquery<Model, 'WhereNotReq'> & {
-  orderBy?: ORDER_BY;
+  orderBy?: ORDER_BY<Model>;
   columns?: FindQueryAttributes;
   isDistinct?: boolean;
   alias?: string;
@@ -134,7 +135,7 @@ export type SelfJoinSubQuery<Model> = Subquery<Model, 'WhereNotReq'> & {
 
 export type JoinSubQuery<Model> = ModelAndAlias<Model> &
   Subquery<Model, 'WhereNotReq'> & {
-    orderBy?: ORDER_BY;
+    orderBy?: ORDER_BY<Model>;
     isDistinct?: boolean;
     columns?: FindQueryAttributes;
   };
@@ -227,7 +228,7 @@ export type AliasFilter<Model> = {
   model?: Model;
   alias?: AliasSubType<Model>;
   columns?: FindQueryAttributes;
-  orderBy?: ORDER_BY;
+  orderBy?: ORDER_BY<Model>;
   set?: SetQuery<Model>;
 } & Subquery<Model, 'WhereNotReq'> & {
     isDistinct?: boolean;
@@ -241,7 +242,7 @@ export type SetOperationFilter<Model> = {
   model: Model;
   alias?: AliasSubType<Model>;
   columns?: FindQueryAttributes;
-  orderBy?: ORDER_BY;
+  orderBy?: ORDER_BY<Model>;
   set?: SetQuery<Model>;
 } & Subquery<Model, 'WhereNotReq'>;
 
@@ -252,7 +253,7 @@ export type ExtraOptions = {
   reference?: Reference;
 };
 
-export type CallableField = (
+export type TreeArgCallableField = (
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
   allowedFields: AllowedFields,
@@ -262,7 +263,7 @@ export type CallableField = (
   ctx: symbol;
 };
 
-export type FourCallableField = (
+export type FourArgCallableField = (
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
   allowedFields: AllowedFields,
@@ -273,20 +274,35 @@ export type FourCallableField = (
   ctx: symbol;
 };
 
+// export type CallableField = TreeArgCallableField | FourArgCallableField;
+export type CallableField = {
+  (
+    preparedValues: PreparedValues,
+    groupByFields: GroupByFields,
+    allowedFields: AllowedFields,
+  ): { col: string; alias: string | null; ctx: symbol };
+
+  (
+    preparedValues: PreparedValues,
+    groupByFields: GroupByFields,
+    allowedFields: AllowedFields,
+    isAggregateAllowed: boolean,
+  ): { col: string; alias: string | null; ctx: symbol };
+};
+
 export type FindQueryAttribute =
-  | [string | CallableField | FourCallableField, null | string]
+  | [string | CallableField, null | string]
   | string
-  | CallableField
-  | FourCallableField;
+  | CallableField;
 
 export type SubQueryColumnAttribute = string | CallableField;
-export type SubQueryColumnAttribute2 = string | FourCallableField;
+export type SubQueryColumnAttribute2 = string | FourArgCallableField;
 
 export type FindQueryAttributes = FindQueryAttribute[];
 
 export type QueryParams<Model> = SelectQuery<Model> &
   Subquery<Model, 'WhereNotReq'> & {
-    orderBy?: ORDER_BY;
+    orderBy?: ORDER_BY<Model>;
     set?: SetQuery<Model>;
   };
 

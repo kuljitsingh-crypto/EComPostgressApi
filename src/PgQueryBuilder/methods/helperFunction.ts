@@ -8,7 +8,6 @@ import { Primitive } from '../globalTypes';
 import {
   AllowedFields,
   CallableField,
-  FourCallableField,
   GroupByFields,
   InOperationSubQuery,
   Join,
@@ -18,8 +17,10 @@ import {
   Subquery,
   SubqueryMultiColFlag,
   SubqueryWhereReq,
+  TreeArgCallableField,
   WhereAndOtherSubQuery,
 } from '../internalTypes';
+import { isValidInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
 
 type FieldQuoteReturn<T extends boolean> = T extends false
@@ -98,6 +99,30 @@ const aggregateFunctionCreator = (
   const aliasMaybe = alias ? ` ${alias}` : '';
   const funcUpr = func.toUpperCase();
   return `${funcUpr}(${field})${aliasMaybe}`;
+};
+
+const callableCol = (
+  col: CallableField,
+  allowedFields: AllowedFields,
+  isAggregateAllowed: boolean,
+  preparedValues: PreparedValues,
+  groupByFields: GroupByFields,
+) => {
+  if (col.length === 4) {
+    return col(
+      preparedValues,
+      groupByFields,
+      allowedFields,
+      isAggregateAllowed,
+    );
+  } else if (col.length == 3) {
+    return (col as TreeArgCallableField)(
+      preparedValues,
+      groupByFields,
+      allowedFields,
+    );
+  }
+  return throwError.invalidColType();
 };
 
 //=================== export functions ======================//
@@ -327,22 +352,26 @@ export const isEmptyObject = (obj: unknown) =>
 export const isNonEmptyObject = (obj: unknown): obj is object =>
   !isEmptyObject(obj);
 
-export const callableCol = (
-  col: CallableField | FourCallableField,
+export const isCallableColumn = (col: unknown): col is CallableField => {
+  return typeof col === 'function' && (col.length === 3 || col.length === 4);
+};
+
+export const validCallableColCtx = (
+  col: CallableField,
   allowedFields: AllowedFields,
   isAggregateAllowed: boolean,
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
 ) => {
-  if (col.length === 4) {
-    return (col as FourCallableField)(
-      preparedValues,
-      groupByFields,
-      allowedFields,
-      isAggregateAllowed,
-    );
-  } else if (col.length == 3) {
-    return (col as CallableField)(preparedValues, groupByFields, allowedFields);
+  const { ctx, ...rest } = callableCol(
+    col,
+    allowedFields,
+    isAggregateAllowed,
+    preparedValues,
+    groupByFields,
+  );
+  if (!isValidInternalContext(ctx)) {
+    return throwError.invalidFieldFuncCallType();
   }
-  return throwError.invalidColType();
+  return rest;
 };

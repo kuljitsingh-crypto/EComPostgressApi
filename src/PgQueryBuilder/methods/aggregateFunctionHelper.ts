@@ -5,14 +5,13 @@ import {
 } from '../constants/fieldFunctions';
 import {
   AllowedFields,
-  CallableField,
   GroupByFields,
   PreparedValues,
-  SubQueryColumnAttribute2,
+  SubQueryColumnAttribute,
 } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
-import { callableCol, fieldQuote } from './helperFunction';
+import { fieldQuote, validCallableColCtx } from './helperFunction';
 
 type Options = {
   isDistinct?: boolean;
@@ -21,7 +20,7 @@ type Options = {
 class AggregateFunction {
   #functionCreator =
     (
-      column: SubQueryColumnAttribute2,
+      column: SubQueryColumnAttribute,
       fn: AggregateFunctionType,
       options: Options,
     ) =>
@@ -51,7 +50,7 @@ class AggregateFunction {
           ctx: getInternalContext(),
         };
       } else if (typeof column === 'function') {
-        const col = callableCol(
+        const col = validCallableColCtx(
           column,
           allowedFields,
           isAggregateAllowed,
@@ -64,7 +63,7 @@ class AggregateFunction {
       return throwError.invalidAggFuncPlaceType(fn, 'null');
     };
 
-  avg(col: SubQueryColumnAttribute2, options: Options = {}) {
+  avg(col: SubQueryColumnAttribute, options: Options = {}) {
     return this.#functionCreator(col, aggregateFunctionName.avg, options);
   }
 }
