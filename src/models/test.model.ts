@@ -94,7 +94,14 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
-    aggregateFn.avg('a'),
+    aggregateFn.count('a'),
+    // 'a',
+    // aggregateFn.avg(fieldFn.abs(fieldFn.sub(fieldFn.col('a'), 8))),
+    // aggregateFn.boolOr('a'),
+    // aggregateFn.avg('a', {
+    //   isDistinct: true,
+    // }),
+    // 'a',
     // 'a',
     // 'fruit_a',
     // fieldFn.abs(fieldFn.col('a')),
@@ -147,6 +154,7 @@ BasketA.findAll({
   //   },
   // },
   where: {
+    // a: { arrayContains: { model: BasketB, column: aggregateFn.arrayAgg('b') } },
     // $matches: [[aggregateFn.avg('a'), { gt: 2 }]],
     // a: { arrayOverlap: [1, 2] },
     // fruit_a: { iLike: { ALL: ['a%', 'o%'] } },
@@ -255,16 +263,21 @@ BasketA.findAll({
   //     alias: 'basket_c',
   //     on: { fruit_a: 'basket_c.fruit_c' },
   //   },
+  // // ],
+  // orderBy: [
+  //   aggregateFn.avg('a'),
+  //   // ['a', 'DESC'],
+  //   // ['fruit_a', 'ASC'],
   // ],
-  orderBy: [
-    aggregateFn.avg('a'),
-    // ['a', 'DESC'],
-    // ['fruit_a', 'ASC'],
-  ],
   // groupBy: ['fruit_a', 'a'],
   // groupBy: ['a'],
   // having: {
-  //   [aggregateFn.COUNT('a')]: { gt: 2 },
+  //   $matches: [
+  //     [
+  //       aggregateFn.count(fieldFn.abs(fieldFn.sub(fieldFn.col('a'), 5))),
+  //       { gt: 2 },
+  //     ],
+  //   ],
   // },
   // limit: 1,
   // offset: 1,
@@ -289,7 +302,7 @@ BasketA.findAll({
   //   },
   // },
 }).then((res) => {
-  console.log(res);
+  console.dir(res, { depth: null });
 });
 
 // BasketE.queryRawSql({

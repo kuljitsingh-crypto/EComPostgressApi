@@ -173,7 +173,7 @@ const getColOrValFrmCb = (
       return getPreparedValues(preparedValues, rest.value as Primitive);
     }
     if (typeof rest.colName === 'string' && rest.isCol) {
-      return fieldQuote(allowedFields, rest.colName, isNullColAllowed);
+      return fieldQuote(allowedFields, rest.colName, { isNullColAllowed });
     }
   }
   return null;

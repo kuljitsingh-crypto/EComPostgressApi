@@ -30,12 +30,17 @@ const getColNameAndAlias = (
   isAggregateAllowed: boolean,
   preparedValues?: PreparedValues,
   groupByFields?: GroupByFields,
+  options?: { customAllowFields: string[] },
 ): {
   col: string;
   alias: string | null;
 } => {
+  const { customAllowFields = [] } = options || {};
   if (typeof col === 'string') {
-    return { col: fieldQuote(allowedFields, col), alias: null };
+    return {
+      col: fieldQuote(allowedFields, col, { customAllowFields }),
+      alias: null,
+    };
   } else if (typeof col === 'function' && preparedValues && groupByFields) {
     const rest = validCallableColCtx(
       col,
@@ -53,6 +58,7 @@ const getColNameAndAlias = (
       isAggregateAllowed,
       preparedValues,
       groupByFields,
+      options,
     );
     return { col: validColumn, alias };
   }
@@ -67,6 +73,7 @@ export class ColumnHelper {
       preparedValues?: PreparedValues;
       groupByFields?: GroupByFields;
       isAggregateAllowed?: boolean;
+      customAllowFields?: string[];
     },
   ) {
     if (!columns || !Array.isArray(columns) || columns.length < 1) return '*';
@@ -76,6 +83,7 @@ export class ColumnHelper {
       groupByFields,
       preparedValues,
       isAggregateAllowed = true,
+      customAllowFields = [],
     } = options || {};
     const fields = columns
       .map((attr) => {
@@ -85,6 +93,7 @@ export class ColumnHelper {
           isAggregateAllowed,
           preparedValues,
           groupByFields,
+          { customAllowFields },
         );
 
         if (alias === null) {

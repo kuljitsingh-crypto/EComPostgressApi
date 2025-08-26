@@ -66,6 +66,9 @@ export type ConditionMap<Model, T extends SubqueryWhereReq = 'WhereNotReq'> = {
   between: (Primitive | InOperationSubQuery<Model, T, 'single'>)[];
   notBetween: (Primitive | InOperationSubQuery<Model, T, 'single'>)[];
   $matches: Array<[string | CallableField, Condition<Model>]>;
+  arrayContains: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
+  arrayContainBy: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
+  arrayOverlap: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
   isNull: null;
   notNull: null;
   isTrue: null;
@@ -100,9 +103,7 @@ export type Condition<
       ? { [K in Key]: string }
       : Key extends ARRAY_OP_KEYS
         ? { [K in Key]: FilterColumnValueWithArray<Model> }
-        : Key extends ARRAY_OPERATION_KEYS
-          ? { [K in Key]: Primitive[] }
-          : NormalOperators<Model>;
+        : NormalOperators<Model>;
 
 export type ExistsFilter<
   Model,
@@ -274,21 +275,7 @@ export type FourArgCallableField = (
   ctx: symbol;
 };
 
-// export type CallableField = TreeArgCallableField | FourArgCallableField;
-export type CallableField = {
-  (
-    preparedValues: PreparedValues,
-    groupByFields: GroupByFields,
-    allowedFields: AllowedFields,
-  ): { col: string; alias: string | null; ctx: symbol };
-
-  (
-    preparedValues: PreparedValues,
-    groupByFields: GroupByFields,
-    allowedFields: AllowedFields,
-    isAggregateAllowed: boolean,
-  ): { col: string; alias: string | null; ctx: symbol };
-};
+export type CallableField = FourArgCallableField | TreeArgCallableField;
 
 export type FindQueryAttribute =
   | [string | CallableField, null | string]
@@ -296,7 +283,6 @@ export type FindQueryAttribute =
   | CallableField;
 
 export type SubQueryColumnAttribute = string | CallableField;
-export type SubQueryColumnAttribute2 = string | FourArgCallableField;
 
 export type FindQueryAttributes = FindQueryAttribute[];
 

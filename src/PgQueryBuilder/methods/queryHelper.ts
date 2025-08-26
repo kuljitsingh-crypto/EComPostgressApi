@@ -132,6 +132,7 @@ export class QueryHelper {
     if (isExistsFilter) {
       tableColumns.add('1');
     }
+    const customAllowFields = isExistsFilter ? ['1'] : [];
     const selectQuery = isExistsFilter
       ? { columns: ['1'], alias, isDistinct }
       : column
@@ -151,6 +152,7 @@ export class QueryHelper {
       groupByFields,
       preparedValues,
       selectQuery,
+      { customAllowFields },
     );
     const subquery = QueryHelper.#prepareSubquery(
       tableName,
@@ -176,12 +178,15 @@ export class QueryHelper {
     groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     selectQuery: SelectQuery<Model>,
+    options?: { customAllowFields: string[] },
   ) {
+    const { customAllowFields = [] } = options || {};
     const { isDistinct, columns, alias } = selectQuery;
     const distinctMaybe = isDistinct ? `${DB_KEYWORDS.distinct}` : '';
     const colStr = ColumnHelper.getSelectColumns(allowedFields, columns, {
       preparedValues,
       groupByFields,
+      customAllowFields,
     });
     const tableAlias = QueryHelper.#prepareAliasSubQuery(
       tableName,

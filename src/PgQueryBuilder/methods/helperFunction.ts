@@ -10,15 +10,12 @@ import {
   CallableField,
   GroupByFields,
   InOperationSubQuery,
-  Join,
   JoinQuery,
   NonNullPrimitive,
   PreparedValues,
   Subquery,
   SubqueryMultiColFlag,
-  SubqueryWhereReq,
   TreeArgCallableField,
-  WhereAndOtherSubQuery,
 } from '../internalTypes';
 import { isValidInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
@@ -32,7 +29,6 @@ const MAX_COLUMN_LENGTH = 63;
 const validColumnNameRegex = /^[a-zA-Z_][a-zA-Z0-9_$]*$/;
 const validAliasColumnNameRegex =
   /^([a-zA-Z_][a-zA-Z0-9_$]*\.[a-zA-Z_][a-zA-Z0-9_$]*)$/;
-const validExistsColumnNameRegex = /^[1]$/;
 
 const filterOutValidDbData = (a: Primitive) => {
   if (a === null || typeof a === 'boolean' || typeof a === 'number') {
@@ -65,40 +61,19 @@ const fnJoiner = {
     fnAndCol ? fnAndCol.split(',') : [fnAndCol],
 };
 
-const aggregateFunc = (fn: AggregateFunctionType, column: string) => {
-  const func = aggregateFunctionName[fn];
-  if (!func) {
-    return throwError.invalidAggFuncType(
-      fn,
-      Object.keys(aggregateFunctionName),
-    );
-  }
-  return fnJoiner.joinFnAndColumn(func, column);
-};
-
-const validateField = (field: string, allowed: AllowedFields) => {
-  field = simpleFieldValidate(field);
-  if (!allowed.has(field)) {
+const validateField = (
+  field: string,
+  allowed: AllowedFields,
+  options?: { customAllowFields: string[] },
+) => {
+  const { customAllowFields = [] } = options || {};
+  field = simpleFieldValidate(field, customAllowFields);
+  const isAllowedField =
+    allowed.has(field) || customAllowFields.includes(field);
+  if (!isAllowedField) {
     return throwError.invalidColumnNameType(field, allowed);
   }
   return field as string;
-};
-
-const aggregateFunctionCreator = (
-  field: string,
-  functionName: AggregateFunctionType,
-  alias?: string,
-) => {
-  const func = aggregateFunctionName[functionName];
-  if (!func) {
-    return throwError.invalidAggFuncType(
-      func,
-      Object.keys(aggregateFunctionName),
-    );
-  }
-  const aliasMaybe = alias ? ` ${alias}` : '';
-  const funcUpr = func.toUpperCase();
-  return `${funcUpr}(${field})${aliasMaybe}`;
 };
 
 const callableCol = (
@@ -127,7 +102,10 @@ const callableCol = (
 
 //=================== export functions ======================//
 
-export const simpleFieldValidate = (field: string | null) => {
+export const simpleFieldValidate = (
+  field: string | null,
+  customAllowFields: string[],
+) => {
   if (typeof field !== 'string') {
     return throwError.invalidColType();
   }
@@ -138,95 +116,41 @@ export const simpleFieldValidate = (field: string | null) => {
       max: MAX_COLUMN_LENGTH,
     });
   }
+  if (customAllowFields.includes(field)) {
+    return field;
+  }
   const isValidRegexField =
-    validColumnNameRegex.test(field) ||
-    validAliasColumnNameRegex.test(field) ||
-    validExistsColumnNameRegex.test(field);
+    validColumnNameRegex.test(field) || validAliasColumnNameRegex.test(field);
   if (!isValidRegexField) {
     return throwError.invalidColumnNameRegexType(field);
   }
   return field;
 };
 
-export const getAggregatedColumn = <T extends boolean = false>({
-  column: col,
-  allowedFields,
-  isNullColAllowed,
-  shouldSkipFieldValidation = false,
-  isAggregateAllowed = true,
-}: {
-  column: string | null;
-  allowedFields: AllowedFields;
-  shouldSkipFieldValidation?: boolean;
-  isAggregateAllowed?: boolean;
-  isNullColAllowed?: T;
-}): FieldQuoteReturn<T> => {
-  const [column, fn] = shouldSkipFieldValidation
-    ? [col]
-    : fnJoiner.sepFnAndColumn(col);
-  let validCol = shouldSkipFieldValidation
-    ? (column as FieldQuoteReturn<T>)
-    : fieldQuote(allowedFields, column, isNullColAllowed);
-  if (!isAggregateAllowed && fn) {
-    return throwError.invalidAggFuncPlaceType(fn, column || 'null');
-  }
-  if (fn && validCol) {
-    validCol = aggregateFunctionCreator(validCol, fn as AggregateFunctionType);
-  }
-  return validCol;
-};
-
 export const quote = (str: string) => `${String(str).replace(/"/g, '""')}`;
 
-export const dynamicFieldQuote = (field: string) => {
-  field = simpleFieldValidate(field);
+export const dynamicFieldQuote = (
+  field: string,
+  customAllowFields: string[] = [],
+) => {
+  field = simpleFieldValidate(field, customAllowFields);
   return quote(field);
 };
 
 export const fieldQuote = <T extends boolean = false>(
   allowedFields: AllowedFields,
   str: string | null,
-  isNullColAllowed?: T,
+  options?: { isNullColAllowed?: T; customAllowFields?: string[] },
 ): FieldQuoteReturn<T> => {
+  const { isNullColAllowed = false, customAllowFields = [] } = options || {};
   if (str === null && isNullColAllowed) {
     return str as any;
   }
   if (typeof str !== 'string') {
     return throwError.invalidColumnNameType(str, allowedFields);
   }
-  str = validateField(str, allowedFields);
+  str = validateField(str, allowedFields, { customAllowFields });
   return quote(str);
-};
-
-export const prepareColumnForHavingClause = (
-  key: string,
-  groupByFields: GroupByFields,
-  allowedFields: AllowedFields,
-  isHavingFilter: boolean,
-  shouldSkipFieldValidation = false,
-) => {
-  let validKey: string;
-  if (shouldSkipFieldValidation) {
-    return key;
-  }
-  if (isHavingFilter) {
-    const [k, fn] = fnJoiner.sepFnAndColumn(key);
-    if (!fn && !k) {
-      return throwError.invalidGrpColumnNameType(k || 'null');
-    } else if (k && !groupByFields.has(k)) {
-      return throwError.invalidGrpColumnNameType(k);
-    }
-    validKey = fieldQuote(allowedFields, k);
-    if (fn) {
-      validKey = aggregateFunctionCreator(
-        validKey,
-        fn as AggregateFunctionType,
-      );
-    }
-  } else {
-    validKey = fieldQuote(allowedFields, key);
-  }
-  return validKey;
 };
 
 export const isPrimitiveValue = (value: Primitive | undefined) => {
@@ -333,15 +257,6 @@ export const attachArrayWith = {
   comaAndSpace: attachArrayWithComaAndSpaceSep,
   customSep: attachArrayWithSep,
 };
-
-export const aggregateFn = Object.freeze({
-  [aggregateFunctionName.count]: (column: string) =>
-    aggregateFunc('count', column),
-  [aggregateFunctionName.avg]: (column: string) => aggregateFunc('avg', column),
-  [aggregateFunctionName.max]: (column: string) => aggregateFunc('max', column),
-  [aggregateFunctionName.min]: (column: string) => aggregateFunc('min', column),
-  [aggregateFunctionName.sum]: (column: string) => aggregateFunc('sum', column),
-});
 
 export const isEmptyObject = (obj: unknown) =>
   typeof obj === 'object' &&

@@ -4,6 +4,10 @@ export const aggregateFunctionName = {
   count: 'count',
   avg: 'avg',
   sum: 'sum',
+  boolOr: 'bool_or',
+  boolAnd: 'bool_and',
+  arrayAgg: 'array_agg',
+  stringAgg: 'string_agg',
 } as const;
 
 export const COL_PREFIX = 'col#';

@@ -24,10 +24,10 @@ import { ColumnHelper } from './columnHelper';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
+  fieldQuote,
   getPreparedValues,
   isPrimitiveValue,
   isValidSubQuery,
-  prepareColumnForHavingClause,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
 
@@ -145,6 +145,7 @@ export class TableFilter {
     singleQry: [WhereClauseKeys, any],
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
+    shouldSkipFieldValidation = false,
   ): string {
     const key = singleQry[0] as OP_KEYS;
     let value = singleQry[1];
@@ -185,6 +186,8 @@ export class TableFilter {
         groupByFields,
         preparedValues,
         isHavingFilter,
+        false,
+        shouldSkipFieldValidation,
       );
     }
   }
@@ -213,7 +216,7 @@ export class TableFilter {
       const column = ColumnHelper.getSelectColumns(allowedFields, [val[0]], {
         preparedValues,
         groupByFields,
-        isAggregateAllowed: false,
+        isAggregateAllowed: isHavingFilter,
       });
       return TableFilter.#getQueryStatement(
         allowedFields,
@@ -221,6 +224,7 @@ export class TableFilter {
         [column, val[1]],
         preparedValues,
         isHavingFilter,
+        true,
       );
     });
     return attachArrayWith.and(validMatches);
@@ -314,14 +318,11 @@ export class TableFilter {
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
     returnRaw = false,
+    shouldSkipFieldValidation = false,
   ) {
-    const validKey = prepareColumnForHavingClause(
-      key,
-      groupByFields,
-      allowedFields,
-      isHavingFilter,
-    );
-
+    const validKey = shouldSkipFieldValidation
+      ? key
+      : fieldQuote(allowedFields, key);
     const prepareQry = (entry: [string, FilterColumnValue<Model>]) => {
       const [op, val] = entry as [SIMPLE_OP_KEYS, FilterColumnValue<Model>];
       const operation = OP[op];
@@ -370,6 +371,7 @@ export class TableFilter {
             preparedValues,
             isHavingFilter,
             true,
+            shouldSkipFieldValidation,
           );
         }
         case 'like':
