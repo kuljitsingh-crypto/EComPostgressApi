@@ -94,7 +94,8 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggregateFn.COUNT('a'), 'b']],
   columns: [
-    aggregateFn.count('a'),
+    // aggregateFn.stdDev('a'),
+    fieldFn.concat(fieldFn.col('fruit_a'), 'b', fieldFn.col('fruit_a')),
     // 'a',
     // aggregateFn.avg(fieldFn.abs(fieldFn.sub(fieldFn.col('a'), 8))),
     // aggregateFn.boolOr('a'),
@@ -247,23 +248,6 @@ BasketA.findAll({
   //     'basket_b.fruit_b': 'Orange',
   //   },
   // alias: 'fruit',
-  // join: [
-  //   {
-  //     type: 'LEFT',
-  //     model: BasketB,
-  //     alias: 'basket_b',
-  //     on: { fruit_a: 'basket_b.fruit_b', a: 'basket_b.b' },
-  //     //   { model: BasketC, on: { 'basket_a.fruit_a': 'basket_c.fruit_c' } },
-  //     // alias: 'basket_c',
-  //     // // on: { 'basket_a.fruit_a': 'basket_c.fruit_a' },
-  //   },
-  //   {
-  //     type: 'LEFT',
-  //     model: BasketC,
-  //     alias: 'basket_c',
-  //     on: { fruit_a: 'basket_c.fruit_c' },
-  //   },
-  // // ],
   // orderBy: [
   //   aggregateFn.avg('a'),
   //   // ['a', 'DESC'],

@@ -41,7 +41,7 @@ type SingleColumn = (col: SubQueryColumnAttribute) => CallableField;
 
 type SingleOperationKeys = Extract<
   AggregateFunctionType,
-  'max' | 'min' | 'boolOr' | 'boolAnd'
+  'max' | 'min' | 'boolOr' | 'boolAnd' | 'stdDev' | 'variance'
 >;
 
 type Func<Model extends unknown = unknown> = {

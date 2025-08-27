@@ -9,6 +9,10 @@ import {
   MATH_FIELD_OP,
   SimpleMathOpKeys,
   STR_IN_FIELD_OP,
+  MultipleFieldOpKeys,
+  TripleFieldOpKeys,
+  TRIPLE_FIELD_OP,
+  MULTIPLE_FIELD_OP,
 } from '../constants/fieldFunctions';
 import { Primitive } from '../globalTypes';
 import {
@@ -66,18 +70,32 @@ type DoubleFieldOpCb = <Model>(
 ) => CallableField;
 
 type SingleFieldOpCb = <Model>(b: FieldOperand<Model>) => CallableField;
-type TripleFieldOpCb = <Model>(b: FieldOperand<Model>) => CallableField;
+type TripleFieldOpCb = <Model>(
+  a: FieldOperand<Model>,
+  b: FieldOperand<Model>,
+  c: FieldOperand<Model>,
+) => CallableField;
+
+type MultipleFieldOpCb = <Model>(
+  ...args: FieldOperand<Model>[]
+) => CallableField;
 
 type Ops =
   | SimpleMathOpKeys
   | DoubleFieldOpKeys
   | SingleFieldOpKeys
-  | StrFieldOpKeys;
+  | StrFieldOpKeys
+  | MultipleFieldOpKeys
+  | TripleFieldOpKeys;
 
 type Func = {
   [key in Ops]: key extends SingleFieldOpKeys
     ? SingleFieldOpCb
-    : DoubleFieldOpCb;
+    : key extends DoubleFieldOpKeys
+      ? DoubleFieldOpCb
+      : key extends TripleFieldOpKeys
+        ? TripleFieldOpCb
+        : MultipleFieldOpCb;
 };
 type AllowedOperand = 'number' | 'string' | 'all';
 type OperandType = 'single' | 'double' | 'multiple' | 'triple';
@@ -334,6 +352,18 @@ const opGroups: {
     type: 'double',
     allowed: 'string',
     attachBy: 'in',
+  },
+  {
+    set: TRIPLE_FIELD_OP,
+    type: 'triple',
+    allowed: 'all',
+    attachBy: 'default',
+  },
+  {
+    set: MULTIPLE_FIELD_OP,
+    type: 'multiple',
+    allowed: 'all',
+    attachBy: 'default',
   },
 ] as const;
 

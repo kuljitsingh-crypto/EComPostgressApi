@@ -173,8 +173,8 @@ export const isNotNullPrimitiveValue = (
   );
 };
 
-export const createPlaceholder = (val: number) => {
-  return `$${val}`;
+export const createPlaceholder = (index: number) => {
+  return `$${index}`;
 };
 
 export const getPreparedValues = (
