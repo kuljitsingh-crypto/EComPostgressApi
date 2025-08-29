@@ -1,4 +1,4 @@
-const typeCast = {
+export const noParamTypeCast = {
   integer: 'INTEGER',
   int: 'INTEGER',
   int4: 'INTEGER',
@@ -6,8 +6,6 @@ const typeCast = {
   int8: 'BIGINT',
   smallint: 'SMALLINT',
   int2: 'SMALLINT',
-  decimal: 'DECIMAL',
-  numeric: 'NUMERIC',
   real: 'REAL',
   float4: 'REAL',
   doublePrecision: 'DOUBLE PRECISION',
@@ -16,29 +14,17 @@ const typeCast = {
   bigSerial: 'BIGSERIAL',
   smallSerial: 'SMALLSERIAL',
   text: 'TEXT',
-  varchar: 'VARCHAR',
-  characterVarying: 'CHARACTER VARYING',
-  char: 'CHAR',
-  character: 'CHARACTER',
-  charInternal: 'CHAR INTERNAL',
-  timestamp: 'TIMESTAMP',
-  timestamptz: 'TIMESTAMP WITH TIME ZONE',
-  timestampWithTimeZone: 'TIMESTAMP WITH TIME ZONE',
   date: 'DATE',
-  time: 'TIME',
-  timetz: 'TIME WITH TIME ZONE',
-  timeWithTimeZone: 'TIME WITH TIME ZONE',
-  interval: 'INTERVAL',
   boolean: 'BOOLEAN',
   bool: 'BOOLEAN',
   bytea: 'BYTEA',
   inet: 'INET',
   cidr: 'CIDR',
-  macAddr: 'MACADDR',
-  macAddr8: 'MACADDR8',
+  macaddr: 'MACADDR',
+  macaddr8: 'MACADDR8',
   point: 'POINT',
   line: 'LINE',
-  lSeg: 'LINE SEGMENT',
+  lseg: 'LINE SEGMENT',
   lineSegment: 'LINE SEGMENT',
   box: 'BOX',
   path: 'PATH',
@@ -51,22 +37,78 @@ const typeCast = {
   int8Range: 'INT8RANGE',
   numRange: 'NUMRANGE',
   tsRange: 'TSRANGE',
-  tstZRange: 'TSTZRANGE',
+  tstzRange: 'TSTZRANGE',
   dateRange: 'DATERANGE',
-  integerArray: 'INTEGER[]',
-  bigintArray: 'BIGINT[]',
-  smallintArray: 'SMALLINT[]',
-  textArray: 'TEXT[]',
+};
+
+// {
+//   "varchar": "VARCHAR({length})",
+//   "characterVarying": "CHARACTER VARYING({length})",
+//   "char": "CHAR({length})",
+//   "character": "CHARACTER({length})",
+//   "decimal": "DECIMAL({precision},{scale})",
+//   "numeric": "NUMERIC({precision},{scale})",
+//   "time": "TIME({precision})",
+//   "timetz": "TIME({precision}) WITH TIME ZONE",
+//   "timeWithTimeZone": "TIME({precision}) WITH TIME ZONE",
+//   "timestamp": "TIMESTAMP({precision})",
+//   "timestamptz": "TIMESTAMP({precision}) WITH TIME ZONE",
+//   "timestampWithTimeZone": "TIMESTAMP({precision}) WITH TIME ZONE",
+//   "interval": "INTERVAL {fields}",
+//   "bit": "BIT({length})",
+//   "bitVarying": "BIT VARYING({length})",
+//   "varbit": "VARBIT({length})",
+//   "float": "FLOAT({precision})",
+//   "varcharArray": "VARCHAR({length})[]",
+//   "charArray": "CHAR({length})[]",
+//   "decimalArray": "DECIMAL({precision},{scale})[]",
+//   "numericArray": "NUMERIC({precision},{scale})[]",
+//   "timeArray": "TIME({precision})[]",
+//   "timestampArray": "TIMESTAMP({precision})[]"
+// }
+
+export const lengthParamTypeCast = {
+  varchar: 'VARCHAR',
+  characterVarying: 'CHARACTER VARYING',
+  char: 'CHAR',
+  character: 'CHARACTER',
+  decimal: 'DECIMAL',
+  bit: 'BIT',
+  bitVarying: 'BIT VARYING',
+  varbit: 'VARBIT',
   varcharArray: 'VARCHAR[]',
   charArray: 'CHAR[]',
-  timestampArray: 'TIMESTAMP[]',
-  dateArray: 'DATE[]',
+};
+export const precisionParamTypeCast = {
+  time: 'TIME',
+  timetz: 'TIME WITH TIME ZONE',
+  timeWithTimeZone: 'TIME WITH TIME ZONE',
+  timestamp: 'TIMESTAMP',
+  timestamptz: 'TIMESTAMP WITH TIME ZONE',
+  timestampWithTimeZone: 'TIMESTAMP WITH TIME ZONE',
+  float: 'FLOAT',
   timeArray: 'TIME[]',
-  booleanArray: 'BOOLEAN[]',
-  byteaArray: 'BYTEA[]',
-  jsonArray: 'JSON[]',
-  jsonbArray: 'JSONB[]',
-  uuidArray: 'UUID[]',
-} as const;
+  timestampArray: 'TIMESTAMP[]',
+};
 
-type TypeCastKeys = keyof typeof typeCast;
+export const precisionAndScaleParamTypeCast = {
+  decimal: 'DECIMAL',
+  numeric: 'NUMERIC',
+  decimalArray: 'DECIMAL[]',
+  numericArray: 'NUMERIC[]',
+};
+export const fieldsParamTypeCast = { interval: 'INTERVAL' };
+
+export type NoParamTypeCast = keyof typeof noParamTypeCast;
+export type LengthParamTypeCast = keyof typeof lengthParamTypeCast;
+export type PrecisionParamTypeCast = keyof typeof precisionParamTypeCast;
+export type PrecisionAndScaleParamTypeCast =
+  keyof typeof precisionAndScaleParamTypeCast;
+export type FieldsParamTypeCast = keyof typeof fieldsParamTypeCast;
+
+export type TypeCastKeys =
+  | NoParamTypeCast
+  | LengthParamTypeCast
+  | PrecisionParamTypeCast
+  | PrecisionAndScaleParamTypeCast
+  | FieldsParamTypeCast;
