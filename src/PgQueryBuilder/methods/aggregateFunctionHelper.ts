@@ -18,10 +18,8 @@ import {
   attachArrayWith,
   fieldQuote,
   getPreparedValues,
+  getValidCallableFieldValues,
   isCallableColumn,
-  isValidAllowedFields,
-  isValidGroupByFieldsFields,
-  isValidPreparedValues,
   validCallableColCtx,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
@@ -73,11 +71,13 @@ const prepareAggFn = <Model>(
   options: Options<Model>,
 ) => {
   const { preparedValues, groupByFields, allowedFields, isAggregateAllowed } =
-    fieldOptions || {};
-
-  if (!isValidAllowedFields(allowedFields)) {
-    return throwError.invalidAggFuncPlaceType(fn, 'null');
-  }
+    getValidCallableFieldValues(
+      fieldOptions,
+      'allowedFields',
+      'groupByFields',
+      'preparedValues',
+      'isAggregateAllowed',
+    );
   if (!isAggregateAllowed && fn) {
     return throwError.invalidAggFuncPlaceType(fn, col || 'null');
   }
@@ -87,18 +87,12 @@ const prepareAggFn = <Model>(
   const { isDistinct, orderBy, separator } = options;
   const distinctMayBe =
     distinctColFn.includes(fn) && isDistinct ? DB_KEYWORDS.distinct : '';
-  const validPreparedValues = isValidPreparedValues(preparedValues);
 
   const isValidOrderByField =
-    orderByColFn.includes(fn) &&
-    Array.isArray(orderBy) &&
-    validPreparedValues &&
-    isValidGroupByFieldsFields(groupByFields);
+    orderByColFn.includes(fn) && Array.isArray(orderBy);
 
   const isValidSeparator =
-    separatorColFn.includes(fn) &&
-    typeof separator === 'string' &&
-    validPreparedValues;
+    separatorColFn.includes(fn) && typeof separator === 'string';
 
   const orderByMaybe = isValidOrderByField
     ? OrderByQuery.prepareOrderByQuery(
@@ -138,15 +132,10 @@ class AggregateFunction {
     options: Options<Model>,
   ) {
     return (fieldOptions: CallableFieldParam) => {
-      const {
-        preparedValues,
-        groupByFields,
-        allowedFields,
-        isAggregateAllowed,
-      } = fieldOptions || {};
-      if (!isValidAllowedFields(allowedFields)) {
-        return throwError.invalidAggFuncPlaceType(fn, 'null');
-      }
+      const { allowedFields } = getValidCallableFieldValues(
+        fieldOptions,
+        'allowedFields',
+      );
       const isStartAllowed = ['count'].includes(fn);
       column =
         isStartAllowed && (typeof column === 'undefined' || column === null)
@@ -161,12 +150,7 @@ class AggregateFunction {
           ctx: getInternalContext(),
         };
       } else if (isCallableColumn(column)) {
-        const col = validCallableColCtx(column, {
-          allowedFields,
-          isAggregateAllowed,
-          preparedValues,
-          groupByFields,
-        });
+        const col = validCallableColCtx(column, fieldOptions);
         col.col = prepareAggFn(col.col, fn, fieldOptions, options);
         return { col: col.col, alias: col.alias, ctx: getInternalContext() };
       }

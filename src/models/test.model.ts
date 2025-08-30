@@ -1,4 +1,11 @@
-import { PG_DATA_TYPE, DBModel, aggrFn, fieldFn, col } from '../PgQueryBuilder';
+import {
+  PG_DATA_TYPE,
+  DBModel,
+  aggrFn,
+  fieldFn,
+  col,
+  castFn,
+} from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
 export class BasketB extends DBModel {}
@@ -95,9 +102,13 @@ BasketA.findAll({
   // columns: [[aggrFn.COUNT('a'), 'b']],
   columns: [
     // aggrFn.stdDev('a'),
-    // fieldFn.concat(fieldFn.col('fruit_a'), 'b', fieldFn.col('fruit_a')),
+    fieldFn.concat(
+      col('fruit_a'),
+      castFn.varchar(col('fruit_a'), { length: 3 }),
+      col('fruit_a'),
+    ),
     // 'a',
-    aggrFn.avg(fieldFn.abs(fieldFn.sub(col('a'), 8))),
+    // aggrFn.avg(fieldFn.abs(fieldFn.sub(col('a'), 8))),
     // aggrFn.boolOr('a'),
     // aggrFn.avg('a', {
     //   isDistinct: true,
@@ -105,7 +116,7 @@ BasketA.findAll({
     // 'a',
     // 'a',
     // 'fruit_a',
-    // fieldFn.abs(fieldFn.col('a')),
+    // fieldFn.abs(castFn.int('2')),
     // [aggrFn.avg(fieldFn.power('a', 2)), 'd'],
     // [fieldFn.abs(fieldFn.sub('a', fieldFn.col('t.avg_a'))), 'deviation'],
     // fieldFn.abs(fieldFn.sub(5, aggrFn.avg('a'))),
@@ -156,7 +167,7 @@ BasketA.findAll({
   // },
   where: {
     // a: { arrayContains: { model: BasketB, column: aggrFn.arrayAgg('b') } },
-    // $matches: [[aggrFn.avg('a'), { gt: 2 }]],
+    // $matches: [[fieldFn.sub(col('a'), 2), { gt: 2 }]],
     // a: { arrayOverlap: [1, 2] },
     // fruit_a: { iLike: { ALL: ['a%', 'o%'] } },
     // fruit_a:{startsWith:}

@@ -1,7 +1,3 @@
-import {
-  aggregateFunctionName,
-  AggregateFunctionType,
-} from '../constants/fieldFunctions';
 import { OP } from '../constants/operators';
 import { TABLE_JOIN, TableJoinType } from '../constants/tableJoin';
 import { Primitive } from '../globalTypes';
@@ -24,11 +20,26 @@ type FieldQuoteReturn<T extends boolean> = T extends false
   ? string
   : string | null;
 
+type ValidOption = Exclude<
+  CallableFieldParam[keyof CallableFieldParam],
+  undefined
+>;
+
 const MIN_COLUMN_LENGTH = 1;
 const MAX_COLUMN_LENGTH = 63;
 const validColumnNameRegex = /^[a-zA-Z_][a-zA-Z0-9_$]*$/;
 const validAliasColumnNameRegex =
   /^([a-zA-Z_][a-zA-Z0-9_$]*\.[a-zA-Z_][a-zA-Z0-9_$]*)$/;
+
+const callableFieldValidator: Record<
+  keyof CallableFieldParam,
+  (val: unknown) => boolean
+> = {
+  preparedValues: isValidPreparedValues,
+  allowedFields: isValidAllowedFields,
+  groupByFields: isValidGroupByFieldsFields,
+  isAggregateAllowed: isValidAggregateValue,
+};
 
 const filterOutValidDbData = (a: Primitive) => {
   if (a === null || typeof a === 'boolean' || typeof a === 'number') {
@@ -54,12 +65,42 @@ const attachArrayWithAndSep = (array: Array<Primitive>) =>
 const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
   attachArrayWithSep(array, ', ');
 
-const fnJoiner = {
-  joinFnAndColumn: (fn: AggregateFunctionType, column: string) =>
-    `${column},${fn}`,
-  sepFnAndColumn: (fnAndCol: string | null) =>
-    fnAndCol ? fnAndCol.split(',') : [fnAndCol],
-};
+function isValidAllowedFields(
+  allowedFields: unknown,
+): allowedFields is AllowedFields {
+  return (
+    typeof allowedFields === 'object' &&
+    allowedFields !== null &&
+    allowedFields.constructor === Set
+  );
+}
+
+function isValidGroupByFieldsFields(
+  groupByFields: unknown,
+): groupByFields is GroupByFields {
+  return (
+    typeof groupByFields === 'object' &&
+    groupByFields !== null &&
+    groupByFields.constructor === Set
+  );
+}
+
+function isValidPreparedValues(
+  preparedValues: unknown,
+): preparedValues is PreparedValues {
+  return (
+    typeof preparedValues === 'object' &&
+    preparedValues !== null &&
+    preparedValues.hasOwnProperty('index') &&
+    typeof (preparedValues as any).index === 'number' &&
+    preparedValues.hasOwnProperty('values') &&
+    Array.isArray((preparedValues as any).values)
+  );
+}
+
+function isValidAggregateValue(value: unknown): value is boolean {
+  return typeof value === 'boolean';
+}
 
 const validateField = (
   field: string,
@@ -76,10 +117,6 @@ const validateField = (
   return field as string;
 };
 
-type ValidOption = Exclude<
-  CallableFieldParam[keyof CallableFieldParam],
-  undefined
->;
 const callableCol = (col: CallableField, options: CallableFieldParam) => {
   const validOptions = Object.entries(options || {}).reduce(
     (pre, acc) => {
@@ -147,7 +184,7 @@ export const fieldQuote = <T extends boolean = false>(
   return quote(str);
 };
 
-export const isPrimitiveValue = (value: Primitive | undefined) => {
+export const isPrimitiveValue = (value: unknown): value is Primitive => {
   return (
     typeof value === 'string' ||
     typeof value === 'number' ||
@@ -167,15 +204,17 @@ export const isNotNullPrimitiveValue = (
   );
 };
 
-export const createPlaceholder = (index: number) => {
-  return `$${index}`;
+export const createPlaceholder = (index: number, type?: string) => {
+  return type ? `$${index}${type}` : `$${index}`;
 };
 
 export const getPreparedValues = (
   preparedValues: PreparedValues,
   value: Primitive,
+  options?: { type: string },
 ) => {
-  const placeholder = createPlaceholder(preparedValues.index + 1);
+  const { type } = options || {};
+  const placeholder = createPlaceholder(preparedValues.index + 1, type);
   preparedValues.values[preparedValues.index] = value;
   preparedValues.index++;
   return placeholder;
@@ -265,37 +304,24 @@ export const isCallableColumn = (col: unknown): col is CallableField => {
   return typeof col === 'function' && col.length === 1;
 };
 
-export const isValidAllowedFields = (
-  allowedFields: unknown,
-): allowedFields is AllowedFields => {
-  return (
-    typeof allowedFields === 'object' &&
-    allowedFields !== null &&
-    allowedFields.constructor === Set
-  );
-};
-
-export const isValidGroupByFieldsFields = (
-  groupByFields: unknown,
-): groupByFields is GroupByFields => {
-  return (
-    typeof groupByFields === 'object' &&
-    groupByFields !== null &&
-    groupByFields.constructor === Set
-  );
-};
-
-export const isValidPreparedValues = (
-  preparedValues: unknown,
-): preparedValues is PreparedValues => {
-  return (
-    typeof preparedValues === 'object' &&
-    preparedValues !== null &&
-    preparedValues.hasOwnProperty('index') &&
-    typeof (preparedValues as any).index === 'number' &&
-    preparedValues.hasOwnProperty('values') &&
-    Array.isArray((preparedValues as any).values)
-  );
+export const getValidCallableFieldValues = <T extends keyof CallableFieldParam>(
+  options: CallableFieldParam,
+  ...requiredValues: T[]
+) => {
+  options = options || {};
+  const validOptions = {} as {
+    [k in T]: Exclude<CallableFieldParam[k], undefined>;
+  };
+  requiredValues.forEach((key) => {
+    const isRequiredValid =
+      options.hasOwnProperty(key) && callableFieldValidator[key](options[key]);
+    if (isRequiredValid) {
+      (validOptions as any)[key] = options[key];
+    } else {
+      throwError.invalidFieldFuncCallType();
+    }
+  });
+  return validOptions;
 };
 
 export const validCallableColCtx = (

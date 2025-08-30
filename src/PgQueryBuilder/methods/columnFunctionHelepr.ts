@@ -1,16 +1,14 @@
 import { CallableField, CallableFieldParam } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
-import { fieldQuote, isValidAllowedFields } from './helperFunction';
+import { fieldQuote, getValidCallableFieldValues } from './helperFunction';
 
 export function colFn(col: string): CallableField {
   return (options: CallableFieldParam) => {
-    const { allowedFields } = options || {};
-    const hasValidRequiredFields = isValidAllowedFields(allowedFields);
-
-    if (!hasValidRequiredFields) {
-      return throwError.invalidFieldFuncCallType();
-    }
+    const { allowedFields } = getValidCallableFieldValues(
+      options,
+      'allowedFields',
+    );
     const column = fieldQuote(allowedFields, col);
     return {
       col: column,

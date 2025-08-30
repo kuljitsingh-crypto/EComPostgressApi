@@ -41,32 +41,6 @@ export const noParamTypeCast = {
   dateRange: 'DATERANGE',
 } as const;
 
-// {
-//   "varchar": "VARCHAR({length})",
-//   "characterVarying": "CHARACTER VARYING({length})",
-//   "char": "CHAR({length})",
-//   "character": "CHARACTER({length})",
-//   "decimal": "DECIMAL({precision},{scale})",
-//   "numeric": "NUMERIC({precision},{scale})",
-//   "time": "TIME({precision})",
-//   "timetz": "TIME({precision}) WITH TIME ZONE",
-//   "timeWithTimeZone": "TIME({precision}) WITH TIME ZONE",
-//   "timestamp": "TIMESTAMP({precision})",
-//   "timestamptz": "TIMESTAMP({precision}) WITH TIME ZONE",
-//   "timestampWithTimeZone": "TIMESTAMP({precision}) WITH TIME ZONE",
-//   "interval": "INTERVAL {fields}",
-//   "bit": "BIT({length})",
-//   "bitVarying": "BIT VARYING({length})",
-//   "varbit": "VARBIT({length})",
-//   "float": "FLOAT({precision})",
-//   "varcharArray": "VARCHAR({length})[]",
-//   "charArray": "CHAR({length})[]",
-//   "decimalArray": "DECIMAL({precision},{scale})[]",
-//   "numericArray": "NUMERIC({precision},{scale})[]",
-//   "timeArray": "TIME({precision})[]",
-//   "timestampArray": "TIMESTAMP({precision})[]"
-// }
-
 export const lengthParamTypeCast = {
   varchar: 'VARCHAR',
   characterVarying: 'CHARACTER VARYING',
@@ -79,6 +53,7 @@ export const lengthParamTypeCast = {
   varcharArray: 'VARCHAR[]',
   charArray: 'CHAR[]',
 } as const;
+
 export const precisionParamTypeCast = {
   time: 'TIME',
   timetz: 'TIME WITH TIME ZONE',
@@ -99,13 +74,29 @@ export const precisionAndScaleParamTypeCast = {
 } as const;
 export const fieldsParamTypeCast = { interval: 'INTERVAL' } as const;
 
-export const fullTypeCast = {
-  ...noParamTypeCast,
-  ...lengthParamTypeCast,
-  ...precisionParamTypeCast,
-  ...precisionAndScaleParamTypeCast,
-  ...fieldsParamTypeCast,
-};
+export const allowedIntervalFields = [
+  'YEAR',
+  'MONTH',
+  'DAY',
+  'HOUR',
+  'MINUTE',
+  'SECOND',
+  'YEAR TO MONTH',
+  'DAY TO HOUR',
+  'DAY TO MINUTE',
+  'DAY TO SECOND',
+  'HOUR TO MINUTE',
+  'HOUR TO SECOND',
+  'MINUTE TO SECOND',
+] as const;
+
+export const intervalFieldsWithPrecision = [
+  'SECOND',
+  'DAY TO SECOND',
+  'HOUR TO SECOND',
+  'MINUTE TO SECOND',
+] as const;
+
 export type NoParamTypeCast = keyof typeof noParamTypeCast;
 export type LengthParamTypeCast = keyof typeof lengthParamTypeCast;
 export type PrecisionParamTypeCast = keyof typeof precisionParamTypeCast;
@@ -120,4 +111,4 @@ export type TypeCastKeys =
   | PrecisionAndScaleParamTypeCast
   | FieldsParamTypeCast;
 
-export type TypeCastValue<K extends TypeCastKeys> = (typeof fullTypeCast)[K];
+export type AllowedIntervalFields = (typeof allowedIntervalFields)[number];

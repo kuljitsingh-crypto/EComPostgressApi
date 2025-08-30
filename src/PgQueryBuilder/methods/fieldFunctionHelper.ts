@@ -23,17 +23,14 @@ import {
   InOperationSubQuery,
   PreparedValues,
 } from '../internalTypes';
-import { getInternalContext, isValidInternalContext } from './ctxHelper';
+import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
-  fieldQuote,
   getPreparedValues,
+  getValidCallableFieldValues,
   isCallableColumn,
   isNotNullPrimitiveValue,
-  isValidAllowedFields,
-  isValidGroupByFieldsFields,
-  isValidPreparedValues,
   isValidSubQuery,
   validCallableColCtx,
 } from './helperFunction';
@@ -443,16 +440,13 @@ class FieldFunction {
       attachBy,
     } = args;
     return (options: CallableFieldParam) => {
-      const { preparedValues, groupByFields, allowedFields } = options || {};
-      const hasValidRequiredFields =
-        isValidAllowedFields(allowedFields) &&
-        isValidPreparedValues(preparedValues) &&
-        isValidGroupByFieldsFields(groupByFields);
-
-      if (!hasValidRequiredFields) {
-        return throwError.invalidFieldFuncCallType();
-      }
-
+      const { preparedValues, groupByFields, allowedFields } =
+        getValidCallableFieldValues(
+          options,
+          'allowedFields',
+          'groupByFields',
+          'preparedValues',
+        );
       this.#checkFunctionExecutionState();
       const value = prepareFields<Model>({
         colAndOperands,
