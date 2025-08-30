@@ -106,7 +106,7 @@ BasketA.findAll({
     // fieldFn.abs(col('a')),
     // fieldFn.substring(col('fruit_a'), castFn.int(1), castFn.int(1)),
     // fieldFn.trim('A', col('fruit_a')),
-    fieldFn.position('A', 'A'),
+    fieldFn.position(col('fruit_a'), col('fruit_a')),
     // fieldFn.concat(
     //   castFn.text('Mr'),
     //   col('fruit_a'),

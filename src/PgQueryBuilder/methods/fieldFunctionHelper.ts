@@ -105,7 +105,7 @@ type Func = {
         : MultipleFieldOpCb;
 };
 type OperandType = 'single' | 'double' | 'multiple' | 'triple';
-type AttachType = 'inBtw' | 'default' | 'custom';
+type AttachType = 'opInBtw' | 'default' | 'custom';
 
 type PrepareCb<Model> = {
   colAndOperands: FieldOperandInternal<Model>[];
@@ -145,7 +145,7 @@ interface FieldFunction extends Func {}
 const attachOperator = (op: string, ...values: Primitive[]) =>
   `${op}(${attachArrayWith.coma(values)})`;
 
-const attachInBtwOperator = (op: string, ...values: Primitive[]) =>
+const attachopInBtwOperator = (op: string, ...values: Primitive[]) =>
   attachArrayWith.space([values[0], op, values[1]]);
 
 const customAttach =
@@ -173,8 +173,8 @@ const attachOp = (
   }
   let opCb: (op: string, ...values: Primitive[]) => string = attachOperator;
   switch (attachBy) {
-    case 'inBtw':
-      opCb = attachInBtwOperator;
+    case 'opInBtw':
+      opCb = attachopInBtwOperator;
       break;
     case 'custom':
       if (Array.isArray(attachCond) && attachCond.length > 0) {
@@ -341,7 +341,7 @@ const opGroups: {
   {
     set: MATH_FIELD_OP,
     type: 'double',
-    attachBy: 'inBtw',
+    attachBy: 'opInBtw',
   },
   {
     set: SINGLE_FIELD_OP,
