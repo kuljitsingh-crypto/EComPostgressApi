@@ -1,10 +1,4 @@
-import {
-  PG_DATA_TYPE,
-  DBModel,
-  aggrFn,
-  fieldFn,
-  utilFn,
-} from '../PgQueryBuilder';
+import { PG_DATA_TYPE, DBModel, aggrFn, fieldFn, col } from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
 export class BasketB extends DBModel {}
@@ -103,7 +97,7 @@ BasketA.findAll({
     // aggrFn.stdDev('a'),
     // fieldFn.concat(fieldFn.col('fruit_a'), 'b', fieldFn.col('fruit_a')),
     // 'a',
-    aggrFn.avg(fieldFn.abs(fieldFn.sub(utilFn.col('a'), 8))),
+    aggrFn.avg(fieldFn.abs(fieldFn.sub(col('a'), 8))),
     // aggrFn.boolOr('a'),
     // aggrFn.avg('a', {
     //   isDistinct: true,
