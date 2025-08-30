@@ -88,15 +88,50 @@ export const TRIM_FIELD_OP = {
 } as const;
 
 export const STR_IN_FIELD_OP = { position: 'POSITION' } as const;
+export const DATE_EXTRACT_FIELD_OP = {
+  extractYear: 'EXTRACT',
+  extractMonth: 'EXTRACT',
+  extractDay: 'EXTRACT',
+  extractHour: 'EXTRACT',
+  extractMinute: 'EXTRACT',
+  extractSecond: 'EXTRACT',
+  extractDow: 'EXTRACT',
+  extractDoy: 'EXTRACT',
+  extractWeek: 'EXTRACT',
+  extractQuarter: 'EXTRACT',
+  extractEpoch: 'EXTRACT',
+} as const;
 
-export type SimpleMathOpKeys = keyof typeof MATH_FIELD_OP;
-export type SingleFieldOpKeys = keyof typeof SINGLE_FIELD_OP;
-export type DoubleFieldOpKeys = keyof typeof DOUBLE_FIELD_OP;
-export type TripleFieldOpKeys = keyof typeof TRIPLE_FIELD_OP;
-export type MultipleFieldOpKeys = keyof typeof MULTIPLE_FIELD_OP;
-export type SubstringFieldOpKeys = keyof typeof SUBSTRING_FIELD_OP;
-export type TrimFieldOpKeys = keyof typeof TRIM_FIELD_OP;
-export type StrFieldOpKeys =
-  | keyof typeof STR_FIELD_OP
-  | keyof typeof STR_IN_FIELD_OP;
+export const dateExtractFieldMapping = {
+  extractYear: 'YEAR',
+  extractMonth: 'MONTH',
+  extractDay: 'DAY',
+  extractHour: 'HOUR',
+  extractMinute: 'MINUTE',
+  extractSecond: 'SECOND',
+  extractDow: 'DOW', // Day of week
+  extractDoy: 'DOY', // Day of year
+  extractWeek: 'WEEK',
+  extractQuarter: 'QUARTER',
+  extractEpoch: 'EPOCH',
+};
+
+type SimpleMathOpKeys = keyof typeof MATH_FIELD_OP;
+type SingleOpKeys = keyof typeof SINGLE_FIELD_OP;
+type TrimFieldOpKeys = keyof typeof TRIM_FIELD_OP;
+type DoubleOpKeys = keyof typeof DOUBLE_FIELD_OP;
+type TripleOpKeys = keyof typeof TRIPLE_FIELD_OP;
+type SubstringFieldOpKeys = keyof typeof SUBSTRING_FIELD_OP;
+type StrFieldOpKeys = keyof typeof STR_FIELD_OP | keyof typeof STR_IN_FIELD_OP;
+type MultipleOpKeys = keyof typeof MULTIPLE_FIELD_OP;
+type DateExtractOpKeys = keyof typeof DATE_EXTRACT_FIELD_OP;
+
+export type SingleFieldOpKeys = SingleOpKeys | DateExtractOpKeys;
+export type DoubleFieldOpKeys =
+  | DoubleOpKeys
+  | TrimFieldOpKeys
+  | StrFieldOpKeys
+  | SimpleMathOpKeys;
+export type TripleFieldOpKeys = TripleOpKeys | SubstringFieldOpKeys;
+export type MultipleFieldOpKeys = MultipleOpKeys;
 export type AggregateFunctionType = keyof typeof aggregateFunctionName;

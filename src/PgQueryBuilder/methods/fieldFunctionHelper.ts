@@ -5,18 +5,16 @@ import {
   STR_FIELD_OP,
   DoubleFieldOpKeys,
   SingleFieldOpKeys,
-  StrFieldOpKeys,
   MATH_FIELD_OP,
-  SimpleMathOpKeys,
   STR_IN_FIELD_OP,
   MultipleFieldOpKeys,
   TripleFieldOpKeys,
   TRIPLE_FIELD_OP,
   MULTIPLE_FIELD_OP,
   SUBSTRING_FIELD_OP,
-  SubstringFieldOpKeys,
-  TrimFieldOpKeys,
   TRIM_FIELD_OP,
+  DATE_EXTRACT_FIELD_OP,
+  dateExtractFieldMapping,
 } from '../constants/fieldFunctions';
 import { Primitive } from '../globalTypes';
 import {
@@ -86,21 +84,17 @@ type MultipleFieldOpCb = <Model>(
 ) => CallableField;
 
 type Ops =
-  | SimpleMathOpKeys
   | DoubleFieldOpKeys
   | SingleFieldOpKeys
-  | StrFieldOpKeys
   | MultipleFieldOpKeys
-  | TripleFieldOpKeys
-  | SubstringFieldOpKeys
-  | TrimFieldOpKeys;
+  | TripleFieldOpKeys;
 
 type Func = {
   [key in Ops]: key extends SingleFieldOpKeys
     ? SingleFieldOpCb
-    : key extends DoubleFieldOpKeys | TrimFieldOpKeys | StrFieldOpKeys
+    : key extends DoubleFieldOpKeys
       ? DoubleFieldOpCb
-      : key extends TripleFieldOpKeys | SubstringFieldOpKeys
+      : key extends TripleFieldOpKeys
         ? TripleFieldOpCb
         : MultipleFieldOpCb;
 };
@@ -117,6 +111,8 @@ type PrepareCb<Model> = {
   operatorRef: Record<string, string>;
   isNullColAllowed: boolean;
   attachCond?: string[];
+  prefixAllowed?: boolean;
+  prefixRef?: Record<string, Primitive>;
 };
 
 type MultiOperatorFieldCb = {
@@ -125,6 +121,8 @@ type MultiOperatorFieldCb = {
   operatorRef: Record<string, string>;
   attachBy: AttachType;
   attachCond?: string[];
+  prefixAllowed?: boolean;
+  prefixRef?: Record<string, Primitive>;
 };
 
 type FieldOperatorCb<Model> = {
@@ -134,6 +132,8 @@ type FieldOperatorCb<Model> = {
   isNullColAllowed: boolean;
   attachBy: AttachType;
   attachCond?: string[];
+  prefixAllowed?: boolean;
+  prefixRef?: Record<string, Primitive>;
 };
 
 interface FieldFunction extends Func {}
@@ -253,8 +253,11 @@ const resolveOperand = <Model>(
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
   isNullColAllowed: boolean,
+  prefixValue: Primitive,
 ) => {
-  const operandsRef: Primitive[] = [];
+  const isValidPrefixValue =
+    prefixValue !== null && typeof prefixValue === 'string' && prefixValue;
+  const operandsRef: Primitive[] = isValidPrefixValue ? [prefixValue] : [];
   // For Now primitive data type treated as value , For Column use col(colNme)
   // const [col, ...operands] = colAndOperands;
   // if (col === null || typeof col === 'string') {
@@ -298,19 +301,24 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
     allowedFields,
     attachCond = [],
     isNullColAllowed = false,
+    prefixAllowed = false,
+    prefixRef = {},
   } = params;
   const op = operatorRef[operator];
   if (!op) {
     return throwError.invalidColumnOpType(op, Object.keys(operatorRef));
   }
+  const validPrefixRef =
+    prefixAllowed && typeof prefixRef === 'object' && prefixRef !== null;
+  const prefixValue = (validPrefixRef && prefixRef[operator]) || null;
   const operands = resolveOperand(
     colAndOperands,
     allowedFields,
     preparedValues,
     groupByFields,
     isNullColAllowed,
+    prefixValue,
   );
-  console.log(attachBy, attachCond);
   return attachOp(op, attachBy, attachCond, ...operands);
 };
 
@@ -337,6 +345,8 @@ const opGroups: {
   set: Partial<Record<Ops, string>>;
   attachBy: AttachType;
   attachCond?: string[];
+  prefixAllowed?: boolean;
+  prefixRef?: Record<string, Primitive>;
 }[] = [
   {
     set: MATH_FIELD_OP,
@@ -386,6 +396,14 @@ const opGroups: {
     attachBy: 'custom',
     attachCond: [DB_KEYWORDS.from],
   },
+  {
+    set: DATE_EXTRACT_FIELD_OP,
+    type: 'single',
+    attachBy: 'custom',
+    attachCond: [DB_KEYWORDS.from],
+    prefixAllowed: true,
+    prefixRef: dateExtractFieldMapping,
+  },
 ] as const;
 
 class FieldFunction {
@@ -403,22 +421,21 @@ class FieldFunction {
 
   #attachFieldMethods() {
     let op: Ops;
-    opGroups.forEach(({ set, type, attachBy, attachCond }) => {
+    opGroups.forEach(({ set, type, ...rest }) => {
       for (const op in set) {
         // @ts-ignore
         this[op] = this.#multiFieldOperator({
           operandType: type,
           op: op as Ops,
           operatorRef: set,
-          attachBy,
-          attachCond,
+          ...rest,
         });
       }
     });
   }
 
   #multiFieldOperator = (args: MultiOperatorFieldCb) => {
-    const { operandType, op, operatorRef, attachBy, attachCond } = args;
+    const { operandType, op, operatorRef, ...rest } = args;
     return <Model>(...ops: FieldOperandInternal<Model>[]) => {
       const colAndOperands = getColAndOperands(operandType, ...ops);
       return this.#operateOnFields({
@@ -426,8 +443,7 @@ class FieldFunction {
         op,
         isNullColAllowed: false,
         operatorRef,
-        attachBy,
-        attachCond,
+        ...rest,
       });
     };
   };
@@ -439,14 +455,7 @@ class FieldFunction {
   }
 
   #operateOnFields<Model>(args: FieldOperatorCb<Model>) {
-    const {
-      colAndOperands,
-      op,
-      operatorRef,
-      isNullColAllowed,
-      attachBy,
-      attachCond,
-    } = args;
+    const { colAndOperands, op, operatorRef, isNullColAllowed, ...rest } = args;
     return (options: CallableFieldParam) => {
       const { preparedValues, groupByFields, allowedFields } =
         getValidCallableFieldValues(
@@ -464,8 +473,7 @@ class FieldFunction {
         allowedFields,
         operatorRef,
         isNullColAllowed,
-        attachBy,
-        attachCond,
+        ...rest,
       });
       return {
         col: value,

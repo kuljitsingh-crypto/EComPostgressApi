@@ -88,8 +88,6 @@ const getValidTypeValue = (
       break;
     } else if (typeof val === allowedType) {
       arr.push(getPrimitiveValidValue(val, allowedType));
-    } else {
-      return throwError.invalidTypeCastFunc();
     }
   }
   const v = attachArrayWith.coma(arr);

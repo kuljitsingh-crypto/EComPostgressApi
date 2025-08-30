@@ -106,7 +106,8 @@ BasketA.findAll({
     // fieldFn.abs(col('a')),
     // fieldFn.substring(col('fruit_a'), castFn.int(1), castFn.int(1)),
     // fieldFn.trim('A', col('fruit_a')),
-    fieldFn.position(col('fruit_a'), col('fruit_a')),
+    // fieldFn.position(col('fruit_a'), col('fruit_a')),
+    fieldFn.extractYear(castFn.timestamp('2023-12-25', { precision: 6 })),
     // fieldFn.concat(
     //   castFn.text('Mr'),
     //   col('fruit_a'),
@@ -314,7 +315,7 @@ BasketA.findAll({
 // });
 
 BasketA.queryRawSql(
-  'SELECT SUBSTRING(fruit_a FROM 1 FOR 1)AS deviation FROM basket_a;',
+  "SELECT EXTRACT(YEAR FROM DATE '2023-12-25')AS deviation FROM basket_a;",
   // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
   // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
 
