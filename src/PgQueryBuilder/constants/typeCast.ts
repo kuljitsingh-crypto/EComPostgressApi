@@ -39,7 +39,7 @@ export const noParamTypeCast = {
   tsRange: 'TSRANGE',
   tstzRange: 'TSTZRANGE',
   dateRange: 'DATERANGE',
-};
+} as const;
 
 // {
 //   "varchar": "VARCHAR({length})",
@@ -78,7 +78,7 @@ export const lengthParamTypeCast = {
   varbit: 'VARBIT',
   varcharArray: 'VARCHAR[]',
   charArray: 'CHAR[]',
-};
+} as const;
 export const precisionParamTypeCast = {
   time: 'TIME',
   timetz: 'TIME WITH TIME ZONE',
@@ -89,16 +89,23 @@ export const precisionParamTypeCast = {
   float: 'FLOAT',
   timeArray: 'TIME[]',
   timestampArray: 'TIMESTAMP[]',
-};
+} as const;
 
 export const precisionAndScaleParamTypeCast = {
   decimal: 'DECIMAL',
   numeric: 'NUMERIC',
   decimalArray: 'DECIMAL[]',
   numericArray: 'NUMERIC[]',
-};
-export const fieldsParamTypeCast = { interval: 'INTERVAL' };
+} as const;
+export const fieldsParamTypeCast = { interval: 'INTERVAL' } as const;
 
+export const fullTypeCast = {
+  ...noParamTypeCast,
+  ...lengthParamTypeCast,
+  ...precisionParamTypeCast,
+  ...precisionAndScaleParamTypeCast,
+  ...fieldsParamTypeCast,
+};
 export type NoParamTypeCast = keyof typeof noParamTypeCast;
 export type LengthParamTypeCast = keyof typeof lengthParamTypeCast;
 export type PrecisionParamTypeCast = keyof typeof precisionParamTypeCast;
@@ -112,3 +119,5 @@ export type TypeCastKeys =
   | PrecisionParamTypeCast
   | PrecisionAndScaleParamTypeCast
   | FieldsParamTypeCast;
+
+export type TypeCastValue<K extends TypeCastKeys> = (typeof fullTypeCast)[K];

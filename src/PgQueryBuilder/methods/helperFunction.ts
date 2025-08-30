@@ -8,6 +8,7 @@ import { Primitive } from '../globalTypes';
 import {
   AllowedFields,
   CallableField,
+  CallableFieldParam,
   GroupByFields,
   InOperationSubQuery,
   JoinQuery,
@@ -76,28 +77,22 @@ const validateField = (
   return field as string;
 };
 
-const callableCol = (
-  col: CallableField,
-  allowedFields: AllowedFields,
-  isAggregateAllowed: boolean,
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
-) => {
-  if (col.length === 4) {
-    return col(
-      preparedValues,
-      groupByFields,
-      allowedFields,
-      isAggregateAllowed,
-    );
-  } else if (col.length == 3) {
-    return (col as TreeArgCallableField)(
-      preparedValues,
-      groupByFields,
-      allowedFields,
-    );
-  }
-  return throwError.invalidColType();
+type ValidOption = Exclude<
+  CallableFieldParam[keyof CallableFieldParam],
+  undefined
+>;
+const callableCol = (col: CallableField, options: CallableFieldParam) => {
+  const validOptions = Object.entries(options || {}).reduce(
+    (pre, acc) => {
+      const [key, val] = acc;
+      if (typeof val !== 'undefined') {
+        pre[key] = val;
+      }
+      return pre;
+    },
+    {} as Record<string, ValidOption>,
+  );
+  return col(validOptions);
 };
 
 //=================== export functions ======================//
@@ -268,23 +263,47 @@ export const isNonEmptyObject = (obj: unknown): obj is object =>
   !isEmptyObject(obj);
 
 export const isCallableColumn = (col: unknown): col is CallableField => {
-  return typeof col === 'function' && (col.length === 3 || col.length === 4);
+  return typeof col === 'function' && col.length === 1;
+};
+
+export const isValidAllowedFields = (
+  allowedFields: unknown,
+): allowedFields is AllowedFields => {
+  return (
+    typeof allowedFields === 'object' &&
+    allowedFields !== null &&
+    allowedFields.constructor === Set
+  );
+};
+
+export const isValidGroupByFieldsFields = (
+  groupByFields: unknown,
+): groupByFields is GroupByFields => {
+  return (
+    typeof groupByFields === 'object' &&
+    groupByFields !== null &&
+    groupByFields.constructor === Set
+  );
+};
+
+export const isValidPreparedValues = (
+  preparedValues: unknown,
+): preparedValues is PreparedValues => {
+  return (
+    typeof preparedValues === 'object' &&
+    preparedValues !== null &&
+    preparedValues.hasOwnProperty('index') &&
+    typeof (preparedValues as any).index === 'number' &&
+    preparedValues.hasOwnProperty('values') &&
+    Array.isArray((preparedValues as any).values)
+  );
 };
 
 export const validCallableColCtx = (
   col: CallableField,
-  allowedFields: AllowedFields,
-  isAggregateAllowed: boolean,
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
+  options: CallableFieldParam,
 ) => {
-  const { ctx, ...rest } = callableCol(
-    col,
-    allowedFields,
-    isAggregateAllowed,
-    preparedValues,
-    groupByFields,
-  );
+  const { ctx, ...rest } = callableCol(col, options);
   if (!isValidInternalContext(ctx)) {
     return throwError.invalidFieldFuncCallType();
   }

@@ -18,6 +18,7 @@ import { Primitive } from '../globalTypes';
 import {
   AllowedFields,
   CallableField,
+  CallableFieldParam,
   GroupByFields,
   InOperationSubQuery,
   PreparedValues,
@@ -30,22 +31,25 @@ import {
   getPreparedValues,
   isCallableColumn,
   isNotNullPrimitiveValue,
+  isValidAllowedFields,
+  isValidGroupByFieldsFields,
+  isValidPreparedValues,
   isValidSubQuery,
   validCallableColCtx,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
 
-type ColFunc = () => {
-  colName: string;
-  isCol: boolean;
-  ctx: symbol;
-};
+// type ColFunc = () => {
+//   colName: string;
+//   isCol: boolean;
+//   ctx: symbol;
+// };
 
-type ValFunc = () => {
-  value: Primitive;
-  isVal: boolean;
-  ctx: symbol;
-};
+// type ValFunc = () => {
+//   value: Primitive;
+//   isVal: boolean;
+//   ctx: symbol;
+// };
 
 type CombinedFun = () => {
   value?: Primitive;
@@ -173,27 +177,26 @@ const getColOrValFrmCb = (
   isNullColAllowed: boolean,
 ) => {
   if (isCallableColumn(value)) {
-    const { col } = validCallableColCtx(
-      value,
+    const { col } = validCallableColCtx(value, {
       allowedFields,
-      true,
+      isAggregateAllowed: true,
       preparedValues,
       groupByFields,
-    );
+    });
     return col;
   }
-  if (isCombinedFn(value)) {
-    const { ctx, ...rest } = value();
-    if (!isValidInternalContext(ctx)) {
-      return throwError.invalidFieldFuncCallType();
-    }
-    if (isNotNullPrimitiveValue(rest.value || null) && rest.isVal) {
-      return getPreparedValues(preparedValues, rest.value as Primitive);
-    }
-    if (typeof rest.colName === 'string' && rest.isCol) {
-      return fieldQuote(allowedFields, rest.colName, { isNullColAllowed });
-    }
-  }
+  // if (isCombinedFn(value)) {
+  //   const { ctx, ...rest } = value();
+  //   if (!isValidInternalContext(ctx)) {
+  //     return throwError.invalidFieldFuncCallType();
+  //   }
+  //   if (isNotNullPrimitiveValue(rest.value || null) && rest.isVal) {
+  //     return getPreparedValues(preparedValues, rest.value as Primitive);
+  //   }
+  //   if (typeof rest.colName === 'string' && rest.isCol) {
+  //     return fieldQuote(allowedFields, rest.colName, { isNullColAllowed });
+  //   }
+  // }
   return null;
 };
 
@@ -380,18 +383,18 @@ class FieldFunction {
     return FieldFunction.#instance;
   }
 
-  col(col: string): ColFunc {
-    return () => {
-      this.#checkFunctionExecutionState();
-      return { colName: col, isCol: true, ctx: getInternalContext() };
-    };
-  }
-  val(val: Primitive): ValFunc {
-    return () => {
-      this.#checkFunctionExecutionState();
-      return { value: val, isVal: true, ctx: getInternalContext() };
-    };
-  }
+  // col(col: string): ColFunc {
+  //   return () => {
+  //     this.#checkFunctionExecutionState();
+  //     return { colName: col, isCol: true, ctx: getInternalContext() };
+  //   };
+  // }
+  // val(val: Primitive): ValFunc {
+  //   return () => {
+  //     this.#checkFunctionExecutionState();
+  //     return { value: val, isVal: true, ctx: getInternalContext() };
+  //   };
+  // }
 
   #attachFieldMethods() {
     let op: Ops;
@@ -439,11 +442,17 @@ class FieldFunction {
       isNullColAllowed,
       attachBy,
     } = args;
-    return (
-      preparedValues: PreparedValues,
-      groupByFields: GroupByFields,
-      allowedFields: AllowedFields,
-    ) => {
+    return (options: CallableFieldParam) => {
+      const { preparedValues, groupByFields, allowedFields } = options || {};
+      const hasValidRequiredFields =
+        isValidAllowedFields(allowedFields) &&
+        isValidPreparedValues(preparedValues) &&
+        isValidGroupByFieldsFields(groupByFields);
+
+      if (!hasValidRequiredFields) {
+        return throwError.invalidFieldFuncCallType();
+      }
+
       this.#checkFunctionExecutionState();
       const value = prepareFields<Model>({
         colAndOperands,

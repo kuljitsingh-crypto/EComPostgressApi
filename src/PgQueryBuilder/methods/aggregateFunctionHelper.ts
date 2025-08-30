@@ -6,6 +6,7 @@ import {
 import {
   AllowedFields,
   CallableField,
+  CallableFieldParam,
   GroupByFields,
   ORDER_BY,
   PreparedValues,
@@ -17,6 +18,10 @@ import {
   attachArrayWith,
   fieldQuote,
   getPreparedValues,
+  isCallableColumn,
+  isValidAllowedFields,
+  isValidGroupByFieldsFields,
+  isValidPreparedValues,
   validCallableColCtx,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
@@ -61,6 +66,62 @@ const orderByColFn: Partial<AggregateFunctionType>[] = [
 ];
 const separatorColFn: Partial<AggregateFunctionType>[] = ['stringAgg'];
 
+const prepareAggFn = <Model>(
+  col: string,
+  fn: AggregateFunctionType,
+  fieldOptions: CallableFieldParam,
+  options: Options<Model>,
+) => {
+  const { preparedValues, groupByFields, allowedFields, isAggregateAllowed } =
+    fieldOptions || {};
+
+  if (!isValidAllowedFields(allowedFields)) {
+    return throwError.invalidAggFuncPlaceType(fn, 'null');
+  }
+  if (!isAggregateAllowed && fn) {
+    return throwError.invalidAggFuncPlaceType(fn, col || 'null');
+  }
+  if (!aggregateFunctionName[fn]) {
+    return throwError.invalidAggFuncPlaceType(fn, col || 'null');
+  }
+  const { isDistinct, orderBy, separator } = options;
+  const distinctMayBe =
+    distinctColFn.includes(fn) && isDistinct ? DB_KEYWORDS.distinct : '';
+  const validPreparedValues = isValidPreparedValues(preparedValues);
+
+  const isValidOrderByField =
+    orderByColFn.includes(fn) &&
+    Array.isArray(orderBy) &&
+    validPreparedValues &&
+    isValidGroupByFieldsFields(groupByFields);
+
+  const isValidSeparator =
+    separatorColFn.includes(fn) &&
+    typeof separator === 'string' &&
+    validPreparedValues;
+
+  const orderByMaybe = isValidOrderByField
+    ? OrderByQuery.prepareOrderByQuery(
+        allowedFields,
+        preparedValues,
+        groupByFields,
+        orderBy,
+      )
+    : '';
+  const separatorMaybe = isValidSeparator
+    ? `,${getPreparedValues(preparedValues, `${separator}`)}`
+    : '';
+
+  col = attachArrayWith.space([
+    distinctMayBe,
+    col,
+    separatorMaybe,
+    orderByMaybe,
+  ]);
+  const funcUpr = aggregateFunctionName[fn].toUpperCase();
+  return `${funcUpr}(${col})`;
+};
+
 class AggregateFunction {
   static #instance: null | AggregateFunction = null;
 
@@ -76,44 +137,16 @@ class AggregateFunction {
     fn: AggregateFunctionType,
     options: Options<Model>,
   ) {
-    return (
-      preparedValues: PreparedValues,
-      groupByFields: GroupByFields,
-      allowedFields: AllowedFields,
-      isAggregateAllowed: boolean,
-    ) => {
-      const prepareAggFn = (col: string, fn: AggregateFunctionType) => {
-        if (!isAggregateAllowed && fn) {
-          return throwError.invalidAggFuncPlaceType(fn, col || 'null');
-        }
-        if (!aggregateFunctionName[fn]) {
-          return throwError.invalidAggFuncPlaceType(fn, col || 'null');
-        }
-        const { isDistinct, orderBy, separator } = options;
-        const distinctMayBe =
-          distinctColFn.includes(fn) && isDistinct ? DB_KEYWORDS.distinct : '';
-        const orderByMaybe =
-          orderByColFn.includes(fn) && Array.isArray(orderBy)
-            ? OrderByQuery.prepareOrderByQuery(
-                allowedFields,
-                preparedValues,
-                groupByFields,
-                orderBy,
-              )
-            : '';
-        const separatorMaybe =
-          separatorColFn.includes(fn) && typeof separator === 'string'
-            ? `,${getPreparedValues(preparedValues, `${separator}`)}`
-            : '';
-        col = attachArrayWith.space([
-          distinctMayBe,
-          col,
-          separatorMaybe,
-          orderByMaybe,
-        ]);
-        const funcUpr = aggregateFunctionName[fn].toUpperCase();
-        return `${funcUpr}(${col})`;
-      };
+    return (fieldOptions: CallableFieldParam) => {
+      const {
+        preparedValues,
+        groupByFields,
+        allowedFields,
+        isAggregateAllowed,
+      } = fieldOptions || {};
+      if (!isValidAllowedFields(allowedFields)) {
+        return throwError.invalidAggFuncPlaceType(fn, 'null');
+      }
       const isStartAllowed = ['count'].includes(fn);
       column =
         isStartAllowed && (typeof column === 'undefined' || column === null)
@@ -123,19 +156,18 @@ class AggregateFunction {
       if (typeof column === 'string') {
         let field = fieldQuote(allowedFields, column, { customAllowFields });
         return {
-          col: prepareAggFn(field, fn),
+          col: prepareAggFn(field, fn, fieldOptions, options),
           alias: null,
           ctx: getInternalContext(),
         };
-      } else if (typeof column === 'function') {
-        const col = validCallableColCtx(
-          column,
+      } else if (isCallableColumn(column)) {
+        const col = validCallableColCtx(column, {
           allowedFields,
           isAggregateAllowed,
           preparedValues,
           groupByFields,
-        );
-        col.col = prepareAggFn(col.col, fn);
+        });
+        col.col = prepareAggFn(col.col, fn, fieldOptions, options);
         return { col: col.col, alias: col.alias, ctx: getInternalContext() };
       }
       return throwError.invalidAggFuncPlaceType(fn, 'null');

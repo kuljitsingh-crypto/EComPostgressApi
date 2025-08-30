@@ -12,6 +12,7 @@ import {
   attachArrayWith,
   dynamicFieldQuote,
   fieldQuote,
+  isCallableColumn,
   validCallableColCtx,
 } from './helperFunction';
 
@@ -41,14 +42,13 @@ const getColNameAndAlias = (
       col: fieldQuote(allowedFields, col, { customAllowFields }),
       alias: null,
     };
-  } else if (typeof col === 'function' && preparedValues && groupByFields) {
-    const rest = validCallableColCtx(
-      col,
+  } else if (isCallableColumn(col) && preparedValues && groupByFields) {
+    const rest = validCallableColCtx(col, {
       allowedFields,
       isAggregateAllowed,
       preparedValues,
       groupByFields,
-    );
+    });
     return rest;
   } else if (isValidArray(col)) {
     const [column, alias] = col;

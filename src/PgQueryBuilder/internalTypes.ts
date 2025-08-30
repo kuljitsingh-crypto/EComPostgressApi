@@ -254,6 +254,13 @@ export type ExtraOptions = {
   reference?: Reference;
 };
 
+export type CallableFieldParam = Partial<{
+  preparedValues: PreparedValues;
+  groupByFields: GroupByFields;
+  allowedFields: AllowedFields;
+  isAggregateAllowed: boolean;
+}>;
+
 export type TreeArgCallableField = (
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
@@ -264,18 +271,13 @@ export type TreeArgCallableField = (
   ctx: symbol;
 };
 
-export type FourArgCallableField = (
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
-  allowedFields: AllowedFields,
-  isAggregateAllowed: boolean,
-) => {
+export type FourArgCallableField = (options: CallableFieldParam) => {
   col: string;
   alias: string | null;
   ctx: symbol;
 };
 
-export type CallableField = FourArgCallableField | TreeArgCallableField;
+export type CallableField = FourArgCallableField;
 
 export type FindQueryAttribute =
   | [string | CallableField, null | string]

@@ -32,13 +32,12 @@ export class OrderByQuery {
         if (typeof col === 'string') {
           orders.push(fieldQuote(allowedFields, col));
         } else if (isCallableColumn(col)) {
-          const { col: finalCol } = validCallableColCtx(
-            col,
+          const { col: finalCol } = validCallableColCtx(col, {
             allowedFields,
             isAggregateAllowed,
             preparedValues,
             groupByFields,
-          );
+          });
           orders.push(finalCol);
         } else if (isValidSubQuery(col)) {
           orders.push(

@@ -1,4 +1,10 @@
-import { PG_DATA_TYPE, DBModel, aggregateFn, fieldFn } from '../PgQueryBuilder';
+import {
+  PG_DATA_TYPE,
+  DBModel,
+  aggrFn,
+  fieldFn,
+  utilFn,
+} from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
 export class BasketB extends DBModel {}
@@ -92,29 +98,29 @@ BasketE.init(
 
 BasketA.findAll({
   // columns: ['a'],
-  // columns: [[aggregateFn.COUNT('a'), 'b']],
+  // columns: [[aggrFn.COUNT('a'), 'b']],
   columns: [
-    // aggregateFn.stdDev('a'),
-    fieldFn.concat(fieldFn.col('fruit_a'), 'b', fieldFn.col('fruit_a')),
+    // aggrFn.stdDev('a'),
+    // fieldFn.concat(fieldFn.col('fruit_a'), 'b', fieldFn.col('fruit_a')),
     // 'a',
-    // aggregateFn.avg(fieldFn.abs(fieldFn.sub(fieldFn.col('a'), 8))),
-    // aggregateFn.boolOr('a'),
-    // aggregateFn.avg('a', {
+    aggrFn.avg(fieldFn.abs(fieldFn.sub(utilFn.col('a'), 8))),
+    // aggrFn.boolOr('a'),
+    // aggrFn.avg('a', {
     //   isDistinct: true,
     // }),
     // 'a',
     // 'a',
     // 'fruit_a',
     // fieldFn.abs(fieldFn.col('a')),
-    // [aggregateFn.avg(fieldFn.power('a', 2)), 'd'],
+    // [aggrFn.avg(fieldFn.power('a', 2)), 'd'],
     // [fieldFn.abs(fieldFn.sub('a', fieldFn.col('t.avg_a'))), 'deviation'],
-    // fieldFn.abs(fieldFn.sub(5, aggregateFn.avg('a'))),
+    // fieldFn.abs(fieldFn.sub(5, aggrFn.avg('a'))),
     // fieldFn.abs(fieldFn.sub(5, fieldFn.col('a'))),
-    // [fieldFn.sub('a', { model: BasketB, column: aggregateFn.avg('b') }), 'av'],
+    // [fieldFn.sub('a', { model: BasketB, column: aggrFn.avg('b') }), 'av'],
     // fieldFn.power(fieldFn.val(5), fieldFn.col('a')),
     // [
     //   fieldFn.sub(
-    //     { model: BasketB, column: aggregateFn.avg('b') },
+    //     { model: BasketB, column: aggrFn.avg('b') },
     //     fieldFn.col('a'),
     //   ),
     //   'sub',
@@ -122,7 +128,7 @@ BasketA.findAll({
     // fieldFn.abs(
     //   fieldFn.sub('a', {
     //     model: BasketB,
-    //     column: aggregateFn.avg('b'),
+    //     column: aggrFn.avg('b'),
     //   }),
     // ),
     // 'fruit_a',
@@ -155,8 +161,8 @@ BasketA.findAll({
   //   },
   // },
   where: {
-    // a: { arrayContains: { model: BasketB, column: aggregateFn.arrayAgg('b') } },
-    // $matches: [[aggregateFn.avg('a'), { gt: 2 }]],
+    // a: { arrayContains: { model: BasketB, column: aggrFn.arrayAgg('b') } },
+    // $matches: [[aggrFn.avg('a'), { gt: 2 }]],
     // a: { arrayOverlap: [1, 2] },
     // fruit_a: { iLike: { ALL: ['a%', 'o%'] } },
     // fruit_a:{startsWith:}
@@ -164,7 +170,7 @@ BasketA.findAll({
     // a: {
     //   between: [
     //     1,
-    //     { model: BasketB, column: fieldFn.add(aggregateFn.avg('b'), 0) },
+    //     { model: BasketB, column: fieldFn.add(aggrFn.avg('b'), 0) },
     //   ],
     // },
     // $matches: [
@@ -176,7 +182,7 @@ BasketA.findAll({
     //   // [fieldFn.upper(fieldFn.col('fruit_a')), { startsWith: 'O' }],
     // ],
     // a: { gte: 2 },
-    // a: { gt: { model: BasketB, column: fieldFn.add(aggregateFn.avg('b'), 0) } },
+    // a: { gt: { model: BasketB, column: fieldFn.add(aggrFn.avg('b'), 0) } },
     // a: 2,
     // fruit_a: { startsWith: 'A' },
     // $or: [{ a: { gt: 2 } }, { '1': '1' }],
@@ -230,7 +236,7 @@ BasketA.findAll({
   // crossJoin: {
   //   model: BasketA,
   //   alias: 't',
-  //   columns: [[aggregateFn.avg('a'), 'avg_a']],
+  //   columns: [[aggrFn.avg('a'), 'avg_a']],
   // },
   // leftJoin: [
   //   {
@@ -249,7 +255,7 @@ BasketA.findAll({
   //   },
   // alias: 'fruit',
   // orderBy: [
-  //   aggregateFn.avg('a'),
+  //   aggrFn.avg('a'),
   //   // ['a', 'DESC'],
   //   // ['fruit_a', 'ASC'],
   // ],
@@ -258,7 +264,7 @@ BasketA.findAll({
   // having: {
   //   $matches: [
   //     [
-  //       aggregateFn.count(fieldFn.abs(fieldFn.sub(fieldFn.col('a'), 5))),
+  //       aggrFn.count(fieldFn.abs(fieldFn.sub(fieldFn.col('a'), 5))),
   //       { gt: 2 },
   //     ],
   //   ],
@@ -297,7 +303,7 @@ BasketA.findAll({
 // });
 
 BasketA.queryRawSql(
-  'SELECT AVg(POW(a,2)),AVG(a) AS deviation FROM basket_a;',
+  "SELECT COUNT('c') AS deviation FROM basket_a;",
   // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
   // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
 

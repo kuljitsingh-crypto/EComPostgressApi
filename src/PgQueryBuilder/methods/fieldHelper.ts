@@ -129,7 +129,7 @@ export class FieldHelper {
         typeof acc[1] === 'string' &&
         !!acc[1]
       ) {
-        const validField = simpleFieldValidate(acc[1]);
+        const validField = simpleFieldValidate(acc[1], []);
         if (typeof alias == 'string' && alias) {
           pre.push(`${alias}.${validField}`);
         }
