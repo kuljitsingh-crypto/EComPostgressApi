@@ -145,7 +145,7 @@ interface FieldFunction extends Func {}
 const attachOperator = (op: string, ...values: Primitive[]) =>
   `${op}(${attachArrayWith.coma(values)})`;
 
-const attachopInBtwOperator = (op: string, ...values: Primitive[]) =>
+const attachOpInBtwOperator = (op: string, ...values: Primitive[]) =>
   attachArrayWith.space([values[0], op, values[1]]);
 
 const customAttach =
@@ -174,7 +174,7 @@ const attachOp = (
   let opCb: (op: string, ...values: Primitive[]) => string = attachOperator;
   switch (attachBy) {
     case 'opInBtw':
-      opCb = attachopInBtwOperator;
+      opCb = attachOpInBtwOperator;
       break;
     case 'custom':
       if (Array.isArray(attachCond) && attachCond.length > 0) {
