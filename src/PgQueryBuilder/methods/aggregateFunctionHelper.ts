@@ -3,15 +3,8 @@ import {
   aggregateFunctionName,
   AggregateFunctionType,
 } from '../constants/fieldFunctions';
-import {
-  AllowedFields,
-  CallableField,
-  CallableFieldParam,
-  GroupByFields,
-  ORDER_BY,
-  PreparedValues,
-  SubQueryColumnAttribute,
-} from '../internalTypes';
+import { Primitive } from '../globalTypes';
+import { CallableField, CallableFieldParam, ORDER_BY } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
 import {
@@ -20,6 +13,7 @@ import {
   getPreparedValues,
   getValidCallableFieldValues,
   isCallableColumn,
+  isPrimitiveValue,
   validCallableColCtx,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
@@ -31,16 +25,16 @@ type Options<Model> = {
 };
 
 type RequiredColumn<Model> = (
-  col: SubQueryColumnAttribute,
+  col: Primitive | CallableField,
   options?: Options<Model>,
 ) => CallableField;
 
 type OptionalColumn<Model> = (
-  col?: SubQueryColumnAttribute,
+  col?: Primitive | CallableField,
   options?: Options<Model>,
 ) => CallableField;
 
-type SingleColumn = (col: SubQueryColumnAttribute) => CallableField;
+type SingleColumn = (col: Primitive | CallableField) => CallableField;
 
 type SingleOperationKeys = Extract<
   AggregateFunctionType,
@@ -127,30 +121,34 @@ class AggregateFunction {
     return AggregateFunction.#instance;
   }
   #functionCreator<Model>(
-    column: SubQueryColumnAttribute,
+    column: Primitive | CallableField,
     fn: AggregateFunctionType,
     options: Options<Model>,
   ) {
     return (fieldOptions: CallableFieldParam) => {
-      const { allowedFields } = getValidCallableFieldValues(
+      const { preparedValues } = getValidCallableFieldValues(
         fieldOptions,
         'allowedFields',
+        'preparedValues',
       );
       const isStartAllowed = ['count'].includes(fn);
       column =
         isStartAllowed && (typeof column === 'undefined' || column === null)
           ? '*'
           : column;
-      const customAllowFields = isStartAllowed ? ['*'] : [];
-      if (typeof column === 'string') {
-        let field = fieldQuote(allowedFields, column, { customAllowFields });
+      const customAllowedFields = isStartAllowed ? ['*'] : [];
+      if (isPrimitiveValue(column)) {
+        let field = getPreparedValues(preparedValues, column);
         return {
           col: prepareAggFn(field, fn, fieldOptions, options),
           alias: null,
           ctx: getInternalContext(),
         };
       } else if (isCallableColumn(column)) {
-        const col = validCallableColCtx(column, fieldOptions);
+        const col = validCallableColCtx(column, {
+          ...fieldOptions,
+          customAllowedFields,
+        });
         col.col = prepareAggFn(col.col, fn, fieldOptions, options);
         return { col: col.col, alias: col.alias, ctx: getInternalContext() };
       }
@@ -159,7 +157,7 @@ class AggregateFunction {
   }
 
   #aggregateFunc<Model>(fn: AggregateFunctionType) {
-    return (col: SubQueryColumnAttribute, options: Options<Model> = {}) => {
+    return (col: Primitive | CallableField, options: Options<Model> = {}) => {
       return this.#functionCreator(col, fn, options);
     };
   }

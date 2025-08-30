@@ -101,12 +101,13 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggrFn.COUNT('a'), 'b']],
   columns: [
-    // aggrFn.stdDev('a'),
-    fieldFn.concat(
-      col('fruit_a'),
-      castFn.varchar(col('fruit_a'), { length: 3 }),
-      col('fruit_a'),
-    ),
+    aggrFn.count(col('*')),
+    // fieldFn.concat(
+    //   castFn.text('Mr'),
+    //   col('fruit_a'),
+    //   castFn.text(':'),
+    //   col('fruit_a'),
+    // ),
     // 'a',
     // aggrFn.avg(fieldFn.abs(fieldFn.sub(col('a'), 8))),
     // aggrFn.boolOr('a'),
@@ -308,7 +309,7 @@ BasketA.findAll({
 // });
 
 BasketA.queryRawSql(
-  "SELECT COUNT('c') AS deviation FROM basket_a;",
+  'SELECT COUNT(5) AS deviation FROM basket_a;',
   // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
   // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
 

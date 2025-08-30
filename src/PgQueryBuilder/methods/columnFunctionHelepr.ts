@@ -9,7 +9,8 @@ export function colFn(col: string): CallableField {
       options,
       'allowedFields',
     );
-    const column = fieldQuote(allowedFields, col);
+    const customAllowFields = options?.customAllowedFields || [];
+    const column = fieldQuote(allowedFields, col, { customAllowFields });
     return {
       col: column,
       alias: null,
