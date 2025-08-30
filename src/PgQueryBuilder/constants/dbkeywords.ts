@@ -28,6 +28,7 @@ export const DB_KEYWORDS = {
   array: 'ARRAY',
   all: 'ALL',
   in: 'IN',
+  for: 'FOR',
 } as const;
 
 export type DB_KEYWORDS_TYPE = typeof DB_KEYWORDS;

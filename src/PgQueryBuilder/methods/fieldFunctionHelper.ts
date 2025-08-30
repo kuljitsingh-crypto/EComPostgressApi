@@ -13,6 +13,10 @@ import {
   TripleFieldOpKeys,
   TRIPLE_FIELD_OP,
   MULTIPLE_FIELD_OP,
+  SUBSTRING_FIELD_OP,
+  SubstringFieldOpKeys,
+  TrimFieldOpKeys,
+  TRIM_FIELD_OP,
 } from '../constants/fieldFunctions';
 import { Primitive } from '../globalTypes';
 import {
@@ -60,7 +64,7 @@ type FieldOperand<Model> =
   | number
   | boolean
   | InOperationSubQuery<Model, 'WhereNotReq', 'single'>
-  | CombinedFun
+  // | CombinedFun
   | CallableField;
 
 type FieldOperandInternal<Model> = FieldOperand<Model> | null;
@@ -87,20 +91,21 @@ type Ops =
   | SingleFieldOpKeys
   | StrFieldOpKeys
   | MultipleFieldOpKeys
-  | TripleFieldOpKeys;
+  | TripleFieldOpKeys
+  | SubstringFieldOpKeys
+  | TrimFieldOpKeys;
 
 type Func = {
   [key in Ops]: key extends SingleFieldOpKeys
     ? SingleFieldOpCb
-    : key extends DoubleFieldOpKeys
+    : key extends DoubleFieldOpKeys | TrimFieldOpKeys | StrFieldOpKeys
       ? DoubleFieldOpCb
-      : key extends TripleFieldOpKeys
+      : key extends TripleFieldOpKeys | SubstringFieldOpKeys
         ? TripleFieldOpCb
         : MultipleFieldOpCb;
 };
-type AllowedOperand = 'number' | 'string' | 'all';
 type OperandType = 'single' | 'double' | 'multiple' | 'triple';
-type AttachType = 'in' | 'inBtw' | 'default';
+type AttachType = 'inBtw' | 'default' | 'custom';
 
 type PrepareCb<Model> = {
   colAndOperands: FieldOperandInternal<Model>[];
@@ -109,33 +114,33 @@ type PrepareCb<Model> = {
   preparedValues: PreparedValues;
   groupByFields: GroupByFields;
   allowedFields: AllowedFields;
-  operandAllowed: AllowedOperand;
   operatorRef: Record<string, string>;
   isNullColAllowed: boolean;
+  attachCond?: string[];
 };
 
 type MultiOperatorFieldCb = {
   operandType: OperandType;
   op: Ops;
-  operandAllowed: AllowedOperand;
   operatorRef: Record<string, string>;
   attachBy: AttachType;
+  attachCond?: string[];
 };
 
 type FieldOperatorCb<Model> = {
   colAndOperands: FieldOperandInternal<Model>[];
   op: Ops;
   operatorRef: Record<string, string>;
-  operandAllowed: AllowedOperand;
   isNullColAllowed: boolean;
   attachBy: AttachType;
+  attachCond?: string[];
 };
 
 interface FieldFunction extends Func {}
 
-function isCombinedFn(fn: CallableField | CombinedFun): fn is CombinedFun {
-  return fn.length === 0;
-}
+// function isCombinedFn(fn: CallableField | CombinedFun): fn is CombinedFun {
+//   return fn.length === 0;
+// }
 
 const attachOperator = (op: string, ...values: Primitive[]) =>
   `${op}(${attachArrayWith.coma(values)})`;
@@ -143,23 +148,38 @@ const attachOperator = (op: string, ...values: Primitive[]) =>
 const attachInBtwOperator = (op: string, ...values: Primitive[]) =>
   attachArrayWith.space([values[0], op, values[1]]);
 
-const attachInOperator = (op: string, ...values: Primitive[]) =>
-  `${op}(${attachArrayWith.customSep(values, ` ${DB_KEYWORDS.in} `)})`;
+const customAttach =
+  (attachCond: string[]) =>
+  (op: string, ...values: Primitive[]) => {
+    const valuesLen = values.length;
+    const lastAttachStr = attachCond[attachCond.length - 1] ?? '';
+    const attachedVal: Primitive[] = [values[0] ?? ''];
+    for (let i = 1; i < valuesLen; i++) {
+      const attachType = attachCond[i - 1] ?? lastAttachStr;
+      attachedVal.push(attachType, values[i]);
+    }
+    return attachOperator(op, attachArrayWith.space(attachedVal));
+  };
 
-const attachOp = (op: string, attachBy: AttachType, ...values: Primitive[]) => {
+const attachOp = (
+  op: string,
+  attachBy: AttachType,
+  attachCond: string[],
+  ...values: Primitive[]
+) => {
   values = values.filter((v) => v !== null && v !== undefined);
   if (values.length < 1) {
     return throwError.invalidOpDataType(op);
   }
   let opCb: (op: string, ...values: Primitive[]) => string = attachOperator;
   switch (attachBy) {
-    case 'in': {
-      values.reverse();
-      opCb = attachInOperator;
-      break;
-    }
     case 'inBtw':
       opCb = attachInBtwOperator;
+      break;
+    case 'custom':
+      if (Array.isArray(attachCond) && attachCond.length > 0) {
+        opCb = customAttach(attachCond);
+      }
       break;
   }
 
@@ -203,11 +223,7 @@ const getColValue = <Model>(
   groupByFields: GroupByFields,
   allowedFields: AllowedFields,
   isNullColAllowed: boolean,
-  operandAllowed: AllowedOperand,
 ) => {
-  if (operandAllowed !== 'all' && typeof value !== operandAllowed) {
-    return throwError.invalidOperandType();
-  }
   if (isNotNullPrimitiveValue(value)) {
     return getPreparedValues(preparedValues, value as Primitive);
   } else if (typeof value === 'function') {
@@ -237,10 +253,9 @@ const resolveOperand = <Model>(
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
   isNullColAllowed: boolean,
-  operandAllowed: AllowedOperand,
 ) => {
   const operandsRef: Primitive[] = [];
-  // For Now primitive data type treated as value , For Column use fieldFn.col
+  // For Now primitive data type treated as value , For Column use col(colNme)
   // const [col, ...operands] = colAndOperands;
   // if (col === null || typeof col === 'string') {
   //   operandsRef.push(fieldQuote(allowedFields, col, isNullColAllowed));
@@ -257,16 +272,17 @@ const resolveOperand = <Model>(
   //   );
   // }
   colAndOperands.forEach((op) => {
-    operandsRef.push(
-      getColValue(
-        op,
-        preparedValues,
-        groupByFields,
-        allowedFields,
-        isNullColAllowed,
-        operandAllowed,
-      ),
+    const value = getColValue(
+      op,
+      preparedValues,
+      groupByFields,
+      allowedFields,
+      isNullColAllowed,
     );
+    if (value === null && !isNullColAllowed) {
+      throwError.invalidColumnNameType('null', allowedFields);
+    }
+    operandsRef.push(value);
   });
   return operandsRef;
 };
@@ -276,14 +292,13 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
     colAndOperands,
     operator,
     attachBy,
-    operandAllowed,
     operatorRef,
     preparedValues,
     groupByFields,
     allowedFields,
+    attachCond = [],
     isNullColAllowed = false,
   } = params;
-
   const op = operatorRef[operator];
   if (!op) {
     return throwError.invalidColumnOpType(op, Object.keys(operatorRef));
@@ -294,9 +309,9 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
     preparedValues,
     groupByFields,
     isNullColAllowed,
-    operandAllowed,
   );
-  return attachOp(op, attachBy, ...operands);
+  console.log(attachBy, attachCond);
+  return attachOp(op, attachBy, attachCond, ...operands);
 };
 
 const getColAndOperands = <Model>(
@@ -305,7 +320,7 @@ const getColAndOperands = <Model>(
 ): FieldOperandInternal<Model>[] => {
   switch (type) {
     case 'single':
-      return [null, operands[0]];
+      return [operands[0]];
     case 'double':
       return operands.slice(0, 2);
     case 'triple':
@@ -319,51 +334,57 @@ const getColAndOperands = <Model>(
 
 const opGroups: {
   type: OperandType;
-  allowed: AllowedOperand;
   set: Partial<Record<Ops, string>>;
   attachBy: AttachType;
+  attachCond?: string[];
 }[] = [
   {
     set: MATH_FIELD_OP,
     type: 'double',
-    allowed: 'all',
     attachBy: 'inBtw',
   },
   {
     set: SINGLE_FIELD_OP,
     type: 'single',
-    allowed: 'all',
     attachBy: 'default',
   },
   {
     set: DOUBLE_FIELD_OP,
     type: 'double',
-    allowed: 'all',
     attachBy: 'default',
   },
   {
     set: STR_FIELD_OP,
     type: 'double',
-    allowed: 'string',
     attachBy: 'default',
   },
   {
     set: STR_IN_FIELD_OP,
     type: 'double',
-    allowed: 'string',
-    attachBy: 'in',
+    attachBy: 'custom',
+    attachCond: [DB_KEYWORDS.in],
   },
   {
     set: TRIPLE_FIELD_OP,
     type: 'triple',
-    allowed: 'all',
     attachBy: 'default',
   },
   {
     set: MULTIPLE_FIELD_OP,
     type: 'multiple',
-    allowed: 'all',
     attachBy: 'default',
+  },
+  {
+    set: SUBSTRING_FIELD_OP,
+    type: 'triple',
+    attachBy: 'custom',
+    attachCond: [DB_KEYWORDS.from, DB_KEYWORDS.for],
+  },
+  {
+    set: TRIM_FIELD_OP,
+    type: 'double',
+    attachBy: 'custom',
+    attachCond: [DB_KEYWORDS.from],
   },
 ] as const;
 
@@ -380,46 +401,33 @@ class FieldFunction {
     return FieldFunction.#instance;
   }
 
-  // col(col: string): ColFunc {
-  //   return () => {
-  //     this.#checkFunctionExecutionState();
-  //     return { colName: col, isCol: true, ctx: getInternalContext() };
-  //   };
-  // }
-  // val(val: Primitive): ValFunc {
-  //   return () => {
-  //     this.#checkFunctionExecutionState();
-  //     return { value: val, isVal: true, ctx: getInternalContext() };
-  //   };
-  // }
-
   #attachFieldMethods() {
     let op: Ops;
-    opGroups.forEach(({ set, allowed, type, attachBy }) => {
+    opGroups.forEach(({ set, type, attachBy, attachCond }) => {
       for (const op in set) {
         // @ts-ignore
         this[op] = this.#multiFieldOperator({
           operandType: type,
           op: op as Ops,
-          operandAllowed: allowed,
           operatorRef: set,
           attachBy,
+          attachCond,
         });
       }
     });
   }
 
   #multiFieldOperator = (args: MultiOperatorFieldCb) => {
-    const { operandType, operandAllowed, op, operatorRef, attachBy } = args;
+    const { operandType, op, operatorRef, attachBy, attachCond } = args;
     return <Model>(...ops: FieldOperandInternal<Model>[]) => {
       const colAndOperands = getColAndOperands(operandType, ...ops);
       return this.#operateOnFields({
         colAndOperands,
         op,
-        operandAllowed,
-        isNullColAllowed: operandType === 'single',
+        isNullColAllowed: false,
         operatorRef,
         attachBy,
+        attachCond,
       });
     };
   };
@@ -433,11 +441,11 @@ class FieldFunction {
   #operateOnFields<Model>(args: FieldOperatorCb<Model>) {
     const {
       colAndOperands,
-      operandAllowed,
       op,
       operatorRef,
       isNullColAllowed,
       attachBy,
+      attachCond,
     } = args;
     return (options: CallableFieldParam) => {
       const { preparedValues, groupByFields, allowedFields } =
@@ -455,9 +463,9 @@ class FieldFunction {
         groupByFields,
         allowedFields,
         operatorRef,
-        operandAllowed,
         isNullColAllowed,
         attachBy,
+        attachCond,
       });
       return {
         col: value,

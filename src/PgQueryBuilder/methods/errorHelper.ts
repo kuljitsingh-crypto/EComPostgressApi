@@ -190,6 +190,10 @@ function throwInvalidOperand(): never {
   throw new Error('Invalid operand value provided.');
 }
 
+function throwInvalidCastFunction(): never {
+  throw new Error('Invalid type cast function provided.');
+}
+
 export const throwError = {
   invalidJoinType: throwInvalidJoinTypeError,
   invalidModelType: throwInvalidModelTypeError,
@@ -217,6 +221,7 @@ export const throwError = {
   invalidOpDataType: throwInvalidOpDataTypeError,
   invalidColType: throwInvalidCol,
   invalidOperandType: throwInvalidOperand,
+  invalidTypeCastFunc: throwInvalidCastFunction,
 };
 
 export const errorHandler = (query: string, error: Error) => {

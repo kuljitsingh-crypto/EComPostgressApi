@@ -13,6 +13,7 @@ import {
 import { Primitive } from '../globalTypes';
 import { CallableField, CallableFieldParam } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
+import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   getPreparedValues,
@@ -87,6 +88,8 @@ const getValidTypeValue = (
       break;
     } else if (typeof val === allowedType) {
       arr.push(getPrimitiveValidValue(val, allowedType));
+    } else {
+      return throwError.invalidTypeCastFunc();
     }
   }
   const v = attachArrayWith.coma(arr);

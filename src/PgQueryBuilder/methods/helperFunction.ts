@@ -39,6 +39,7 @@ const callableFieldValidator: Record<
   allowedFields: isValidAllowedFields,
   groupByFields: isValidGroupByFieldsFields,
   isAggregateAllowed: isValidAggregateValue,
+  customAllowedFields: isValidCustomALlowedFields,
 };
 
 const filterOutValidDbData = (a: Primitive) => {
@@ -100,6 +101,9 @@ function isValidPreparedValues(
 
 function isValidAggregateValue(value: unknown): value is boolean {
   return typeof value === 'boolean';
+}
+function isValidCustomALlowedFields(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0;
 }
 
 const validateField = (

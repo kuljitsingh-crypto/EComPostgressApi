@@ -79,6 +79,14 @@ export const STR_FIELD_OP = {
   strPos: 'STRPOS',
 } as const;
 
+export const SUBSTRING_FIELD_OP = {
+  substring: 'SUBSTRING',
+} as const;
+
+export const TRIM_FIELD_OP = {
+  trim: 'TRIM',
+} as const;
+
 export const STR_IN_FIELD_OP = { position: 'POSITION' } as const;
 
 export type SimpleMathOpKeys = keyof typeof MATH_FIELD_OP;
@@ -86,6 +94,8 @@ export type SingleFieldOpKeys = keyof typeof SINGLE_FIELD_OP;
 export type DoubleFieldOpKeys = keyof typeof DOUBLE_FIELD_OP;
 export type TripleFieldOpKeys = keyof typeof TRIPLE_FIELD_OP;
 export type MultipleFieldOpKeys = keyof typeof MULTIPLE_FIELD_OP;
+export type SubstringFieldOpKeys = keyof typeof SUBSTRING_FIELD_OP;
+export type TrimFieldOpKeys = keyof typeof TRIM_FIELD_OP;
 export type StrFieldOpKeys =
   | keyof typeof STR_FIELD_OP
   | keyof typeof STR_IN_FIELD_OP;
