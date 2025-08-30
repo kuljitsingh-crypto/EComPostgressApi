@@ -16,7 +16,6 @@ import {
   PreparedValues,
   Subquery,
   SubqueryMultiColFlag,
-  TreeArgCallableField,
 } from '../internalTypes';
 import { isValidInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';

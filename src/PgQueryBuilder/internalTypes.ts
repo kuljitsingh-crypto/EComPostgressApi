@@ -261,23 +261,11 @@ export type CallableFieldParam = Partial<{
   isAggregateAllowed: boolean;
 }>;
 
-export type TreeArgCallableField = (
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
-  allowedFields: AllowedFields,
-) => {
+export type CallableField = (options: CallableFieldParam) => {
   col: string;
   alias: string | null;
   ctx: symbol;
 };
-
-export type FourArgCallableField = (options: CallableFieldParam) => {
-  col: string;
-  alias: string | null;
-  ctx: symbol;
-};
-
-export type CallableField = FourArgCallableField;
 
 export type FindQueryAttribute =
   | [string | CallableField, null | string]
