@@ -104,10 +104,20 @@ BasketA.findAll({
     // aggrFn.count(col('*')),
     // fieldFn.lPad(castFn.text(col('fruit_a')), 10, '0')
     // fieldFn.abs(col('a')),
+    fieldFn.now(),
+    // fieldFn.age(fieldFn.now(), castFn.timestamp('2023-12-25')),
+    fieldFn.datePart('month', fieldFn.now()),
+    fieldFn.toNumber('123.454', '999.99'),
+    fieldFn.currentTime(),
+    fieldFn.typeOf(col('a')),
+
+    fieldFn.least(col('a'), 0),
     // fieldFn.substring(col('fruit_a'), castFn.int(1), castFn.int(1)),
     // fieldFn.trim('A', col('fruit_a')),
     // fieldFn.position(col('fruit_a'), col('fruit_a')),
-    fieldFn.extractYear(castFn.timestamp('2023-12-25', { precision: 6 })),
+    // fieldFn.extractYear(castFn.timestamp('2023-12-25')),
+    // castFn.timestamp(fieldFn.clockTimestamp(), { precision: 2 }),
+    // fieldFn.sub(fieldFn.now(), castFn.timestamp('2023-12-25')),
     // fieldFn.concat(
     //   castFn.text('Mr'),
     //   col('fruit_a'),
@@ -315,17 +325,18 @@ BasketA.findAll({
 // });
 
 BasketA.queryRawSql(
-  "SELECT EXTRACT(YEAR FROM DATE '2023-12-25')AS deviation FROM basket_a;",
+  // "SELECT (NOW() - '2023-12-25'::TIMESTAMP) - INTERVAL '30 days'  AS deviation FROM basket_a;",
   // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
-  // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
-
+  'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
+  // 'SELECT NOW() - (INTERVAL $1::DATE) FROM basket_a',
   // 'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t WHERE (ABS(a - t.avg_a)  > 2 );',
   // 'SELECT a,ABS(a-AVG(a))  FROM basket_a',
   // 'SELECT a,ABS(a - (SELECT AVG(ABS(b - AVG(b) OVER ())) FROM basket_b)) AS deviation FROM basket_a;',
   // 'SELECT a, ABS(a - (SELECT AVG(b) FROM basket_b)) AS deviation FROM basket_a;',
   // 'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
+  // ['30 days'],
 ).then((res) => {
-  console.log('raw Query Result->', res);
+  console.dir({ 'raw Query Result->': res }, { depth: null });
 });
 
 export function run() {

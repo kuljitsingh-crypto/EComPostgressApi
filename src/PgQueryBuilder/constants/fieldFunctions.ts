@@ -12,15 +12,32 @@ export const aggregateFunctionName = {
   variance: 'variance',
 } as const;
 
-export const COL_PREFIX = 'col#';
+//======================================= No Param Field OP ======================================//
+export const NO_PRAM_FIELD_OP = {
+  now: 'NOW',
+  clockTimestamp: 'CLOCK_TIMESTAMP',
+  statementTimestamp: 'STATEMENT_TIMESTAMP',
+  transactionTimestamp: 'TRANSACTION_TIMESTAMP',
+};
 
-export const MATH_FIELD_OP = {
-  add: '+',
-  sub: '-',
-  multiple: '*',
-  divide: '/',
-  modulo: '%',
-  exponent: '^',
+export const CURRENT_DATE_FIELD_OP = {
+  currentDate: 'CURRENT_DATE',
+  currentTime: 'CURRENT_TIME',
+};
+
+//====================================== Single Field Op ======================================//
+export const DATE_EXTRACT_FIELD_OP = {
+  extractYear: 'EXTRACT',
+  extractMonth: 'EXTRACT',
+  extractDay: 'EXTRACT',
+  extractHour: 'EXTRACT',
+  extractMinute: 'EXTRACT',
+  extractSecond: 'EXTRACT',
+  extractDow: 'EXTRACT',
+  extractDoy: 'EXTRACT',
+  extractWeek: 'EXTRACT',
+  extractQuarter: 'EXTRACT',
+  extractEpoch: 'EXTRACT',
 } as const;
 
 export const SINGLE_FIELD_OP = {
@@ -51,6 +68,17 @@ export const SINGLE_FIELD_OP = {
   chr: 'CHR',
   toHex: 'TO_HEX',
   md5: 'MD5',
+  typeOf: 'pg_typeof',
+} as const;
+
+//====================================== Double Field Op ======================================//
+export const MATH_FIELD_OP = {
+  add: '+',
+  sub: '-',
+  multiple: '*',
+  divide: '/',
+  modulo: '%',
+  exponent: '^',
 } as const;
 
 export const DOUBLE_FIELD_OP = {
@@ -60,8 +88,29 @@ export const DOUBLE_FIELD_OP = {
   repeat: 'REPEAT',
   left: 'LEFT',
   right: 'RIGHT',
+  dateTrunc: 'DATE_TRUNC',
+  datePart: 'DATE_PART',
+  toChar: 'TO_CHAR',
+  toDate: 'TO_DATE',
+  toTimestamp: 'TO_TIMESTAMP',
+  toNumber: 'TO_NUMBER',
+  nullIf: 'NULLIF',
+  coalesce: 'COALESCE',
+  encode: 'ENCODE',
+  decode: 'DECODE',
 } as const;
 
+export const STR_FIELD_OP = {
+  strPos: 'STRPOS',
+} as const;
+
+export const TRIM_FIELD_OP = {
+  trim: 'TRIM',
+} as const;
+
+export const STR_IN_FIELD_OP = { position: 'POSITION' } as const;
+
+//====================================== Triple Field Op ======================================//
 export const TRIPLE_FIELD_OP = {
   subStr: 'SUBSTR',
   replace: 'REPLACE',
@@ -71,37 +120,19 @@ export const TRIPLE_FIELD_OP = {
   splitPart: 'SPLIT_PART',
 } as const;
 
-export const MULTIPLE_FIELD_OP = {
-  concat: 'CONCAT',
-} as const;
-
-export const STR_FIELD_OP = {
-  strPos: 'STRPOS',
-} as const;
-
 export const SUBSTRING_FIELD_OP = {
   substring: 'SUBSTRING',
 } as const;
 
-export const TRIM_FIELD_OP = {
-  trim: 'TRIM',
+//====================================== Multiple Field Op ======================================//
+export const MULTIPLE_FIELD_OP = {
+  concat: 'CONCAT',
+  age: 'AGE',
+  greatest: 'GREATEST',
+  least: 'LEAST',
 } as const;
 
-export const STR_IN_FIELD_OP = { position: 'POSITION' } as const;
-export const DATE_EXTRACT_FIELD_OP = {
-  extractYear: 'EXTRACT',
-  extractMonth: 'EXTRACT',
-  extractDay: 'EXTRACT',
-  extractHour: 'EXTRACT',
-  extractMinute: 'EXTRACT',
-  extractSecond: 'EXTRACT',
-  extractDow: 'EXTRACT',
-  extractDoy: 'EXTRACT',
-  extractWeek: 'EXTRACT',
-  extractQuarter: 'EXTRACT',
-  extractEpoch: 'EXTRACT',
-} as const;
-
+//====================================== Helper Constants ======================================//
 export const dateExtractFieldMapping = {
   extractYear: 'YEAR',
   extractMonth: 'MONTH',
@@ -116,16 +147,30 @@ export const dateExtractFieldMapping = {
   extractEpoch: 'EPOCH',
 };
 
-type SimpleMathOpKeys = keyof typeof MATH_FIELD_OP;
+//====================================== Type Definitions ======================================//
+
+//====================================== No Param Field OP ======================================//
+type NoParamOpKeys = keyof typeof NO_PRAM_FIELD_OP;
+type CurrentDateOpKeys = keyof typeof CURRENT_DATE_FIELD_OP;
+
+//====================================== Single Field Op ======================================//
 type SingleOpKeys = keyof typeof SINGLE_FIELD_OP;
-type TrimFieldOpKeys = keyof typeof TRIM_FIELD_OP;
-type DoubleOpKeys = keyof typeof DOUBLE_FIELD_OP;
-type TripleOpKeys = keyof typeof TRIPLE_FIELD_OP;
-type SubstringFieldOpKeys = keyof typeof SUBSTRING_FIELD_OP;
-type StrFieldOpKeys = keyof typeof STR_FIELD_OP | keyof typeof STR_IN_FIELD_OP;
-type MultipleOpKeys = keyof typeof MULTIPLE_FIELD_OP;
 type DateExtractOpKeys = keyof typeof DATE_EXTRACT_FIELD_OP;
 
+//====================================== Double Field Op ======================================//
+type SimpleMathOpKeys = keyof typeof MATH_FIELD_OP;
+type TrimFieldOpKeys = keyof typeof TRIM_FIELD_OP;
+type DoubleOpKeys = keyof typeof DOUBLE_FIELD_OP;
+type StrFieldOpKeys = keyof typeof STR_FIELD_OP | keyof typeof STR_IN_FIELD_OP;
+
+//====================================== Triple Field Op ======================================//
+type TripleOpKeys = keyof typeof TRIPLE_FIELD_OP;
+type SubstringFieldOpKeys = keyof typeof SUBSTRING_FIELD_OP;
+
+//====================================== Multiple Field Op ======================================//
+type MultipleOpKeys = keyof typeof MULTIPLE_FIELD_OP;
+
+export type NoPramFieldOpKeys = NoParamOpKeys | CurrentDateOpKeys;
 export type SingleFieldOpKeys = SingleOpKeys | DateExtractOpKeys;
 export type DoubleFieldOpKeys =
   | DoubleOpKeys
