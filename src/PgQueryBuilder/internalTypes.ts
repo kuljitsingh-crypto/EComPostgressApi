@@ -127,6 +127,10 @@ export type InOperationSubQuery<
   M extends SubqueryMultiColFlag,
 > = SubQueryFilter<Model, T, M>;
 
+export type CaseSubquery<Model> =
+  | { when: WhereClause<Model>; then: Primitive }
+  | { else: Primitive };
+
 export type SelfJoinSubQuery<Model> = Subquery<Model, 'WhereNotReq'> & {
   orderBy?: ORDER_BY<Model>;
   columns?: FindQueryAttributes;

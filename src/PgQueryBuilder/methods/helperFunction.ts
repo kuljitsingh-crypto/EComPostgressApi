@@ -5,6 +5,7 @@ import {
   AllowedFields,
   CallableField,
   CallableFieldParam,
+  CaseSubquery,
   GroupByFields,
   InOperationSubQuery,
   JoinQuery,
@@ -256,7 +257,6 @@ export const isValidColumn = (
 
 export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
   subQuery: InOperationSubQuery<Model, 'WhereNotReq', W> | null,
-  isArrayAllowedInColumn = false,
 ): subQuery is InOperationSubQuery<Model, 'WhereNotReq', W> => {
   if (typeof subQuery !== 'object' || subQuery === null) {
     return false;
@@ -270,6 +270,9 @@ export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
     return false;
   }
   return true;
+};
+export const isValidCaseQuery = <Model>(query:CaseSubquery<Model>):query is CaseSubquery<Model> => {
+  
 };
 
 export const getJoinSubqueryFields = <Model>(subQuery: Subquery<Model>) => {

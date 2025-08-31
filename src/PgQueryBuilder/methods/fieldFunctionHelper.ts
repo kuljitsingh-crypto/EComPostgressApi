@@ -18,12 +18,14 @@ import {
   NoPramFieldOpKeys,
   NO_PRAM_FIELD_OP,
   CURRENT_DATE_FIELD_OP,
+  CaseOpKeys,
 } from '../constants/fieldFunctions';
 import { Primitive } from '../globalTypes';
 import {
   AllowedFields,
   CallableField,
   CallableFieldParam,
+  CaseSubquery,
   GroupByFields,
   InOperationSubQuery,
   PreparedValues,
@@ -63,7 +65,10 @@ type CombinedFun = () => {
 type FieldOperand<Model> =
   | Primitive
   | InOperationSubQuery<Model, 'WhereNotReq', 'single'>
-  | CallableField;
+  | CallableField
+  | CaseSubquery<Model>;
+
+type CaseFieldOp = <Model>(...query: CaseSubquery<Model>[]) => CallableField;
 
 type NoFieldOpCb = <Model>() => CallableField;
 
@@ -99,7 +104,9 @@ type Func = {
         ? DoubleFieldOpCb
         : key extends TripleFieldOpKeys
           ? TripleFieldOpCb
-          : MultipleFieldOpCb;
+          : key extends CaseOpKeys
+            ? CaseFieldOp
+            : MultipleFieldOpCb;
 };
 type OperandType = 'single' | 'double' | 'multiple' | 'triple' | 'noParam';
 type AttachType = 'opInBtw' | 'default' | 'custom';
@@ -107,8 +114,10 @@ type AttachType = 'opInBtw' | 'default' | 'custom';
 type CommonParamForOpGroup = {
   attachBy: AttachType;
   attachCond?: string[];
+  suffixAllowed?: boolean;
   prefixAllowed?: boolean;
-  prefixRef?: Record<string, Primitive>;
+  prefixRef?: Record<string, string>;
+  suffixRef?: Record<string, string>;
   zeroArgAllowed?: boolean;
   isOpCallable?: boolean;
 };
@@ -273,10 +282,13 @@ const resolveOperand = <Model>(
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
   isNullColAllowed: boolean,
-  prefixValue: Primitive,
+  prefixValue: string | null,
+  suffixValue: string | null,
 ) => {
   const isValidPrefixValue =
     prefixValue !== null && typeof prefixValue === 'string' && prefixValue;
+  const isValidSuffixValue =
+    suffixValue !== null && typeof suffixValue === 'string' && suffixValue;
   const operandsRef: Primitive[] = isValidPrefixValue ? [prefixValue] : [];
   // For Now primitive data type treated as value , For Column use col(colNme)
   // const [col, ...operands] = colAndOperands;
@@ -307,6 +319,9 @@ const resolveOperand = <Model>(
     }
     operandsRef.push(value);
   });
+  if (isValidSuffixValue) {
+    operandsRef.push(suffixValue);
+  }
   return operandsRef;
 };
 
@@ -323,6 +338,8 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
     isNullColAllowed = false,
     prefixAllowed = false,
     prefixRef = {},
+    suffixAllowed = false,
+    suffixRef = {},
     zeroArgAllowed = false,
     isOpCallable = true,
   } = params;
@@ -332,7 +349,10 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
   }
   const validPrefixRef =
     prefixAllowed && typeof prefixRef === 'object' && prefixRef !== null;
+  const validSuffixRef =
+    suffixAllowed && typeof suffixRef === 'object' && suffixRef !== null;
   const prefixValue = (validPrefixRef && prefixRef[operator]) || null;
+  const suffixValue = (validSuffixRef && suffixRef[operator]) || null;
   const operands = resolveOperand(
     colAndOperands,
     allowedFields,
@@ -340,6 +360,7 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
     groupByFields,
     isNullColAllowed,
     prefixValue,
+    suffixValue,
   );
   return attachOp(
     zeroArgAllowed,

@@ -98,6 +98,11 @@ export const DOUBLE_FIELD_OP = {
   coalesce: 'COALESCE',
   encode: 'ENCODE',
   decode: 'DECODE',
+  corr: 'CORR',
+  covarPop: 'COVAR_POP',
+  covarSamp: 'COVAR_SAMP',
+  regrSlope: 'REGR_SLOPE',
+  regrIntercept: 'REGR_INTERCEPT',
 } as const;
 
 export const STR_FIELD_OP = {
@@ -130,6 +135,10 @@ export const MULTIPLE_FIELD_OP = {
   age: 'AGE',
   greatest: 'GREATEST',
   least: 'LEAST',
+} as const;
+
+export const CASE_FIELD_OP = {
+  case: 'CASE',
 } as const;
 
 //====================================== Helper Constants ======================================//
@@ -169,6 +178,7 @@ type SubstringFieldOpKeys = keyof typeof SUBSTRING_FIELD_OP;
 
 //====================================== Multiple Field Op ======================================//
 type MultipleOpKeys = keyof typeof MULTIPLE_FIELD_OP;
+export type CaseOpKeys = keyof typeof CASE_FIELD_OP;
 
 export type NoPramFieldOpKeys = NoParamOpKeys | CurrentDateOpKeys;
 export type SingleFieldOpKeys = SingleOpKeys | DateExtractOpKeys;
@@ -178,5 +188,5 @@ export type DoubleFieldOpKeys =
   | StrFieldOpKeys
   | SimpleMathOpKeys;
 export type TripleFieldOpKeys = TripleOpKeys | SubstringFieldOpKeys;
-export type MultipleFieldOpKeys = MultipleOpKeys;
+export type MultipleFieldOpKeys = MultipleOpKeys | CaseOpKeys;
 export type AggregateFunctionType = keyof typeof aggregateFunctionName;

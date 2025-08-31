@@ -106,12 +106,12 @@ BasketA.findAll({
     // fieldFn.abs(col('a')),
     fieldFn.now(),
     // fieldFn.age(fieldFn.now(), castFn.timestamp('2023-12-25')),
-    fieldFn.datePart('month', fieldFn.now()),
-    fieldFn.toNumber('123.454', '999.99'),
-    fieldFn.currentTime(),
-    fieldFn.typeOf(col('a')),
-
-    fieldFn.least(col('a'), 0),
+    // fieldFn.datePart('month', fieldFn.now()),
+    // fieldFn.toNumber('123.454', '999.99'),
+    // fieldFn.currentTime(),
+    // fieldFn.typeOf(col('a')),
+    // fieldFn.case({when:6,then:5},{else:4})
+    // fieldFn.least(col('a'), 0),
     // fieldFn.substring(col('fruit_a'), castFn.int(1), castFn.int(1)),
     // fieldFn.trim('A', col('fruit_a')),
     // fieldFn.position(col('fruit_a'), col('fruit_a')),
