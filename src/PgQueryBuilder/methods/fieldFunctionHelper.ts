@@ -19,6 +19,7 @@ import {
   NO_PRAM_FIELD_OP,
   CURRENT_DATE_FIELD_OP,
   CaseOpKeys,
+  CASE_FIELD_OP,
 } from '../constants/fieldFunctions';
 import { Primitive } from '../globalTypes';
 import {
@@ -32,13 +33,16 @@ import {
 } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
+import { TableFilter } from './filterHelper';
 import {
   attachArrayWith,
   getPreparedValues,
   getValidCallableFieldValues,
   isCallableColumn,
   isPrimitiveValue,
+  isValidCaseQuery,
   isValidSubQuery,
+  isValidWhereQuery,
   validCallableColCtx,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
@@ -215,14 +219,46 @@ const attachOp = (
   return opCb(isOpCallable, op, ...values);
 };
 
-const getColOrValFrmCb = (
-  value: CombinedFun | CallableField,
+// const getColOrValFrmCb = (
+//   value: CombinedFun | CallableField,
+//   preparedValues: PreparedValues,
+//   allowedFields: AllowedFields,
+//   groupByFields: GroupByFields,
+//   isNullColAllowed: boolean,
+// ) => {
+//   if (isCallableColumn(value)) {
+//     const { col } = validCallableColCtx(value, {
+//       allowedFields,
+//       isAggregateAllowed: true,
+//       preparedValues,
+//       groupByFields,
+//     });
+//     return col;
+//   }
+//   // if (isCombinedFn(value)) {
+//   //   const { ctx, ...rest } = value();
+//   //   if (!isValidInternalContext(ctx)) {
+//   //     return throwError.invalidFieldFuncCallType();
+//   //   }
+//   //   if (isNotNullPrimitiveValue(rest.value || null) && rest.isVal) {
+//   //     return getPreparedValues(preparedValues, rest.value as Primitive);
+//   //   }
+//   //   if (typeof rest.colName === 'string' && rest.isCol) {
+//   //     return fieldQuote(allowedFields, rest.colName, { isNullColAllowed });
+//   //   }
+//   // }
+//   return null;
+// };
+
+const getColValue = <Model>(
+  value: FieldOperand<Model>,
   preparedValues: PreparedValues,
-  allowedFields: AllowedFields,
   groupByFields: GroupByFields,
-  isNullColAllowed: boolean,
-) => {
-  if (isCallableColumn(value)) {
+  allowedFields: AllowedFields,
+): string | null => {
+  if (isPrimitiveValue(value)) {
+    return getPreparedValues(preparedValues, value as Primitive);
+  } else if (isCallableColumn(value)) {
     const { col } = validCallableColCtx(value, {
       allowedFields,
       isAggregateAllowed: true,
@@ -230,39 +266,37 @@ const getColOrValFrmCb = (
       groupByFields,
     });
     return col;
-  }
-  // if (isCombinedFn(value)) {
-  //   const { ctx, ...rest } = value();
-  //   if (!isValidInternalContext(ctx)) {
-  //     return throwError.invalidFieldFuncCallType();
-  //   }
-  //   if (isNotNullPrimitiveValue(rest.value || null) && rest.isVal) {
-  //     return getPreparedValues(preparedValues, rest.value as Primitive);
-  //   }
-  //   if (typeof rest.colName === 'string' && rest.isCol) {
-  //     return fieldQuote(allowedFields, rest.colName, { isNullColAllowed });
-  //   }
-  // }
-  return null;
-};
-
-const getColValue = <Model>(
-  value: FieldOperand<Model>,
-  preparedValues: PreparedValues,
-  groupByFields: GroupByFields,
-  allowedFields: AllowedFields,
-  isNullColAllowed: boolean,
-) => {
-  if (isPrimitiveValue(value)) {
-    return getPreparedValues(preparedValues, value as Primitive);
-  } else if (typeof value === 'function') {
-    return getColOrValFrmCb(
-      value,
-      preparedValues,
-      allowedFields,
-      groupByFields,
-      isNullColAllowed,
-    );
+  } else if (isValidCaseQuery(value)) {
+    const v = value as any;
+    if (typeof v.else !== 'undefined') {
+      const elseVal = getColValue(
+        v.else,
+        preparedValues,
+        groupByFields,
+        allowedFields,
+      );
+      return attachArrayWith.space([DB_KEYWORDS.else, elseVal]);
+    } else if (typeof v.when !== 'undefined' && typeof v.then !== 'undefined') {
+      const query = TableFilter.prepareFilterStatement(
+        allowedFields,
+        groupByFields,
+        preparedValues,
+        v.when,
+        { customKeyWord: '' },
+      );
+      const thenVal = getColValue(
+        v.then,
+        preparedValues,
+        groupByFields,
+        allowedFields,
+      );
+      return attachArrayWith.space([
+        DB_KEYWORDS.when,
+        query,
+        DB_KEYWORDS.then,
+        thenVal,
+      ]);
+    }
   } else if (isValidSubQuery(value)) {
     const query = QueryHelper.otherModelSubqueryBuilder(
       '',
@@ -270,6 +304,15 @@ const getColValue = <Model>(
       groupByFields,
       value,
       false,
+    );
+    return query;
+  } else if (isValidWhereQuery(value)) {
+    const query = TableFilter.prepareFilterStatement(
+      allowedFields,
+      groupByFields,
+      preparedValues,
+      value,
+      { customKeyWord: '' },
     );
     return query;
   }
@@ -307,13 +350,7 @@ const resolveOperand = <Model>(
   //   );
   // }
   colAndOperands.forEach((op) => {
-    const value = getColValue(
-      op,
-      preparedValues,
-      groupByFields,
-      allowedFields,
-      isNullColAllowed,
-    );
+    const value = getColValue(op, preparedValues, groupByFields, allowedFields);
     if (value === null && !isNullColAllowed) {
       throwError.invalidColumnNameType('null', allowedFields);
     }
@@ -462,6 +499,15 @@ const opGroups: OpGroup[] = [
     set: MULTIPLE_FIELD_OP,
     type: 'multiple',
     attachBy: 'default',
+  },
+  {
+    set: CASE_FIELD_OP,
+    type: 'multiple',
+    attachBy: 'custom',
+    attachCond: [''],
+    isOpCallable: false,
+    suffixAllowed: true,
+    suffixRef: { case: 'END' },
   },
 ] as const;
 

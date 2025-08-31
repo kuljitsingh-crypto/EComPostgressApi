@@ -29,6 +29,9 @@ export const DB_KEYWORDS = {
   all: 'ALL',
   in: 'IN',
   for: 'FOR',
+  when: 'WHEN',
+  else: 'ELSE',
+  then: 'THEN',
 } as const;
 
 export type DB_KEYWORDS_TYPE = typeof DB_KEYWORDS;

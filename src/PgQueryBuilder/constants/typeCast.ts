@@ -16,7 +16,6 @@ export const noParamTypeCast = {
   text: 'TEXT',
   date: 'DATE',
   boolean: 'BOOLEAN',
-  bool: 'BOOLEAN',
   bytea: 'BYTEA',
   inet: 'INET',
   cidr: 'CIDR',

@@ -13,6 +13,7 @@ import {
   PreparedValues,
   Subquery,
   SubqueryMultiColFlag,
+  WhereClause,
 } from '../internalTypes';
 import { isValidInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
@@ -194,7 +195,6 @@ export const isPrimitiveValue = (value: unknown): value is Primitive => {
     typeof value === 'string' ||
     typeof value === 'number' ||
     typeof value === 'boolean' ||
-    typeof value === 'undefined' ||
     value === null
   );
 };
@@ -256,7 +256,7 @@ export const isValidColumn = (
 };
 
 export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
-  subQuery: InOperationSubQuery<Model, 'WhereNotReq', W> | null,
+  subQuery: unknown,
 ): subQuery is InOperationSubQuery<Model, 'WhereNotReq', W> => {
   if (typeof subQuery !== 'object' || subQuery === null) {
     return false;
@@ -271,8 +271,37 @@ export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
   }
   return true;
 };
-export const isValidCaseQuery = <Model>(query:CaseSubquery<Model>):query is CaseSubquery<Model> => {
-  
+export const isValidCaseQuery = <Model>(
+  query: unknown,
+): query is CaseSubquery<Model> => {
+  const q = query as any;
+  if (typeof q !== 'object' || q === null) return false;
+  const isValidResultQry = (val: unknown) =>
+    isPrimitiveValue(val) ||
+    isCallableColumn(val) ||
+    isValidSubQuery(val) ||
+    isValidWhereQuery(val);
+  const isValidElse = isValidResultQry(q?.else);
+  const isValidCond =
+    isValidResultQry(q?.then) &&
+    typeof q?.when === 'object' &&
+    q?.when !== null &&
+    !Array.isArray(q?.when);
+  if (isValidElse || isValidCond) return true;
+  return false;
+};
+
+export const isValidWhereQuery = <Model>(
+  value: unknown,
+): value is WhereClause<Model> => {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    value.constructor === Object
+  ) {
+    return true;
+  }
+  return false;
 };
 
 export const getJoinSubqueryFields = <Model>(subQuery: Subquery<Model>) => {

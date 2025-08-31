@@ -26,8 +26,10 @@ import {
   attachArrayWith,
   fieldQuote,
   getPreparedValues,
+  isCallableColumn,
   isPrimitiveValue,
   isValidSubQuery,
+  validCallableColCtx,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
 
@@ -43,8 +45,8 @@ const preparePlachldrForArray = <Model>(
   groupByFields: GroupByFields,
 ) => {
   const placeholderArr = values.map((val) => {
-    const placeholder = isPrimitiveValue(val as any)
-      ? getPreparedValues(preparedValues, val as any)
+    const placeholder = isPrimitiveValue(val)
+      ? getPreparedValues(preparedValues, val)
       : QueryHelper.otherModelSubqueryBuilder(
           '',
           preparedValues,
@@ -62,8 +64,11 @@ const prepareQryForPrimitiveOp = (
   key: string,
   operation: string,
   value: Primitive,
+  isPlaceholderReq = true,
 ) => {
-  const valPlaceholder = getPreparedValues(preparedValues, value);
+  const valPlaceholder = isPlaceholderReq
+    ? getPreparedValues(preparedValues, value)
+    : value;
   return attachArrayWith.space([key, operation, valPlaceholder]);
 };
 
@@ -108,13 +113,15 @@ export class TableFilter {
     groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     filter?: WhereClause<Model>,
-    options?: { isHavingFilter?: boolean },
+    options?: { isHavingFilter?: boolean; customKeyWord?: string },
   ) {
     if (!filter) return '';
-    const { isHavingFilter = false } = options || {};
+    const { isHavingFilter = false, customKeyWord } = options || {};
     const filterStatements: string[] = [];
     if (isHavingFilter) {
       filterStatements.push(DB_KEYWORDS.having);
+    } else if (typeof customKeyWord === 'string') {
+      filterStatements.push(customKeyWord);
     } else {
       filterStatements.push(DB_KEYWORDS.where);
     }
@@ -206,18 +213,20 @@ export class TableFilter {
     if (value.length < 1) {
       return throwError.invalidArrayOPType(key, { min: 1 });
     }
+
     const validMatches = value.filter(Boolean).map((val) => {
-      if (!Array.isArray(val)) {
-        return throwError.invalidArrayOPType(key);
-      }
-      if (val.length < 2) {
-        return throwError.invalidArrayOPType(key, { min: 2 });
+      val = Array.isArray(val) ? val : [val];
+      if (val.length < 1) {
+        return throwError.invalidArrayOPType(key, { min: 1 });
       }
       const column = ColumnHelper.getSelectColumns(allowedFields, [val[0]], {
         preparedValues,
         groupByFields,
         isAggregateAllowed: isHavingFilter,
       });
+      if (val.length === 1) {
+        return column;
+      }
       return TableFilter.#getQueryStatement(
         allowedFields,
         groupByFields,
@@ -337,17 +346,29 @@ export class TableFilter {
         case 'gte':
         case 'lt':
         case 'lte': {
-          if (isPrimitiveValue(val as any)) {
+          if (isPrimitiveValue(val)) {
             return prepareQryForPrimitiveOp(
               preparedValues,
               validKey,
               operation,
-              val as Primitive,
+              val,
+            );
+          } else if (isCallableColumn(val)) {
+            const { col: value } = validCallableColCtx(val, {
+              allowedFields,
+              groupByFields,
+              preparedValues,
+              isAggregateAllowed: false,
+            });
+            return prepareQryForPrimitiveOp(
+              preparedValues,
+              validKey,
+              operation,
+              value,
+              false,
             );
           }
-          const { key, value } = isValidSubQuery(
-            val as InOperationSubQuery<Model, 'WhereNotReq', 'single'>,
-          )
+          const { key, value } = isValidSubQuery(val)
             ? { value: val, key: '' }
             : getAnyAndAllFilterValue(val, op);
           const subQry = TableFilter.#buildQueryForSubQryOperator(
@@ -382,12 +403,12 @@ export class TableFilter {
         case 'iMatch':
         case 'notMatch':
         case 'iNotMatch': {
-          if (isPrimitiveValue(val as any)) {
+          if (isPrimitiveValue(val)) {
             return prepareQryForPrimitiveOp(
               preparedValues,
               validKey,
               operation,
-              val as Primitive,
+              val,
             );
           }
           const updatedVal = Array.isArray(val)

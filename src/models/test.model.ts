@@ -104,7 +104,34 @@ BasketA.findAll({
     // aggrFn.count(col('*')),
     // fieldFn.lPad(castFn.text(col('fruit_a')), 10, '0')
     // fieldFn.abs(col('a')),
-    fieldFn.now(),
+    // fieldFn.now(),
+    // fieldFn.abs(
+    //   aggrFn.avg(
+    //     fieldFn.case(
+    //       {
+    //         when: { a: { gte: 1, lte: 2 } },
+    //         then: { model: BasketB, column: aggrFn.avg(col('b')) },
+    //       },
+    //       // { when: { a: 3 }, then: 0 },
+    //       { else: fieldFn.multiple(col('a'), -1) },
+    //     ),
+    //   ),
+    // ),
+    // fieldFn.case(
+    //   {
+    //     when: { a: { gte: 1, lte: 2 } },
+    //     then: { model: BasketB, column: aggrFn.avg(col('b')) },
+    //   },
+    //   // { when: { a: 3 }, then: 0 },
+    //   { else: fieldFn.multiple(col('a'), -1) },
+    // ),
+    // 'fruit_a',
+    // aggrFn.sum(
+    //   fieldFn.case(
+    //     { when: { fruit_a: { iLike: ['A%', 'o%'] } }, then: 1 },
+    //     { else: 0 },
+    //   ),
+    // ),
     // fieldFn.age(fieldFn.now(), castFn.timestamp('2023-12-25')),
     // fieldFn.datePart('month', fieldFn.now()),
     // fieldFn.toNumber('123.454', '999.99'),
@@ -183,6 +210,17 @@ BasketA.findAll({
   //   },
   // },
   where: {
+    // $matches: [
+    //   fieldFn.case(
+    //     {
+    //       when: { a: { gte: 1, lte: 2 } },
+    //       then: castFn.boolean(true),
+    //     },
+    //     // { when: { a: 3 }, then: 0 },
+    //     // { else: fieldFn.multiple(col('a'), -1) },
+    //   ),
+    // ],
+    a: { gt: fieldFn.sub(castFn.int(4), 2) },
     // a: { arrayContains: { model: BasketB, column: aggrFn.arrayAgg('b') } },
     // $matches: [[fieldFn.sub(col('a'), 2), { gt: 2 }]],
     // a: { arrayOverlap: [1, 2] },
@@ -281,8 +319,18 @@ BasketA.findAll({
   //   // ['a', 'DESC'],
   //   // ['fruit_a', 'ASC'],
   // ],
+  // orderBy: [
+  //   [
+  //     fieldFn.case(
+  //       { when: { fruit_a: { iLike: ['A%', 'o%'] } }, then: 1 },
+  //       { else: 0 },
+  //     ),
+  //     'ASC',
+  //   ],
+  // ],
   // groupBy: ['fruit_a', 'a'],
   // groupBy: ['a'],
+  // groupBy: ['fruit_a'],
   // having: {
   //   $matches: [
   //     [
@@ -324,10 +372,12 @@ BasketA.findAll({
 //   console.log('raw Query Result->', res);
 // });
 
-BasketA.queryRawSql(
+BasketA
+  .queryRawSql
   // "SELECT (NOW() - '2023-12-25'::TIMESTAMP) - INTERVAL '30 days'  AS deviation FROM basket_a;",
   // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
-  'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
+  // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
+  // 'SELECT ABS((a>1) -5) AS deviation FROM basket_a;',
   // 'SELECT NOW() - (INTERVAL $1::DATE) FROM basket_a',
   // 'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t WHERE (ABS(a - t.avg_a)  > 2 );',
   // 'SELECT a,ABS(a-AVG(a))  FROM basket_a',
@@ -335,9 +385,10 @@ BasketA.queryRawSql(
   // 'SELECT a, ABS(a - (SELECT AVG(b) FROM basket_b)) AS deviation FROM basket_a;',
   // 'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
   // ['30 days'],
-).then((res) => {
-  console.dir({ 'raw Query Result->': res }, { depth: null });
-});
+  ()
+  .then((res) => {
+    console.dir({ 'raw Query Result->': res }, { depth: null });
+  });
 
 export function run() {
   console.log('test model running');

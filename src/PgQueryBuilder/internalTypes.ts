@@ -1,9 +1,7 @@
 import { DB_KEYWORDS_TYPE } from './constants/dbkeywords';
-import { AggregateFunctionType } from './constants/fieldFunctions';
 import { Reference } from './constants/foreignkeyActions';
 import {
   ARRAY_OP_KEYS,
-  ARRAY_OPERATION_KEYS,
   PRIMITIVE_OP_KEYS,
   SIMPLE_OP_KEYS,
   SUBQUERY_OP_KEYS,
@@ -53,7 +51,8 @@ export type FilterColumnValue<Model> = Primitive | SubQueryFilterRecord<Model>;
 export type FilterColumnValueWithSubQuery<Model> =
   | Primitive
   | SubQueryFilterRecord<Model>
-  | InOperationSubQuery<Model, 'WhereNotReq', 'single'>;
+  | InOperationSubQuery<Model, 'WhereNotReq', 'single'>
+  | CallableField;
 
 export type FilterColumnValueWithArray<Model> =
   | Primitive
@@ -128,8 +127,21 @@ export type InOperationSubQuery<
 > = SubQueryFilter<Model, T, M>;
 
 export type CaseSubquery<Model> =
-  | { when: WhereClause<Model>; then: Primitive }
-  | { else: Primitive };
+  | {
+      when: WhereClause<Model>;
+      then:
+        | Primitive
+        | CallableField
+        | WhereClause<Model>
+        | InOperationSubQuery<Model, 'WhereNotReq', 'single'>;
+    }
+  | {
+      else:
+        | Primitive
+        | CallableField
+        | WhereClause<Model>
+        | InOperationSubQuery<Model, 'WhereNotReq', 'single'>;
+    };
 
 export type SelfJoinSubQuery<Model> = Subquery<Model, 'WhereNotReq'> & {
   orderBy?: ORDER_BY<Model>;
@@ -186,7 +198,9 @@ export type WhereClause<Model> =
       $or: WhereClause<Model>[];
     }
   | {
-      $matches: Array<[string | CallableField, Condition<Model>]>;
+      $matches: Array<
+        CallableField | [string | CallableField, Condition<Model>]
+      >;
     }
   | { $exists: ExistsFilter<Model, 'WhereReq'> }
   | { $notExists: ExistsFilter<Model, 'WhereReq'> };
