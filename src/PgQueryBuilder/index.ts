@@ -4,5 +4,6 @@ export { aggregateFn as aggrFn } from './methods/aggregateFunctionHelper';
 export { fieldFn } from './methods/fieldFunctionHelper';
 export { typeCastFn as castFn } from './methods/typeCastHelper';
 export { utilFn } from './methods/globalFunctionHelper';
+export { windowFn, frameFn } from './methods/windowFunctionHelper';
 export { colFn as col } from './methods/columnFunctionHelepr';
 export { DBModel } from './model.helpers';

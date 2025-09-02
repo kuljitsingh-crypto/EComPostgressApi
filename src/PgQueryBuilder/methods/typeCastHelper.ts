@@ -13,7 +13,6 @@ import {
 import { Primitive } from '../globalTypes';
 import { CallableField, CallableFieldParam } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
-import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   getPreparedValues,
