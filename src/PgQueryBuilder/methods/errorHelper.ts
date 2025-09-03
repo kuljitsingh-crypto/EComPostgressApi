@@ -194,6 +194,10 @@ function throwInvalidCastFunction(): never {
   throw new Error('Invalid type cast function provided.');
 }
 
+function throwInvalidFrameFunction(methodName: string): never {
+  throw new Error(`Invalid frame function option provided for ${methodName}.`);
+}
+
 export const throwError = {
   invalidJoinType: throwInvalidJoinTypeError,
   invalidModelType: throwInvalidModelTypeError,
@@ -222,6 +226,7 @@ export const throwError = {
   invalidColType: throwInvalidCol,
   invalidOperandType: throwInvalidOperand,
   invalidTypeCastFunc: throwInvalidCastFunction,
+  invalidFrameFunction: throwInvalidFrameFunction,
 };
 
 export const errorHandler = (query: string, error: Error) => {

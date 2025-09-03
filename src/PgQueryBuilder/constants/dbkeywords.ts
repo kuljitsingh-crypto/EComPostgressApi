@@ -32,6 +32,8 @@ export const DB_KEYWORDS = {
   when: 'WHEN',
   else: 'ELSE',
   then: 'THEN',
+  between: 'BETWEEN',
+  and: 'AND',
 } as const;
 
 export type DB_KEYWORDS_TYPE = typeof DB_KEYWORDS;
