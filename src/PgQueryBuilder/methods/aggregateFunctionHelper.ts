@@ -2,19 +2,26 @@ import { DB_KEYWORDS } from '../constants/dbkeywords';
 import {
   aggregateFunctionName,
   AggregateFunctionType,
+  doubleParamAggrFunctionNames,
 } from '../constants/fieldFunctions';
 import { Primitive } from '../globalTypes';
-import { CallableField, CallableFieldParam, ORDER_BY } from '../internalTypes';
+import {
+  AllowedFields,
+  CallableField,
+  CallableFieldParam,
+  GroupByFields,
+  InOperationSubQuery,
+  ORDER_BY,
+  PreparedValues,
+} from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
+import { getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
-  fieldQuote,
   getPreparedValues,
   getValidCallableFieldValues,
-  isCallableColumn,
-  isPrimitiveValue,
-  validCallableColCtx,
+  isNonNullableValue,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
 
@@ -24,29 +31,65 @@ type Options<Model> = {
   separator?: string;
 };
 
+type AggrCol<Model> =
+  | Primitive
+  | CallableField
+  | InOperationSubQuery<Model, 'WhereNotReq', 'single'>;
+
 type RequiredColumn<Model> = (
-  col: Primitive | CallableField,
+  col: AggrCol<Model>,
   options?: Options<Model>,
 ) => CallableField;
 
 type OptionalColumn<Model> = (
-  col?: Primitive | CallableField,
+  col?: AggrCol<Model>,
   options?: Options<Model>,
 ) => CallableField;
 
-type SingleColumn = (col: Primitive | CallableField) => CallableField;
+type SingleColumn<Model> = (col: AggrCol<Model>) => CallableField;
+type DoubleColumn<Model> = (
+  col1: AggrCol<Model>,
+  col2: AggrCol<Model>,
+) => CallableField;
 
 type SingleOperationKeys = Extract<
   AggregateFunctionType,
-  'max' | 'min' | 'boolOr' | 'boolAnd' | 'stdDev' | 'variance'
+  | 'max'
+  | 'min'
+  | 'boolOr'
+  | 'boolAnd'
+  | 'stdDev'
+  | 'variance'
+  | 'varPop'
+  | 'varSamp'
+  | 'stddevPop'
+  | 'stddevSamp'
+>;
+
+type DoubleOperationKeys = Extract<
+  AggregateFunctionType,
+  | 'corr'
+  | 'covarPop'
+  | 'covarSamp'
+  | 'regrSlope'
+  | 'regrIntercept'
+  | 'regrCount'
+  | 'regrR2'
+  | 'regrAvgX'
+  | 'regrAvgY'
+  | 'regrSxx'
+  | 'regrSyy'
+  | 'regrSxy'
 >;
 
 type Func<Model extends unknown = unknown> = {
   [Key in AggregateFunctionType]: Key extends SingleOperationKeys
-    ? SingleColumn
-    : Key extends 'count'
-      ? OptionalColumn<Model>
-      : RequiredColumn<Model>;
+    ? SingleColumn<Model>
+    : Key extends DoubleOperationKeys
+      ? DoubleColumn<Model>
+      : Key extends 'count'
+        ? OptionalColumn<Model>
+        : RequiredColumn<Model>;
 };
 
 interface AggregateFunction extends Func {}
@@ -59,7 +102,7 @@ const orderByColFn: Partial<AggregateFunctionType>[] = [
 const separatorColFn: Partial<AggregateFunctionType>[] = ['stringAgg'];
 
 const prepareAggFn = <Model>(
-  col: string,
+  col: string[],
   fn: AggregateFunctionType,
   fieldOptions: CallableFieldParam,
   options: Options<Model>,
@@ -73,10 +116,10 @@ const prepareAggFn = <Model>(
       'isAggregateAllowed',
     );
   if (!isAggregateAllowed && fn) {
-    return throwError.invalidAggFuncPlaceType(fn, col || 'null');
+    return throwError.invalidAggFuncPlaceType(fn, (col || 'null').toString());
   }
   if (!aggregateFunctionName[fn]) {
-    return throwError.invalidAggFuncPlaceType(fn, col || 'null');
+    return throwError.invalidAggFuncPlaceType(fn, (col || 'null').toString());
   }
   const { isDistinct, orderBy, separator } = options;
   const distinctMayBe =
@@ -99,16 +142,52 @@ const prepareAggFn = <Model>(
   const separatorMaybe = isValidSeparator
     ? `,${getPreparedValues(preparedValues, `${separator}`)}`
     : '';
-
-  col = attachArrayWith.space([
+  const colStr = attachArrayWith.coma(col);
+  const finalCol = attachArrayWith.space([
     distinctMayBe,
-    col,
+    colStr,
     separatorMaybe,
     orderByMaybe,
   ]);
   const funcUpr = aggregateFunctionName[fn].toUpperCase();
-  return `${funcUpr}(${col})`;
+  return `${funcUpr}(${finalCol})`;
 };
+
+const getUpdatedColumnAndCustomAllowedFields = <Model>(
+  column: AggrCol<Model>,
+  fn: AggregateFunctionType,
+) => {
+  const isStartAllowed = ['count'].includes(fn);
+  column =
+    isStartAllowed && (typeof column === 'undefined' || column === null)
+      ? '*'
+      : column;
+  const customAllowedFields = isStartAllowed ? ['*'] : [];
+  return { column, customAllowedFields };
+};
+
+const prepareAggrCol =
+  <Model>(
+    fn: AggregateFunctionType,
+    preparedValues: PreparedValues,
+    groupByFields: GroupByFields,
+    allowedFields: AllowedFields,
+  ) =>
+  (col: AggrCol<Model>) => {
+    const updatedCol = getUpdatedColumnAndCustomAllowedFields(col, fn);
+    col = updatedCol.column;
+    const val = getFieldValue(
+      col,
+      preparedValues,
+      groupByFields,
+      allowedFields,
+      {
+        customAllowedFields: updatedCol.customAllowedFields,
+        refAllowedFields: allowedFields,
+      },
+    );
+    return val;
+  };
 
 class AggregateFunction {
   static #instance: null | AggregateFunction = null;
@@ -121,44 +200,44 @@ class AggregateFunction {
     return AggregateFunction.#instance;
   }
   #functionCreator<Model>(
-    column: Primitive | CallableField,
+    column: AggrCol<Model>[],
     fn: AggregateFunctionType,
     options: Options<Model>,
   ) {
     return (fieldOptions: CallableFieldParam) => {
-      const { preparedValues } = getValidCallableFieldValues(
-        fieldOptions,
-        'allowedFields',
-        'preparedValues',
-      );
-      const isStartAllowed = ['count'].includes(fn);
-      column =
-        isStartAllowed && (typeof column === 'undefined' || column === null)
-          ? '*'
-          : column;
-      const customAllowedFields = isStartAllowed ? ['*'] : [];
-      if (isPrimitiveValue(column)) {
-        let field = getPreparedValues(preparedValues, column);
-        return {
-          col: prepareAggFn(field, fn, fieldOptions, options),
-          alias: null,
-          ctx: getInternalContext(),
-        };
-      } else if (isCallableColumn(column)) {
-        const col = validCallableColCtx(column, {
-          ...fieldOptions,
-          customAllowedFields,
-        });
-        col.col = prepareAggFn(col.col, fn, fieldOptions, options);
-        return { col: col.col, alias: col.alias, ctx: getInternalContext() };
+      const { preparedValues, groupByFields, allowedFields } =
+        getValidCallableFieldValues(
+          fieldOptions,
+          'allowedFields',
+          'preparedValues',
+          'groupByFields',
+        );
+      const vals = column
+        .map(prepareAggrCol(fn, preparedValues, groupByFields, allowedFields))
+        .filter(isNonNullableValue);
+      if (vals.length < 1) {
+        return throwError.invalidAggFuncPlaceType(fn, 'null');
       }
-      return throwError.invalidAggFuncPlaceType(fn, 'null');
+      return {
+        col: prepareAggFn(vals, fn, fieldOptions, options),
+        alias: null,
+        ctx: getInternalContext(),
+      };
     };
   }
 
   #aggregateFunc<Model>(fn: AggregateFunctionType) {
-    return (col: Primitive | CallableField, options: Options<Model> = {}) => {
-      return this.#functionCreator(col, fn, options);
+    if (doubleParamAggrFunctionNames.has(fn)) {
+      return (
+        col1: AggrCol<Model>,
+        col2: AggrCol<Model>,
+        options: Options<Model> = {},
+      ) => {
+        return this.#functionCreator([col1, col2], fn, options);
+      };
+    }
+    return (col: AggrCol<Model>, options: Options<Model> = {}) => {
+      return this.#functionCreator([col], fn, options);
     };
   }
 

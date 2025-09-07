@@ -1,15 +1,14 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import {
+  AllowedFields,
   CallableField,
   CallableFieldParam,
+  GroupByFields,
   PreparedValues,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
-import {
-  attachArrayWith,
-  getPreparedValues,
-  getValidCallableFieldValues,
-} from './helperFunction';
+import { FieldOperand, getFieldValue } from './fieldFunc';
+import { attachArrayWith, getValidCallableFieldValues } from './helperFunction';
 
 const frameFunction = {
   rows: 'ROWS',
@@ -27,14 +26,17 @@ const allowedFuncParams = new Set([unbounded, currentRow]);
 type FrameFunctionKeys = keyof typeof frameFunction;
 type Suffix = typeof precedingKey | typeof followingKey;
 
-type Func = {
+type Func<Model> = {
   [key in FrameFunctionKeys]: (
-    preceding: typeof unbounded | number,
-    following: typeof unbounded | typeof currentRow | number,
+    preceding: typeof unbounded | FieldOperand<Model, number>,
+    following:
+      | typeof unbounded
+      | typeof currentRow
+      | FieldOperand<Model, number>,
   ) => CallableField;
 };
 
-interface FrameFunction extends Func {}
+interface FrameFunction<>extends Func<any> {}
 
 class FrameFunction {
   static #instance: FrameFunction | null = null;
@@ -50,17 +52,23 @@ class FrameFunction {
     methodName: string,
     param: 'UNBOUNDED' | 'CURRENT ROW' | number,
     preparedValues: PreparedValues,
+    groupByFields: GroupByFields,
+    allowedFields: AllowedFields,
     suffix: Suffix | '' = '',
   ) => {
     if (typeof param === 'string' && allowedFuncParams.has(param)) {
       return attachArrayWith.space([param, suffix]);
-    } else if (typeof param === 'number') {
-      return attachArrayWith.space([
-        getPreparedValues(preparedValues, param),
-        suffix,
-      ]);
     }
-    return throwError.invalidFrameFunction(methodName);
+    const val = getFieldValue(
+      param,
+      preparedValues,
+      groupByFields,
+      allowedFields,
+    );
+    if (typeof val !== 'string') {
+      return throwError.invalidFrameFunction(methodName);
+    }
+    return attachArrayWith.space([val, suffix]);
   };
 
   #attachMethods = <T extends FrameFunctionKeys>(methodName: T) => {
@@ -73,20 +81,27 @@ class FrameFunction {
         if (!method) {
           return throwError.invalidFrameFunction(methodName);
         }
-        const { preparedValues } = getValidCallableFieldValues(
-          options,
-          'preparedValues',
-        );
+        const { preparedValues, allowedFields, groupByFields } =
+          getValidCallableFieldValues(
+            options,
+            'preparedValues',
+            'allowedFields',
+            'groupByFields',
+          );
         const validPreceding = this.#getValidParam(
           methodName,
           preceding,
           preparedValues,
+          groupByFields,
+          allowedFields,
           precedingKey,
         );
         const validFollowing = this.#getValidParam(
           methodName,
           following,
           preparedValues,
+          groupByFields,
+          allowedFields,
           following === currentRow ? '' : followingKey,
         );
 

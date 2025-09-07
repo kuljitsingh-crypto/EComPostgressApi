@@ -52,7 +52,7 @@ const preparePlachldrForArray = <Model>(
           preparedValues,
           groupByFields,
           val as any,
-          false,
+          { isExistsFilter: false },
         );
     return placeholder;
   });
@@ -174,7 +174,7 @@ export class TableFilter {
         preparedValues,
         groupByFields,
         value,
-        true,
+        { isExistsFilter: true },
       );
     } else if (matchQueryOperator.has(key as any)) {
       return TableFilter.#matchQueryOperator(
@@ -314,7 +314,7 @@ export class TableFilter {
       preparedValues,
       groupByFields,
       value,
-      false,
+      { isExistsFilter: false },
     );
     return attachArrayWith.space([key, baseOperation, subQry]);
   }

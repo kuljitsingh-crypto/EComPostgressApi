@@ -9,19 +9,28 @@ import {
   OtherJoin,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
-import { isNonEmptyObject, simpleFieldValidate } from './helperFunction';
+import {
+  isNonEmptyObject,
+  isValidSubQuery,
+  simpleFieldValidate,
+} from './helperFunction';
 
 export class FieldHelper {
   static getAllowedFields<Model>(
     selfAllowedFields: AllowedFields,
-    alias?: AliasSubType<Model>,
-    include?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
+    options?: {
+      alias?: AliasSubType<Model>;
+      join?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>;
+      refAllowedFields?: AllowedFields;
+    },
   ) {
+    const { alias, join, refAllowedFields } = options || {};
     const modelFields = FieldHelper.#initializeModelFields(
       selfAllowedFields,
+      refAllowedFields,
       alias,
     );
-    FieldHelper.#getJoinFieldNames(modelFields, include);
+    FieldHelper.#getJoinFieldNames(modelFields, join);
     return new Set(modelFields);
   }
 
@@ -157,16 +166,19 @@ export class FieldHelper {
   }
 
   static #initializeModelFields<Model>(
-    refAllowedFields: AllowedFields,
+    selfAllowedFields: AllowedFields,
+    refAllowedFields?: AllowedFields,
     alias?: AliasSubType<Model>,
   ) {
     if (typeof alias === 'object') {
       const model = FieldHelper.getAliasSubqueryModel(alias);
-      refAllowedFields = model.tableColumns;
+      selfAllowedFields = model.tableColumns;
     }
+    refAllowedFields = (refAllowedFields ?? new Set()) as Set<string>;
     return [
+      ...selfAllowedFields,
       ...refAllowedFields,
-      ...FieldHelper.#aliasFieldNames(refAllowedFields, alias),
+      ...FieldHelper.#aliasFieldNames(selfAllowedFields, alias),
     ];
   }
 }

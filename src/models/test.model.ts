@@ -126,10 +126,17 @@ BasketA.findAll({
     //   { else: fieldFn.multiple(col('a'), -1) },
     // ),
     // 'fruit_a',
+    // aggrFn.corr(col('a'), {
+    //   model: BasketB,
+    //   column: 'b',
+    //   where: { b: { eq: col('a') } },
+    // }),
     // aggrFn.sum(
-    //   fieldFn.case(
-    //     { when: { fruit_a: { iLike: ['A%', 'o%'] } }, then: 1 },
-    //     { else: 0 },
+    //   castFn.int(
+    //     fieldFn.case(
+    //       { when: { fruit_a: { iLike: ['A%', 'o%'] } }, then: 1 },
+    //       { else: 0 },
+    //     ),
     //   ),
     // ),
     // fieldFn.age(fieldFn.now(), castFn.timestamp('2023-12-25')),
@@ -220,7 +227,7 @@ BasketA.findAll({
     //     // { else: fieldFn.multiple(col('a'), -1) },
     //   ),
     // ],
-    a: { gt: fieldFn.sub(castFn.int(4), 2) },
+    // a: { gt: fieldFn.sub(castFn.int(4), 2) },
     // a: { arrayContains: { model: BasketB, column: aggrFn.arrayAgg('b') } },
     // $matches: [[fieldFn.sub(col('a'), 2), { gt: 2 }]],
     // a: { arrayOverlap: [1, 2] },
@@ -313,6 +320,7 @@ BasketA.findAll({
   //   where: {
   //     'basket_b.fruit_b': 'Orange',
   //   },
+  // alias: { query: { model: BasketB }, as: 't' },
   // alias: 'fruit',
   // orderBy: [
   //   aggrFn.avg('a'),

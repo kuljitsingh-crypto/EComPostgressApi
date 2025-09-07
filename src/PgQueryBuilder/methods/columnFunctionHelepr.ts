@@ -1,6 +1,5 @@
 import { CallableField, CallableFieldParam } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
-import { throwError } from './errorHelper';
 import { fieldQuote, getValidCallableFieldValues } from './helperFunction';
 
 export function colFn(col: string): CallableField {

@@ -10,6 +10,66 @@ export const aggregateFunctionName = {
   stringAgg: 'string_agg',
   stdDev: 'stddev',
   variance: 'variance',
+  varPop: 'VAR_POP',
+  varSamp: 'VAR_SAMP',
+  stddevPop: 'STDDEV_POP',
+  stddevSamp: 'STDDEV_SAMP',
+  corr: 'CORR',
+  covarPop: 'COVAR_POP',
+  covarSamp: 'COVAR_SAMP',
+  regrSlope: 'REGR_SLOPE',
+  regrIntercept: 'REGR_INTERCEPT',
+  regrCount: 'REGR_COUNT',
+  regrR2: 'REGR_R2',
+  regrAvgX: 'REGR_AVGX',
+  regrAvgY: 'REGR_AVGY',
+  regrSxx: 'REGR_SXX',
+  regrSyy: 'REGR_SYY',
+  regrSxy: 'REGR_SXY',
+} as const;
+
+export const doubleParamAggrFunctionNames = new Set([
+  'corr',
+  'covarPop',
+  'covarSamp',
+  'regrSlope',
+  'regrIntercept',
+  'regrCount',
+  'regrR2',
+  'regrAvgX',
+  'regrAvgY',
+  'regrSxx',
+  'regrSyy',
+  'regrSxy',
+]);
+
+//=========================================== Window Functions====================================//
+
+// 1. No-arg window functions
+export const noArgWindowFns = {
+  rowNumber: 'ROW_NUMBER',
+  rank: 'RANK',
+  denseRank: 'DENSE_RANK',
+  percentRank: 'PERCENT_RANK',
+  cumeDist: 'CUME_DIST',
+} as const;
+
+// 2. Integer argument only
+export const intArgWindowFns = {
+  ntile: 'NTILE',
+} as const;
+
+// 3. Single expression argument
+export const exprArgWindowFns = {
+  firstValue: 'FIRST_VALUE',
+  lastValue: 'LAST_VALUE',
+} as const;
+
+// 4. Expression + extra args
+export const exprWithExtraWindowFns = {
+  nthValue: 'NTH_VALUE', // expr, n
+  lag: 'LAG', // expr [, offset [, default]]
+  lead: 'LEAD', // expr [, offset [, default]]
 } as const;
 
 //======================================= No Param Field OP ======================================//
@@ -98,11 +158,6 @@ export const DOUBLE_FIELD_OP = {
   coalesce: 'COALESCE',
   encode: 'ENCODE',
   decode: 'DECODE',
-  corr: 'CORR',
-  covarPop: 'COVAR_POP',
-  covarSamp: 'COVAR_SAMP',
-  regrSlope: 'REGR_SLOPE',
-  regrIntercept: 'REGR_INTERCEPT',
 } as const;
 
 export const STR_FIELD_OP = {

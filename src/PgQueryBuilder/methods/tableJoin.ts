@@ -60,7 +60,7 @@ const joinTableCond = <Model>(
               preparedValues,
               groupByFields,
               joinColumn,
-              false,
+              { isExistsFilter: false },
             );
       return attachArrayWith.space([
         fieldQuote(allowedFields, baseColumn),
@@ -157,7 +157,7 @@ export class TableJoin {
           preparedValues,
           groupByFields,
           restJoin as any,
-          false,
+          { isExistsFilter: false },
         )
       : TableJoin.#getJoinModelName(join);
     const onStr =

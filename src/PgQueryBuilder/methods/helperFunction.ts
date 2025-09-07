@@ -190,6 +190,9 @@ export const fieldQuote = <T extends boolean = false>(
   return quote(str);
 };
 
+export const isNonNullableValue = <T>(v: T): v is NonNullable<T> =>
+  v !== null && v !== undefined;
+
 export const isPrimitiveValue = (value: unknown): value is Primitive => {
   return (
     typeof value === 'string' ||
@@ -317,16 +320,6 @@ export const getJoinSubqueryFields = <Model>(subQuery: Subquery<Model>) => {
   );
 };
 
-//===================================== Object wrapped functions =======================//
-
-export const attachArrayWith = {
-  space: attachArrayWithSpaceSep,
-  coma: attachArrayWithComaSep,
-  and: attachArrayWithAndSep,
-  comaAndSpace: attachArrayWithComaAndSpaceSep,
-  customSep: attachArrayWithSep,
-};
-
 export const isEmptyObject = (obj: unknown) =>
   typeof obj === 'object' &&
   obj !== null &&
@@ -369,4 +362,14 @@ export const validCallableColCtx = (
     return throwError.invalidFieldFuncCallType();
   }
   return rest;
+};
+
+//===================================== Object wrapped functions =======================//
+
+export const attachArrayWith = {
+  space: attachArrayWithSpaceSep,
+  coma: attachArrayWithComaSep,
+  and: attachArrayWithAndSep,
+  comaAndSpace: attachArrayWithComaAndSpaceSep,
+  customSep: attachArrayWithSep,
 };

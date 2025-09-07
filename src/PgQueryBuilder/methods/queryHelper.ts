@@ -74,7 +74,7 @@ export class QueryHelper {
     const join = getJoinSubqueryFields(rest);
     const allowedFields = useOnlyRefAllowedFields
       ? refAllowedFields
-      : FieldHelper.getAllowedFields(refAllowedFields, alias, join);
+      : FieldHelper.getAllowedFields(refAllowedFields, { alias, join });
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
       allowedFields,
@@ -113,8 +113,9 @@ export class QueryHelper {
     preparedValues: PreparedValues,
     groupByFields: GroupByFields,
     value: T,
-    isExistsFilter: boolean = true,
+    options: { isExistsFilter?: boolean; refAllowedFields?: AllowedFields },
   ) {
+    const { isExistsFilter = true, refAllowedFields } = options || {};
     const { model, alias, orderBy, column, columns, isDistinct, ...rest } =
       value as any;
     const join = getJoinSubqueryFields(rest);
@@ -141,11 +142,11 @@ export class QueryHelper {
           ? { columns, alias, isDistinct }
           : { alias, isDistinct };
 
-    const subQryAllowedFields = FieldHelper.getAllowedFields(
-      tableColumns,
+    const subQryAllowedFields = FieldHelper.getAllowedFields(tableColumns, {
       alias,
       join,
-    );
+      refAllowedFields,
+    });
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
       subQryAllowedFields,
@@ -225,11 +226,10 @@ export class QueryHelper {
     const queries: string[] = [setOperation[type]];
     const tableName = (model as any).tableName;
     const tableColumns = (model as any).tableColumns;
-    const allowedFields = FieldHelper.getAllowedFields(
-      tableColumns,
+    const allowedFields = FieldHelper.getAllowedFields(tableColumns, {
       alias,
       join,
-    );
+    });
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
       allowedFields,

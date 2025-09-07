@@ -46,7 +46,7 @@ export class OrderByQuery {
               preparedValues,
               groupByFields,
               col,
-              isExistsFilter,
+              { isExistsFilter },
             ),
           );
         } else {
