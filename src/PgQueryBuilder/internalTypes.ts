@@ -233,36 +233,38 @@ export type Subquery<
   having?: WhereClause<Model>;
 } & Partial<Join<Model>>;
 
+// subquery for model
+export type ModelSubQuery<Model> = {
+  model?: Model;
+  alias?: string;
+  columns?: FindQueryAttributes;
+  orderBy?: ORDER_BY<Model>;
+  set?: SetQuery<Model>;
+  subquery?: ModelSubQuery<Model>;
+} & Subquery<Model, 'WhereNotReq'> & {
+    isDistinct?: boolean;
+  };
+
 export type SelectQuery<Model> = {
   columns?: FindQueryAttributes;
   isDistinct?: boolean;
-  alias?: AliasSubType<Model>;
+  alias?: string;
+  subquery?: ModelSubQuery<Model>;
 };
 
 export type SetQuery<Model> = {
   type: SetOperationType;
 } & SetOperationFilter<Model>;
 
-export type AliasFilter<Model> = {
-  model?: Model;
-  alias?: AliasSubType<Model>;
-  columns?: FindQueryAttributes;
-  orderBy?: ORDER_BY<Model>;
-  set?: SetQuery<Model>;
-} & Subquery<Model, 'WhereNotReq'> & {
-    isDistinct?: boolean;
-  };
-
-export type AliasSubType<Model> =
-  | string
-  | { as?: string; query: AliasFilter<Model> };
+export type AliasSubType = string;
 
 export type SetOperationFilter<Model> = {
   model: Model;
-  alias?: AliasSubType<Model>;
+  alias?: string;
   columns?: FindQueryAttributes;
   orderBy?: ORDER_BY<Model>;
   set?: SetQuery<Model>;
+  subquery?: ModelSubQuery<Model>;
 } & Subquery<Model, 'WhereNotReq'>;
 
 export type WhereClauseKeys = '$and' | '$or' | string;
