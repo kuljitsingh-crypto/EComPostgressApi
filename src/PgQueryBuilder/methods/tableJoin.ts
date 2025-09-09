@@ -18,6 +18,7 @@ import {
   fieldQuote,
   getJoinSubqueryFields,
   isEmptyObject,
+  isNonEmptyString,
   isValidModel,
   isValidSubQuery,
 } from './helperFunction';
@@ -52,16 +53,15 @@ const joinTableCond = <Model>(
 ) => {
   const onStr = attachArrayWith.and(
     Object.entries(cond).map(([baseColumn, joinColumn]) => {
-      const value =
-        typeof joinColumn === 'string'
-          ? fieldQuote(allowedFields, joinColumn)
-          : QueryHelper.otherModelSubqueryBuilder(
-              '',
-              preparedValues,
-              groupByFields,
-              joinColumn,
-              { isExistsFilter: false },
-            );
+      const value = isNonEmptyString(joinColumn)
+        ? fieldQuote(allowedFields, joinColumn)
+        : QueryHelper.otherModelSubqueryBuilder(
+            '',
+            preparedValues,
+            groupByFields,
+            joinColumn,
+            { isExistsFilter: false },
+          );
       return attachArrayWith.space([
         fieldQuote(allowedFields, baseColumn),
         OP.eq,

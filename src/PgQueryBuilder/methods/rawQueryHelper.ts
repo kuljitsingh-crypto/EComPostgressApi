@@ -1,7 +1,11 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { Primitive } from '../globalTypes';
 import { PreparedValues, RawQuery } from '../internalTypes';
-import { attachArrayWith, getPreparedValues } from './helperFunction';
+import {
+  attachArrayWith,
+  getPreparedValues,
+  isNonEmptyString,
+} from './helperFunction';
 
 const checkAndAddQuery = (
   queries: string[],
@@ -37,7 +41,7 @@ export class RawQueryHandler {
     tableName: string,
     params: Primitive[] = [],
   ) {
-    if (typeof query === 'string') {
+    if (isNonEmptyString(query)) {
       return {
         query,
         values: params,

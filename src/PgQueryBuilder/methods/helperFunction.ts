@@ -71,29 +71,20 @@ const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
 function isValidAllowedFields(
   allowedFields: unknown,
 ): allowedFields is AllowedFields {
-  return (
-    typeof allowedFields === 'object' &&
-    allowedFields !== null &&
-    allowedFields.constructor === Set
-  );
+  return isValidSetObj<string>(allowedFields);
 }
 
 function isValidGroupByFieldsFields(
   groupByFields: unknown,
 ): groupByFields is GroupByFields {
-  return (
-    typeof groupByFields === 'object' &&
-    groupByFields !== null &&
-    groupByFields.constructor === Set
-  );
+  return isValidSetObj<string>(groupByFields);
 }
 
 function isValidPreparedValues(
   preparedValues: unknown,
 ): preparedValues is PreparedValues {
   return (
-    typeof preparedValues === 'object' &&
-    preparedValues !== null &&
+    isValidObject(preparedValues) &&
     preparedValues.hasOwnProperty('index') &&
     typeof (preparedValues as any).index === 'number' &&
     preparedValues.hasOwnProperty('values') &&
@@ -139,11 +130,32 @@ const callableCol = (col: CallableField, options: CallableFieldParam) => {
 
 //=================== export functions ======================//
 
+export function isValidFunction(func: unknown): func is Function {
+  return typeof func === 'function' && func.constructor === Function;
+}
+
+export function isNonEmptyString(str: unknown): str is string {
+  return typeof str === 'string' && str.trim().length > 0;
+}
+
+export function isValidObject(obj: unknown): obj is object {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    !Array.isArray(obj) &&
+    obj.constructor === Object
+  );
+}
+
+export function isValidSetObj<T>(obj: unknown): obj is Set<T> {
+  return typeof obj === 'object' && obj !== null && obj.constructor === Set;
+}
+
 export const simpleFieldValidate = (
   field: string | null,
   customAllowFields: string[],
 ) => {
-  if (typeof field !== 'string') {
+  if (!isNonEmptyString(field)) {
     return throwError.invalidColType();
   }
   field = field.trim();
@@ -183,7 +195,7 @@ export const fieldQuote = <T extends boolean = false>(
   if (str === null && isNullColAllowed) {
     return str as any;
   }
-  if (typeof str !== 'string') {
+  if (!isNonEmptyString(str)) {
     return throwError.invalidColumnNameType(str, allowedFields);
   }
   str = validateField(str, allowedFields, { customAllowFields });
@@ -229,25 +241,24 @@ export const getPreparedValues = (
 };
 
 export const isValidModel = (model: any) => {
-  if (typeof model !== 'function') {
+  if (!isValidFunction(model)) {
     return false;
   }
-  if (typeof model.tableName !== 'string') {
+  if (!isNonEmptyString(model.tableName)) {
     return false;
   }
-  if (!(model.tableColumns instanceof Set)) {
+  if (!isValidSetObj<string>(model.tableColumns)) {
     return false;
   }
   return true;
 };
 
 export const isValidColumn = (
-  column: any,
+  column: unknown,
   arrayAllowedUptoLvl = 0,
   lvl = 0,
 ): boolean => {
-  const isColumn =
-    (typeof column === 'string' || typeof column === 'function') && !!column;
+  const isColumn = isNonEmptyString(column) || isValidFunction(column);
   const isArrayAllowed = lvl <= arrayAllowedUptoLvl;
   if (isArrayAllowed && Array.isArray(column)) {
     return lvl === arrayAllowedUptoLvl
@@ -285,11 +296,7 @@ export const isValidCaseQuery = <Model>(
     isValidSubQuery(val) ||
     isValidWhereQuery(val);
   const isValidElse = isValidResultQry(q?.else);
-  const isValidCond =
-    isValidResultQry(q?.then) &&
-    typeof q?.when === 'object' &&
-    q?.when !== null &&
-    !Array.isArray(q?.when);
+  const isValidCond = isValidResultQry(q?.then) && isValidObject(q?.when);
   if (isValidElse || isValidCond) return true;
   return false;
 };
@@ -297,11 +304,7 @@ export const isValidCaseQuery = <Model>(
 export const isValidWhereQuery = <Model>(
   value: unknown,
 ): value is WhereClause<Model> => {
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    value.constructor === Object
-  ) {
+  if (isValidObject(value)) {
     return true;
   }
   return false;
@@ -321,10 +324,7 @@ export const getJoinSubqueryFields = <Model>(subQuery: Subquery<Model>) => {
 };
 
 export const isEmptyObject = (obj: unknown) =>
-  typeof obj === 'object' &&
-  obj !== null &&
-  !Array.isArray(obj) &&
-  Object.keys(obj).length < 1;
+  isValidObject(obj) && Object.keys(obj).length < 1;
 
 export const isNonEmptyObject = (obj: unknown): obj is object =>
   !isEmptyObject(obj);

@@ -13,6 +13,7 @@ import {
   dynamicFieldQuote,
   fieldQuote,
   isCallableColumn,
+  isNonEmptyString,
   validCallableColCtx,
 } from './helperFunction';
 
@@ -37,7 +38,7 @@ const getColNameAndAlias = (
   alias: string | null;
 } => {
   const { customAllowFields = [] } = options || {};
-  if (typeof col === 'string') {
+  if (isNonEmptyString(col)) {
     return {
       col: fieldQuote(allowedFields, col, { customAllowFields }),
       alias: null,
@@ -98,7 +99,7 @@ export class ColumnHelper {
 
         if (alias === null) {
           return col;
-        } else if (typeof alias === 'string') {
+        } else if (isNonEmptyString(alias)) {
           const validValue = dynamicFieldQuote(alias);
           allowedFields.add(validValue);
           return attachArrayWith.space([col, DB_KEYWORDS.as, validValue]);

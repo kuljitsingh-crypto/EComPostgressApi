@@ -8,7 +8,11 @@ import {
 } from '../internalTypes';
 import { throwError } from './errorHelper';
 import { FieldOperand, getFieldValue } from './fieldFunc';
-import { attachArrayWith, getValidCallableFieldValues } from './helperFunction';
+import {
+  attachArrayWith,
+  getValidCallableFieldValues,
+  isNonEmptyString,
+} from './helperFunction';
 
 const frameFunction = {
   rows: 'ROWS',
@@ -56,7 +60,7 @@ class FrameFunction {
     allowedFields: AllowedFields,
     suffix: Suffix | '' = '',
   ) => {
-    if (typeof param === 'string' && allowedFuncParams.has(param)) {
+    if (isNonEmptyString(param) && allowedFuncParams.has(param)) {
       return attachArrayWith.space([param, suffix]);
     }
     const val = getFieldValue(
@@ -65,7 +69,7 @@ class FrameFunction {
       groupByFields,
       allowedFields,
     );
-    if (typeof val !== 'string') {
+    if (!isNonEmptyString(val)) {
       return throwError.invalidFrameFunction(methodName);
     }
     return attachArrayWith.space([val, suffix]);

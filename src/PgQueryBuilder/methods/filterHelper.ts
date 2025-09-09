@@ -27,6 +27,7 @@ import {
   fieldQuote,
   getPreparedValues,
   isCallableColumn,
+  isNonEmptyString,
   isPrimitiveValue,
   isValidSubQuery,
   validCallableColCtx,
@@ -76,7 +77,7 @@ const getArrayDataType = (value: Primitive[]) => {
   const firstValue = value[0];
   if (typeof firstValue === 'number') {
     return PG_DATA_TYPE.int;
-  } else if (typeof firstValue === 'string') {
+  } else if (isNonEmptyString(firstValue)) {
     return PG_DATA_TYPE.text;
   } else if (typeof firstValue === 'boolean') {
     return PG_DATA_TYPE.boolean;
@@ -120,7 +121,7 @@ export class TableFilter {
     const filterStatements: string[] = [];
     if (isHavingFilter) {
       filterStatements.push(DB_KEYWORDS.having);
-    } else if (typeof customKeyWord === 'string') {
+    } else if (isNonEmptyString(customKeyWord)) {
       filterStatements.push(customKeyWord);
     } else {
       filterStatements.push(DB_KEYWORDS.where);

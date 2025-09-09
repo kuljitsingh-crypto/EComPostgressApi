@@ -21,6 +21,7 @@ import {
   attachArrayWith,
   getPreparedValues,
   getValidCallableFieldValues,
+  isNonEmptyString,
   isNonNullableValue,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
@@ -129,7 +130,7 @@ const prepareAggFn = <Model>(
     orderByColFn.includes(fn) && Array.isArray(orderBy);
 
   const isValidSeparator =
-    separatorColFn.includes(fn) && typeof separator === 'string';
+    separatorColFn.includes(fn) && isNonEmptyString(separator);
 
   const orderByMaybe = isValidOrderByField
     ? OrderByQuery.prepareOrderByQuery(

@@ -401,3 +401,18 @@ BasketA
 export function run() {
   console.log('test model running');
 }
+
+// SELECT final_sq.department_id, final_sq.avg_salary
+// FROM (
+//     SELECT mid_sq.department_id, AVG(mid_sq.salary) AS avg_salary
+//     FROM (
+//         SELECT e.department_id, e.salary
+//         FROM employees e
+//         WHERE e.salary > (
+//             SELECT AVG(salary)
+//             FROM employees
+//         )
+//     ) AS mid_sq
+//     GROUP BY mid_sq.department_id
+// ) AS final_sq
+// WHERE final_sq.avg_salary > 50000;

@@ -70,21 +70,27 @@ export class QueryHelper {
     qry: QueryParams<Model>,
     useOnlyRefAllowedFields = false,
   ) {
-    const { columns, isDistinct, orderBy, alias, set, ...rest } = qry;
+    const { columns, isDistinct, orderBy, alias, subquery, set, ...rest } = qry;
     const join = getJoinSubqueryFields(rest);
     const allowedFields = useOnlyRefAllowedFields
       ? refAllowedFields
-      : FieldHelper.getAllowedFields(refAllowedFields, { alias, join });
+      : FieldHelper.getAllowedFields(refAllowedFields, {
+          alias,
+          join,
+          subquery,
+        });
+    const selectQury = {
+      columns,
+      isDistinct,
+      alias,
+      subquery,
+    };
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
       allowedFields,
       groupByFields,
       preparedValues,
-      {
-        columns,
-        isDistinct,
-        alias,
-      },
+      selectQury,
     );
     const subQry = QueryHelper.#prepareSubquery(
       tableName,
@@ -394,7 +400,7 @@ export class QueryHelper {
       return throwError.invalidAliasType(true);
     }
     const { model: m, ...rest } = (alias as any).query as AliasFilter<Model>;
-    const model = FieldHelper.getAliasSubqueryModel(alias);
+    const model = FieldHelper.getSubqueryModel(alias);
     const tablName = model.tableName;
     const query = QueryHelper.prepareQuery(
       preparedValues,

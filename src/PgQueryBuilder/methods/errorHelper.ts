@@ -55,6 +55,12 @@ function throwInvalidAliasFormatError(invalidSubQuery = false): never {
   throw new Error(msg);
 }
 
+function throwInvalidSubquery(): never {
+  const msg =
+    'A subquery must include at least one of the fields: model or subquery';
+  throw new Error(msg);
+}
+
 function throwInvalidColumnLenError(
   index: number,
   requiredLen: number,
@@ -227,6 +233,7 @@ export const throwError = {
   invalidOperandType: throwInvalidOperand,
   invalidTypeCastFunc: throwInvalidCastFunction,
   invalidFrameFunction: throwInvalidFrameFunction,
+  invalidModelSubquery: throwInvalidSubquery,
 };
 
 export const errorHandler = (query: string, error: Error) => {

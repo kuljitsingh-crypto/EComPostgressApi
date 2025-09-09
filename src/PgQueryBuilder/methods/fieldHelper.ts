@@ -3,15 +3,16 @@ import {
   AliasSubType,
   AllowedFields,
   FindQueryAttributes,
-  Join,
   JoinQuery,
-  ModelAndAlias,
   OtherJoin,
+  SubModelQuery,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
 import {
   isNonEmptyObject,
-  isValidSubQuery,
+  isNonEmptyString,
+  isValidModel,
+  isValidObject,
   simpleFieldValidate,
 } from './helperFunction';
 
@@ -19,51 +20,40 @@ export class FieldHelper {
   static getAllowedFields<Model>(
     selfAllowedFields: AllowedFields,
     options?: {
-      alias?: AliasSubType<Model>;
+      subquery: SubModelQuery<Model>;
+      alias?: AliasSubType;
       join?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>;
       refAllowedFields?: AllowedFields;
     },
-  ) {
-    const { alias, join, refAllowedFields } = options || {};
+  ): AllowedFields {
+    const { alias, join, refAllowedFields, subquery } = options || {};
     const modelFields = FieldHelper.#initializeModelFields(
       selfAllowedFields,
       refAllowedFields,
-      alias,
+      { alias, subquery },
     );
     FieldHelper.#getJoinFieldNames(modelFields, join);
     return new Set(modelFields);
   }
 
-  static getAliasSubqueryModel<Model>(alias?: AliasSubType<Model>): {
+  static getSubqueryModel<Model>(subquery?: SubModelQuery<Model>): {
     tableColumns: AllowedFields;
     tableName: string;
   } {
-    if (
-      typeof alias === 'string' ||
-      typeof alias === 'undefined' ||
-      alias === null
-    ) {
-      return throwError.invalidAliasType();
+    if (!isValidObject(subquery)) {
+      return throwError.invalidModelSubquery();
     }
-    if (!alias.query) {
-      return throwError.invalidAliasType(true);
+    if (isValidObject(subquery.subquery)) {
+      return FieldHelper.getSubqueryModel(subquery.subquery);
     }
-    if (alias.query && alias.query.alias) {
-      return FieldHelper.getAliasSubqueryModel(alias.query.alias);
-    }
-    if (!alias.query.model) {
+    if (!isValidModel(subquery.model)) {
       throwError.invalidModelType();
     }
-    return alias.query.model as any;
+    return subquery.model as any;
   }
 
-  static getAliasName<Model>(alias?: AliasSubType<Model>): string | null {
-    const aliasStr =
-      typeof alias === 'object' && alias !== null && alias.as
-        ? alias.as
-        : typeof alias === 'string'
-          ? alias
-          : null;
+  static getAliasName(alias?: AliasSubType): string | null {
+    const aliasStr = isNonEmptyString(alias) ? alias : null;
     return aliasStr;
   }
 
@@ -91,32 +81,37 @@ export class FieldHelper {
     }
   };
 
+  static #addSubqueryAliasName<Model>(
+    aliasNames: string[],
+    subQuery?: SubModelQuery<Model>,
+  ): void {
+    if (!isValidObject(subQuery)) {
+      return;
+    }
+    if (isNonEmptyString(subQuery.alias)) {
+      aliasNames.push(subQuery.alias);
+    }
+    return FieldHelper.#addSubqueryAliasName(aliasNames, subQuery.subquery);
+  }
+
   static #getAliasNames<Model>(
     aliasNames: string[],
-    alias?: AliasSubType<Model>,
+    alias?: AliasSubType,
+    subQuery?: SubModelQuery<Model>,
   ): string[] {
-    if (!alias) {
-      return aliasNames;
+    if (isNonEmptyString(alias)) {
+      aliasNames.push(alias);
     }
-    const aliasStr = FieldHelper.getAliasName(alias);
-    if (!aliasStr) {
-      return aliasNames;
-    }
-    aliasNames.push(aliasStr);
-    if (typeof alias === 'string') {
-      return aliasNames;
-    }
-    if (alias.query && alias.query.alias) {
-      return FieldHelper.#getAliasNames(aliasNames, alias.query.alias);
-    }
+    FieldHelper.#addSubqueryAliasName(aliasNames, subQuery);
     return aliasNames;
   }
 
   static #aliasFieldNames<Model>(
     names: Set<string>,
-    alias?: AliasSubType<Model>,
+    options?: { alias?: AliasSubType; subquery?: SubModelQuery<Model> },
   ) {
-    const aliasNames = FieldHelper.#getAliasNames([], alias);
+    const { alias, subquery } = options || {};
+    const aliasNames = FieldHelper.#getAliasNames([], alias, subquery);
     if (!aliasNames || aliasNames.length < 1) return [];
     const nameArr = Array.from(names);
     const allowedNames = aliasNames.reduce((prev, alias) => {
@@ -129,17 +124,12 @@ export class FieldHelper {
   static #getColumnsAliasNames = (
     columns: FindQueryAttributes = [],
     alias = '',
-  ) => {
+  ): string[] => {
     columns = Array.isArray(columns) ? columns : [columns];
     return columns.reduce((pre, acc) => {
-      if (
-        Array.isArray(acc) &&
-        acc.length === 2 &&
-        typeof acc[1] === 'string' &&
-        !!acc[1]
-      ) {
+      if (Array.isArray(acc) && acc.length === 2 && isNonEmptyString(acc[1])) {
         const validField = simpleFieldValidate(acc[1], []);
-        if (typeof alias == 'string' && alias) {
+        if (isNonEmptyString(alias)) {
           pre.push(`${alias}.${validField}`);
         }
         pre.push(validField);
@@ -154,12 +144,15 @@ export class FieldHelper {
   ) {
     const joinArrays = Array.isArray(join) ? join : [join];
     joinArrays.forEach((joinType) => {
-      const { model, alias } = joinType;
-      const tableNames = (model as any).tableColumns;
-      const aliasTableNames = FieldHelper.#aliasFieldNames(tableNames, alias);
+      const model = FieldHelper.getSubqueryModel(joinType);
+      const tableNames = model.tableColumns;
+      const aliasTableNames = FieldHelper.#aliasFieldNames(
+        tableNames,
+        joinType,
+      );
       const columnAlias = FieldHelper.#getColumnsAliasNames(
         joinType.columns,
-        alias,
+        joinType.alias,
       );
       modelFields.push(...tableNames, ...columnAlias, ...aliasTableNames);
     });
@@ -168,17 +161,18 @@ export class FieldHelper {
   static #initializeModelFields<Model>(
     selfAllowedFields: AllowedFields,
     refAllowedFields?: AllowedFields,
-    alias?: AliasSubType<Model>,
+    options?: { alias?: AliasSubType; subquery?: SubModelQuery<Model> },
   ) {
-    if (typeof alias === 'object') {
-      const model = FieldHelper.getAliasSubqueryModel(alias);
+    const { alias, subquery } = options || {};
+    if (isValidObject(subquery)) {
+      const model = FieldHelper.getSubqueryModel(subquery);
       selfAllowedFields = model.tableColumns;
     }
     refAllowedFields = (refAllowedFields ?? new Set()) as Set<string>;
     return [
       ...selfAllowedFields,
       ...refAllowedFields,
-      ...FieldHelper.#aliasFieldNames(selfAllowedFields, alias),
+      ...FieldHelper.#aliasFieldNames(selfAllowedFields, { alias, subquery }),
     ];
   }
 }

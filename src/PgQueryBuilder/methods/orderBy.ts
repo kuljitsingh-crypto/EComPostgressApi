@@ -9,6 +9,7 @@ import {
   attachArrayWith,
   fieldQuote,
   isCallableColumn,
+  isNonEmptyString,
   isValidSubQuery,
   validCallableColCtx,
 } from './helperFunction';
@@ -29,7 +30,7 @@ export class OrderByQuery {
       .map((o) => {
         const [col, order = 'DESC', nullOption] = Array.isArray(o) ? o : [o];
         const orders: string[] = [];
-        if (typeof col === 'string') {
+        if (isNonEmptyString(col)) {
           orders.push(fieldQuote(allowedFields, col));
         } else if (isCallableColumn(col)) {
           const { col: finalCol } = validCallableColCtx(col, {

@@ -36,7 +36,9 @@ import { FieldOperand, getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
   getValidCallableFieldValues,
+  isNonEmptyString,
   isNonNullableValue,
+  isValidObject,
 } from './helperFunction';
 
 // type ColFunc = () => {
@@ -215,10 +217,8 @@ const resolveOperand = <Model>(
   prefixValue: string | null,
   suffixValue: string | null,
 ) => {
-  const isValidPrefixValue =
-    prefixValue !== null && typeof prefixValue === 'string' && prefixValue;
-  const isValidSuffixValue =
-    suffixValue !== null && typeof suffixValue === 'string' && suffixValue;
+  const isValidPrefixValue = isNonEmptyString(prefixValue);
+  const isValidSuffixValue = isNonEmptyString(suffixValue);
   const operandsRef: Primitive[] = isValidPrefixValue ? [prefixValue] : [];
   // For Now primitive data type treated as value , For Column use col(colNme)
   // const [col, ...operands] = colAndOperands;
@@ -276,10 +276,8 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
   if (!op) {
     return throwError.invalidColumnOpType(op, Object.keys(operatorRef));
   }
-  const validPrefixRef =
-    prefixAllowed && typeof prefixRef === 'object' && prefixRef !== null;
-  const validSuffixRef =
-    suffixAllowed && typeof suffixRef === 'object' && suffixRef !== null;
+  const validPrefixRef = prefixAllowed && isValidObject(prefixRef);
+  const validSuffixRef = suffixAllowed && isValidObject(suffixRef);
   const prefixValue = (validPrefixRef && prefixRef[operator]) || null;
   const suffixValue = (validSuffixRef && suffixRef[operator]) || null;
   const operands = resolveOperand(

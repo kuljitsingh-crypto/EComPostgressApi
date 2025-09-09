@@ -24,8 +24,9 @@ export type GroupByFields = Set<string>;
 export type AllowedFields = Set<string>;
 
 export type ModelAndAlias<Model> = {
-  model: Model;
+  model?: Model;
   alias?: string;
+  subquery?: SubModelQuery<Model>;
 };
 
 type SingleOrderByField<Model> =
@@ -234,13 +235,13 @@ export type Subquery<
 } & Partial<Join<Model>>;
 
 // subquery for model
-export type ModelSubQuery<Model> = {
+export type SubModelQuery<Model> = {
   model?: Model;
   alias?: string;
   columns?: FindQueryAttributes;
   orderBy?: ORDER_BY<Model>;
   set?: SetQuery<Model>;
-  subquery?: ModelSubQuery<Model>;
+  subquery?: SubModelQuery<Model>;
 } & Subquery<Model, 'WhereNotReq'> & {
     isDistinct?: boolean;
   };
@@ -249,7 +250,7 @@ export type SelectQuery<Model> = {
   columns?: FindQueryAttributes;
   isDistinct?: boolean;
   alias?: string;
-  subquery?: ModelSubQuery<Model>;
+  subquery?: SubModelQuery<Model>;
 };
 
 export type SetQuery<Model> = {
@@ -264,7 +265,7 @@ export type SetOperationFilter<Model> = {
   columns?: FindQueryAttributes;
   orderBy?: ORDER_BY<Model>;
   set?: SetQuery<Model>;
-  subquery?: ModelSubQuery<Model>;
+  subquery?: SubModelQuery<Model>;
 } & Subquery<Model, 'WhereNotReq'>;
 
 export type WhereClauseKeys = '$and' | '$or' | string;
