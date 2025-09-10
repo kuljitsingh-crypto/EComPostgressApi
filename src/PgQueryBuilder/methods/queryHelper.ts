@@ -3,7 +3,6 @@ import { OP, OP_KEYS } from '../constants/operators';
 import { setOperation } from '../constants/setOperations';
 import { TableJoinType } from '../constants/tableJoin';
 import {
-  AliasFilter,
   AliasSubType,
   AllowedFields,
   GroupByFields,
@@ -14,6 +13,7 @@ import {
   QueryParams,
   SelectQuery,
   SetQuery,
+  SubModelQuery,
   Subquery,
   SubqueryMultiColFlag,
 } from '../internalTypes';
@@ -25,8 +25,11 @@ import {
   attachArrayWith,
   fieldQuote,
   getJoinSubqueryFields,
-  isValidModel,
+  isNonEmptyString,
+  isValidModelSubquery,
+  isValidObject,
   isValidSubQuery,
+  isValidWhereQuery,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
 import { PaginationQuery } from './paginationQuery';
@@ -122,36 +125,50 @@ export class QueryHelper {
     options: { isExistsFilter?: boolean; refAllowedFields?: AllowedFields },
   ) {
     const { isExistsFilter = true, refAllowedFields } = options || {};
-    const { model, alias, orderBy, column, columns, isDistinct, ...rest } =
-      value as any;
+    const {
+      model: m,
+      alias,
+      orderBy,
+      subquery: modelSubquery,
+      column,
+      columns,
+      isDistinct,
+      ...rest
+    } = value as any;
     const join = getJoinSubqueryFields(rest);
     const validSubquery = isExistsFilter
-      ? isValidModel(model)
+      ? isValidModelSubquery(value)
       : isValidSubQuery(value);
     if (!validSubquery) {
       return throwError.invalidModelType();
     }
-    if (!rest.where && isExistsFilter) {
+    if (isExistsFilter && !isValidWhereQuery(rest.where)) {
       return throwError.invalidWhereClauseType(existFilterKey);
     }
-    const tableName = (model as any).tableName;
-    const tableColumns = new Set((model as any).tableColumns) as AllowedFields;
+    const model = FieldHelper.getSubqueryModel(value);
+    const tableName = model.tableName;
+    const tableColumns: AllowedFields = new Set(model.tableColumns);
     if (isExistsFilter) {
       tableColumns.add('1');
     }
     const customAllowFields = isExistsFilter ? ['1'] : [];
-    const selectQuery = isExistsFilter
-      ? { columns: ['1'], alias, isDistinct }
+    const columnArr = isExistsFilter
+      ? ['1']
       : column
-        ? { columns: [column], alias, isDistinct }
-        : Array.isArray(columns)
-          ? { columns, alias, isDistinct }
-          : { alias, isDistinct };
+        ? [column]
+        : columns
+          ? [...columns]
+          : [];
+    const selectQuery =
+      columnArr.length > 0
+        ? { columns: columnArr, alias, isDistinct, subquery: modelSubquery }
+        : { alias, isDistinct, subquery: modelSubquery };
 
     const subQryAllowedFields = FieldHelper.getAllowedFields(tableColumns, {
       alias,
       join,
       refAllowedFields,
+      subquery: modelSubquery,
     });
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
@@ -188,19 +205,20 @@ export class QueryHelper {
     options?: { customAllowFields: string[] },
   ) {
     const { customAllowFields = [] } = options || {};
-    const { isDistinct, columns, alias } = selectQuery;
+    const { isDistinct, columns, alias, subquery } = selectQuery;
     const distinctMaybe = isDistinct ? `${DB_KEYWORDS.distinct}` : '';
     const colStr = ColumnHelper.getSelectColumns(allowedFields, columns, {
       preparedValues,
       groupByFields,
       customAllowFields,
     });
-    const tableAlias = QueryHelper.#prepareAliasSubQuery(
+
+    const tableAlias = QueryHelper.#prepareModelSubQuery(
       tableName,
       preparedValues,
       allowedFields,
       groupByFields,
-      alias,
+      { alias, subquery },
     );
     const queries = [
       DB_KEYWORDS.select,
@@ -221,20 +239,31 @@ export class QueryHelper {
     if (!setQry) {
       return '';
     }
-    if (typeof setQry !== 'object' || setQry === null) {
+    if (!isValidObject(setQry)) {
       return throwError.invalidSetQueryType();
     }
-    if (!setQry.type || !setQry.model) {
+    if (!setQry.type || !isValidModelSubquery(setQry)) {
       return throwError.invalidSetQueryType(true);
     }
-    const { type, columns, model, orderBy, alias, set, ...rest } = setQry;
+    const {
+      type,
+      columns,
+      model: m,
+      subquery,
+      orderBy,
+      alias,
+      set,
+      ...rest
+    } = setQry;
+    const model = FieldHelper.getSubqueryModel(setQry);
     const join = getJoinSubqueryFields(rest);
     const queries: string[] = [setOperation[type]];
-    const tableName = (model as any).tableName;
-    const tableColumns = (model as any).tableColumns;
+    const tableName = model.tableName;
+    const tableColumns = model.tableColumns;
     const allowedFields = FieldHelper.getAllowedFields(tableColumns, {
       alias,
       join,
+      subquery,
     });
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
@@ -279,27 +308,7 @@ export class QueryHelper {
     groupByQry?: string;
     havingQry?: string;
   }) {
-    const { whereQry, orderbyQry, limitQry, joinQry, groupByQry, havingQry } =
-      params;
-    const variableQry: string[] = [];
-    if (joinQry) {
-      variableQry.push(joinQry);
-    }
-    if (whereQry) {
-      variableQry.push(whereQry);
-    }
-    if (groupByQry) {
-      variableQry.push(groupByQry);
-    }
-    if (havingQry) {
-      variableQry.push(havingQry);
-    }
-    if (orderbyQry) {
-      variableQry.push(orderbyQry);
-    }
-    if (limitQry) {
-      variableQry.push(limitQry);
-    }
+    const variableQry = Object.values(params).filter(isNonEmptyString);
     return attachArrayWith.space(variableQry);
   }
 
@@ -381,38 +390,33 @@ export class QueryHelper {
     return finalSubQry;
   }
 
-  static #prepareAliasSubQuery<Model extends any = any>(
+  static #prepareModelSubQuery<Model extends any = any>(
     tableName: string,
     preparedValues: PreparedValues,
     allowedFields: AllowedFields,
     groupByFields: GroupByFields,
-    alias?: AliasSubType<Model>,
+    options?: { alias?: AliasSubType; subquery?: SubModelQuery<Model> },
   ): string {
-    const isPrimitiveAlias =
-      typeof alias === 'string' || typeof alias == 'undefined';
-    if (isPrimitiveAlias) {
-      if (!alias) {
-        return tableName;
-      }
-      return attachArrayWith.space([tableName, DB_KEYWORDS.as, alias]);
+    const { alias, subquery } = options || {};
+    const aliasStr = isNonEmptyString(alias) ? alias : '';
+    if (!isValidModelSubquery(subquery)) {
+      return aliasStr
+        ? attachArrayWith.space([tableName, DB_KEYWORDS.as, aliasStr])
+        : tableName;
     }
-    if (!alias?.query) {
-      return throwError.invalidAliasType(true);
-    }
-    const { model: m, ...rest } = (alias as any).query as AliasFilter<Model>;
-    const model = FieldHelper.getSubqueryModel(alias);
+    const { model: m, ...rest } = subquery;
+    const model = FieldHelper.getSubqueryModel(subquery);
     const tablName = model.tableName;
     const query = QueryHelper.prepareQuery(
       preparedValues,
       allowedFields,
       groupByFields,
       tablName,
-      rest as any,
+      rest,
       true,
     );
     const findAllQuery = `(${query})`;
     const queries = [findAllQuery];
-    const aliasStr = FieldHelper.getAliasName(alias);
     if (aliasStr) {
       queries.push(DB_KEYWORDS.as, aliasStr);
     }

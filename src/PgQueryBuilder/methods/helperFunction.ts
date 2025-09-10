@@ -11,6 +11,7 @@ import {
   JoinQuery,
   NonNullPrimitive,
   PreparedValues,
+  SubModelQuery,
   Subquery,
   SubqueryMultiColFlag,
   WhereClause,
@@ -130,26 +131,21 @@ const callableCol = (col: CallableField, options: CallableFieldParam) => {
 
 //=================== export functions ======================//
 
-export function isValidFunction(func: unknown): func is Function {
-  return typeof func === 'function' && func.constructor === Function;
-}
+export const createPlaceholder = (index: number, type?: string) => {
+  return type ? `$${index}${type}` : `$${index}`;
+};
 
-export function isNonEmptyString(str: unknown): str is string {
-  return typeof str === 'string' && str.trim().length > 0;
-}
-
-export function isValidObject(obj: unknown): obj is object {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    !Array.isArray(obj) &&
-    obj.constructor === Object
-  );
-}
-
-export function isValidSetObj<T>(obj: unknown): obj is Set<T> {
-  return typeof obj === 'object' && obj !== null && obj.constructor === Set;
-}
+export const getPreparedValues = (
+  preparedValues: PreparedValues,
+  value: Primitive,
+  options?: { type: string },
+) => {
+  const { type } = options || {};
+  const placeholder = createPlaceholder(preparedValues.index + 1, type);
+  preparedValues.values[preparedValues.index] = value;
+  preparedValues.index++;
+  return placeholder;
+};
 
 export const simpleFieldValidate = (
   field: string | null,
@@ -202,6 +198,27 @@ export const fieldQuote = <T extends boolean = false>(
   return quote(str);
 };
 
+export function isValidFunction(func: unknown): func is Function {
+  return typeof func === 'function' && func.constructor === Function;
+}
+
+export function isNonEmptyString(str: unknown): str is string {
+  return typeof str === 'string' && str.trim().length > 0;
+}
+
+export function isValidObject(obj: unknown): obj is object {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    !Array.isArray(obj) &&
+    obj.constructor === Object
+  );
+}
+
+export function isValidSetObj<T>(obj: unknown): obj is Set<T> {
+  return typeof obj === 'object' && obj !== null && obj.constructor === Set;
+}
+
 export const isNonNullableValue = <T>(v: T): v is NonNullable<T> =>
   v !== null && v !== undefined;
 
@@ -224,22 +241,6 @@ export const isNotNullPrimitiveValue = (
   );
 };
 
-export const createPlaceholder = (index: number, type?: string) => {
-  return type ? `$${index}${type}` : `$${index}`;
-};
-
-export const getPreparedValues = (
-  preparedValues: PreparedValues,
-  value: Primitive,
-  options?: { type: string },
-) => {
-  const { type } = options || {};
-  const placeholder = createPlaceholder(preparedValues.index + 1, type);
-  preparedValues.values[preparedValues.index] = value;
-  preparedValues.index++;
-  return placeholder;
-};
-
 export const isValidModel = (model: any) => {
   if (!isValidFunction(model)) {
     return false;
@@ -251,6 +252,18 @@ export const isValidModel = (model: any) => {
     return false;
   }
   return true;
+};
+
+export const isValidModelSubquery = <Model>(
+  subquery: unknown,
+): subquery is SubModelQuery<Model> => {
+  if (!isValidObject(subquery)) {
+    return false;
+  }
+  if (isValidObject((subquery as any).subquery)) {
+    return isValidModelSubquery((subquery as any).subquery);
+  }
+  return isValidModel((subquery as any).model);
 };
 
 export const isValidColumn = (
@@ -272,12 +285,12 @@ export const isValidColumn = (
 export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
   subQuery: unknown,
 ): subQuery is InOperationSubQuery<Model, 'WhereNotReq', W> => {
-  if (typeof subQuery !== 'object' || subQuery === null) {
+  if (!isValidObject(subQuery)) {
     return false;
   }
-  const { model, column, columns } = subQuery as any;
+  const { column, columns } = subQuery as any;
   const arrayAllowedUptoLvl = column ? 0 : columns ? 1 : -1;
-  if (!isValidModel(model)) {
+  if (!isValidModelSubquery(subQuery)) {
     return false;
   }
   if (!isValidColumn(column || columns, arrayAllowedUptoLvl)) {
@@ -285,6 +298,7 @@ export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
   }
   return true;
 };
+
 export const isValidCaseQuery = <Model>(
   query: unknown,
 ): query is CaseSubquery<Model> => {
@@ -304,7 +318,7 @@ export const isValidCaseQuery = <Model>(
 export const isValidWhereQuery = <Model>(
   value: unknown,
 ): value is WhereClause<Model> => {
-  if (isValidObject(value)) {
+  if (isNonEmptyObject(value)) {
     return true;
   }
   return false;
@@ -324,10 +338,10 @@ export const getJoinSubqueryFields = <Model>(subQuery: Subquery<Model>) => {
 };
 
 export const isEmptyObject = (obj: unknown) =>
-  isValidObject(obj) && Object.keys(obj).length < 1;
+  isValidObject(obj) && Object.keys(obj).length === 0;
 
 export const isNonEmptyObject = (obj: unknown): obj is object =>
-  !isEmptyObject(obj);
+  isValidObject(obj) && Object.keys(obj).length > 0;
 
 export const isCallableColumn = (col: unknown): col is CallableField => {
   return typeof col === 'function' && col.length === 1;

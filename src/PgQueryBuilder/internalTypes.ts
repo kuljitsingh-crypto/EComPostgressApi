@@ -48,7 +48,10 @@ export type SubQueryFilterRecord<Model> = {
     | SubQueryFilter<Model, 'WhereNotReq'>
     | Array<Primitive>;
 };
-export type FilterColumnValue<Model> = Primitive | SubQueryFilterRecord<Model>;
+export type FilterColumnValue<Model> =
+  | Primitive
+  | CallableField
+  | SubQueryFilterRecord<Model>;
 export type FilterColumnValueWithSubQuery<Model> =
   | Primitive
   | SubQueryFilterRecord<Model>

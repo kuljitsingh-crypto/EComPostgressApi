@@ -127,9 +127,10 @@ BasketA.findAll({
     // ),
     // 'fruit_a',
     // aggrFn.corr(col('a'), {
-    //   model: BasketB,
+    //   subquery: { model: BasketB },
     //   column: 'b',
-    //   where: { b: { eq: col('a') } },
+    //   where: { 't.b': { eq: col('a') } },
+    //   alias: 't',
     // }),
     // aggrFn.sum(
     //   castFn.int(
@@ -299,7 +300,9 @@ BasketA.findAll({
     // $exist:{tableName:'sf',where:{a:'5'}}
     // fruit_a: 'Apple',
     // a: 1,
+    // $exists: { subquery: { model: BasketB }, where: { b: col('a') } },
   },
+  alias: 't',
   // crossJoin: {
   //   model: BasketA,
   //   alias: 't',

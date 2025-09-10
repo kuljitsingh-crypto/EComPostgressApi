@@ -20,7 +20,7 @@ export class FieldHelper {
   static getAllowedFields<Model>(
     selfAllowedFields: AllowedFields,
     options?: {
-      subquery: SubModelQuery<Model>;
+      subquery?: SubModelQuery<Model>;
       alias?: AliasSubType;
       join?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>;
       refAllowedFields?: AllowedFields;

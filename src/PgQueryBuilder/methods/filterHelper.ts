@@ -157,7 +157,7 @@ export class TableFilter {
   ): string {
     const key = singleQry[0] as OP_KEYS;
     let value = singleQry[1];
-    if (isPrimitiveValue(value)) {
+    if (isPrimitiveValue(value) || isCallableColumn(value)) {
       value = { eq: value };
     }
     if (conditionalOperator.has(key as any)) {
@@ -175,7 +175,7 @@ export class TableFilter {
         preparedValues,
         groupByFields,
         value,
-        { isExistsFilter: true },
+        { isExistsFilter: true, refAllowedFields: allowedFields },
       );
     } else if (matchQueryOperator.has(key as any)) {
       return TableFilter.#matchQueryOperator(
