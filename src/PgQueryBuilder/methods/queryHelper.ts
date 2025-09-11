@@ -5,6 +5,7 @@ import { TableJoinType } from '../constants/tableJoin';
 import {
   AliasSubType,
   AllowedFields,
+  DerivedModel,
   GroupByFields,
   InOperationSubQuery,
   JoinQuery,
@@ -13,7 +14,6 @@ import {
   QueryParams,
   SelectQuery,
   SetQuery,
-  SubModelQuery,
   Subquery,
   SubqueryMultiColFlag,
 } from '../internalTypes';
@@ -26,7 +26,8 @@ import {
   fieldQuote,
   getJoinSubqueryFields,
   isNonEmptyString,
-  isValidModelSubquery,
+  isNonNullableValue,
+  isValidDerivedModel,
   isValidObject,
   isValidSubQuery,
   isValidWhereQuery,
@@ -71,22 +72,28 @@ export class QueryHelper {
     groupByFields: GroupByFields,
     tableName: string,
     qry: QueryParams<Model>,
-    useOnlyRefAllowedFields = false,
+    options?: { useOnlyRefAllowedFields?: boolean; modelRef?: Model },
   ) {
-    const { columns, isDistinct, orderBy, alias, subquery, set, ...rest } = qry;
+    if (isNonNullableValue((qry as any).model)) {
+      qry.derivedModel = (qry as any).model;
+      delete (qry as any).model;
+    }
+    const { useOnlyRefAllowedFields = false, modelRef } = options || {};
+    const { columns, isDistinct, orderBy, alias, derivedModel, set, ...rest } =
+      qry;
     const join = getJoinSubqueryFields(rest);
     const allowedFields = useOnlyRefAllowedFields
       ? refAllowedFields
       : FieldHelper.getAllowedFields(refAllowedFields, {
           alias,
           join,
-          subquery,
+          derivedModel,
         });
     const selectQury = {
       columns,
       isDistinct,
       alias,
-      subquery,
+      derivedModel,
     };
     const selectQry = QueryHelper.#prepareSelectQuery(
       tableName,
@@ -205,7 +212,7 @@ export class QueryHelper {
     options?: { customAllowFields: string[] },
   ) {
     const { customAllowFields = [] } = options || {};
-    const { isDistinct, columns, alias, subquery } = selectQuery;
+    const { isDistinct, columns, alias, derivedModel } = selectQuery;
     const distinctMaybe = isDistinct ? `${DB_KEYWORDS.distinct}` : '';
     const colStr = ColumnHelper.getSelectColumns(allowedFields, columns, {
       preparedValues,
@@ -213,12 +220,12 @@ export class QueryHelper {
       customAllowFields,
     });
 
-    const tableAlias = QueryHelper.#prepareModelSubQuery(
+    const tableAlias = QueryHelper.#prepareDerivedModelSubquery(
       tableName,
       preparedValues,
       allowedFields,
       groupByFields,
-      { alias, subquery },
+      { alias, derivedModel },
     );
     const queries = [
       DB_KEYWORDS.select,
@@ -390,22 +397,22 @@ export class QueryHelper {
     return finalSubQry;
   }
 
-  static #prepareModelSubQuery<Model extends any = any>(
+  static #prepareDerivedModelSubquery<Model extends any = any>(
     tableName: string,
     preparedValues: PreparedValues,
     allowedFields: AllowedFields,
     groupByFields: GroupByFields,
-    options?: { alias?: AliasSubType; subquery?: SubModelQuery<Model> },
+    options?: { alias?: AliasSubType; derivedModel?: DerivedModel<Model> },
   ): string {
-    const { alias, subquery } = options || {};
+    const { alias, derivedModel } = options || {};
     const aliasStr = isNonEmptyString(alias) ? alias : '';
-    if (!isValidModelSubquery(subquery)) {
+    if (!isValidDerivedModel(derivedModel)) {
       return aliasStr
         ? attachArrayWith.space([tableName, DB_KEYWORDS.as, aliasStr])
         : tableName;
     }
-    const { model: m, ...rest } = subquery;
-    const model = FieldHelper.getSubqueryModel(subquery);
+    const model = FieldHelper.getDerivedModel(derivedModel);
+    const rest;
     const tablName = model.tableName;
     const query = QueryHelper.prepareQuery(
       preparedValues,

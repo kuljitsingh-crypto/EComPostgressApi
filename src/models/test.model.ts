@@ -300,14 +300,15 @@ BasketA.findAll({
     // $exist:{tableName:'sf',where:{a:'5'}}
     // fruit_a: 'Apple',
     // a: 1,
-    // $exists: { subquery: { model: BasketB }, where: { b: col('a') } },
+    // $exists: { subquery: { model: BasketB }, where: { b: col('t.a') } },
   },
-  alias: 't',
-  // crossJoin: {
-  //   model: BasketA,
-  //   alias: 't',
-  //   columns: [[aggrFn.avg('a'), 'avg_a']],
-  // },
+  // alias: 't',
+  // crossJoin
+  crossJoin: {
+    subquery: { model: BasketB },
+    alias: 't',
+    columns: [[aggrFn.avg(castFn.int(col('a'))), 'avg_a']],
+  },
   // leftJoin: [
   //   {
   //     model: BasketB,

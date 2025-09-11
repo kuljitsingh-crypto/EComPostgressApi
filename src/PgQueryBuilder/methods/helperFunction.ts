@@ -6,12 +6,13 @@ import {
   CallableField,
   CallableFieldParam,
   CaseSubquery,
+  DerivedModel,
   GroupByFields,
   InOperationSubQuery,
   JoinQuery,
   NonNullPrimitive,
+  Nullable,
   PreparedValues,
-  SubModelQuery,
   Subquery,
   SubqueryMultiColFlag,
   WhereClause,
@@ -222,6 +223,7 @@ export function isValidSetObj<T>(obj: unknown): obj is Set<T> {
 export const isNonNullableValue = <T>(v: T): v is NonNullable<T> =>
   v !== null && v !== undefined;
 
+export const isNullableValue = (v: unknown): v is Nullable => v == null;
 export const isPrimitiveValue = (value: unknown): value is Primitive => {
   return (
     typeof value === 'string' ||
@@ -254,18 +256,6 @@ export const isValidModel = (model: any) => {
   return true;
 };
 
-export const isValidModelSubquery = <Model>(
-  subquery: unknown,
-): subquery is SubModelQuery<Model> => {
-  if (!isValidObject(subquery)) {
-    return false;
-  }
-  if (isValidObject((subquery as any).subquery)) {
-    return isValidModelSubquery((subquery as any).subquery);
-  }
-  return isValidModel((subquery as any).model);
-};
-
 export const isValidColumn = (
   column: unknown,
   arrayAllowedUptoLvl = 0,
@@ -288,9 +278,9 @@ export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
   if (!isValidObject(subQuery)) {
     return false;
   }
-  const { column, columns } = subQuery as any;
+  const { model, column, columns } = subQuery as any;
   const arrayAllowedUptoLvl = column ? 0 : columns ? 1 : -1;
-  if (!isValidModelSubquery(subQuery)) {
+  if (!isValidDerivedModel(model)) {
     return false;
   }
   if (!isValidColumn(column || columns, arrayAllowedUptoLvl)) {
@@ -324,6 +314,28 @@ export const isValidWhereQuery = <Model>(
   return false;
 };
 
+export function isValidDerivedModel<Model>(
+  derivedModel: unknown,
+): derivedModel is DerivedModel<Model> {
+  if (isValidModel(derivedModel)) {
+    return true;
+  }
+  if (isNonEmptyObject(derivedModel)) {
+    return isValidDerivedModel((derivedModel as any).model);
+  }
+  return false;
+}
+
+export const isEmptyObject = (obj: unknown) =>
+  isValidObject(obj) && Object.keys(obj).length === 0;
+
+export const isNonEmptyObject = (obj: unknown): obj is object =>
+  isValidObject(obj) && Object.keys(obj).length > 0;
+
+export const isCallableColumn = (col: unknown): col is CallableField => {
+  return typeof col === 'function' && col.length === 1;
+};
+
 export const getJoinSubqueryFields = <Model>(subQuery: Subquery<Model>) => {
   return Object.entries(subQuery || {}).reduce(
     (pre, acc) => {
@@ -335,16 +347,6 @@ export const getJoinSubqueryFields = <Model>(subQuery: Subquery<Model>) => {
     },
     {} as Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
   );
-};
-
-export const isEmptyObject = (obj: unknown) =>
-  isValidObject(obj) && Object.keys(obj).length === 0;
-
-export const isNonEmptyObject = (obj: unknown): obj is object =>
-  isValidObject(obj) && Object.keys(obj).length > 0;
-
-export const isCallableColumn = (col: unknown): col is CallableField => {
-  return typeof col === 'function' && col.length === 1;
 };
 
 export const getValidCallableFieldValues = <T extends keyof CallableFieldParam>(

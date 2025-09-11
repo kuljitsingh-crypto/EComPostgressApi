@@ -14,6 +14,7 @@ type ColumnRef = `${string}.${string}` | string;
 type BaseColumn = ColumnRef;
 type TargetColumn = ColumnRef;
 
+export type Nullable = null | undefined;
 export type SubqueryWhereReq = 'WhereReq' | 'WhereNotReq';
 export type SubqueryMultiColFlag = 'multi' | 'single';
 export type NonNullPrimitive = string | number | boolean;
@@ -24,9 +25,8 @@ export type GroupByFields = Set<string>;
 export type AllowedFields = Set<string>;
 
 export type ModelAndAlias<Model> = {
-  model?: Model;
+  model?: DerivedModel<Model>;
   alias?: string;
-  subquery?: SubModelQuery<Model>;
 };
 
 type SingleOrderByField<Model> =
@@ -237,14 +237,15 @@ export type Subquery<
   having?: WhereClause<Model>;
 } & Partial<Join<Model>>;
 
-// subquery for model
-export type SubModelQuery<Model> = {
-  model?: Model;
+export type DerivedModel<Model> = Model | DerivedModelQuery<Model>;
+
+// subquery for derived model
+type DerivedModelQuery<Model> = {
+  model?: DerivedModel<Model>;
   alias?: string;
   columns?: FindQueryAttributes;
   orderBy?: ORDER_BY<Model>;
   set?: SetQuery<Model>;
-  subquery?: SubModelQuery<Model>;
 } & Subquery<Model, 'WhereNotReq'> & {
     isDistinct?: boolean;
   };
@@ -253,7 +254,7 @@ export type SelectQuery<Model> = {
   columns?: FindQueryAttributes;
   isDistinct?: boolean;
   alias?: string;
-  subquery?: SubModelQuery<Model>;
+  derivedModel?: DerivedModel<Model>;
 };
 
 export type SetQuery<Model> = {
@@ -262,13 +263,10 @@ export type SetQuery<Model> = {
 
 export type AliasSubType = string;
 
-export type SetOperationFilter<Model> = {
-  model: Model;
-  alias?: string;
+export type SetOperationFilter<Model> = ModelAndAlias<Model> & {
   columns?: FindQueryAttributes;
   orderBy?: ORDER_BY<Model>;
   set?: SetQuery<Model>;
-  subquery?: SubModelQuery<Model>;
 } & Subquery<Model, 'WhereNotReq'>;
 
 export type WhereClauseKeys = '$and' | '$or' | string;

@@ -2,15 +2,18 @@ import { TableJoinType } from '../constants/tableJoin';
 import {
   AliasSubType,
   AllowedFields,
+  DerivedModel,
   FindQueryAttributes,
   JoinQuery,
   OtherJoin,
-  SubModelQuery,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
 import {
   isNonEmptyObject,
   isNonEmptyString,
+  isNonNullableValue,
+  isNullableValue,
+  isValidDerivedModel,
   isValidModel,
   isValidObject,
   simpleFieldValidate,
@@ -20,36 +23,33 @@ export class FieldHelper {
   static getAllowedFields<Model>(
     selfAllowedFields: AllowedFields,
     options?: {
-      subquery?: SubModelQuery<Model>;
+      derivedModel: DerivedModel<Model>;
       alias?: AliasSubType;
       join?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>;
       refAllowedFields?: AllowedFields;
     },
   ): AllowedFields {
-    const { alias, join, refAllowedFields, subquery } = options || {};
+    const { alias, join, refAllowedFields, derivedModel } = options || {};
     const modelFields = FieldHelper.#initializeModelFields(
       selfAllowedFields,
       refAllowedFields,
-      { alias, subquery },
+      { alias, derivedModel },
     );
     FieldHelper.#getJoinFieldNames(modelFields, join);
     return new Set(modelFields);
   }
 
-  static getSubqueryModel<Model>(subquery?: SubModelQuery<Model>): {
+  static getDerivedModel<Model>(derivedModel?: DerivedModel<Model>): {
     tableColumns: AllowedFields;
     tableName: string;
   } {
-    if (!isValidObject(subquery)) {
-      return throwError.invalidModelSubquery();
+    if (!isValidDerivedModel<Model>(derivedModel)) {
+      return throwError.invalidModelType();
     }
-    if (isValidObject(subquery.subquery)) {
-      return FieldHelper.getSubqueryModel(subquery.subquery);
+    if (isValidModel(derivedModel)) {
+      return derivedModel as any;
     }
-    if (!isValidModel(subquery.model)) {
-      throwError.invalidModelType();
-    }
-    return subquery.model as any;
+    return FieldHelper.getDerivedModel((derivedModel as any).model);
   }
 
   static getAliasName(alias?: AliasSubType): string | null {
@@ -59,10 +59,10 @@ export class FieldHelper {
 
   static #getJoinFieldNames = <Model>(
     modelFields: string[],
-    include?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
+    join?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>,
   ) => {
-    if (isNonEmptyObject(include)) {
-      Object.entries(include).forEach((joinType) => {
+    if (isNonEmptyObject(join)) {
+      Object.entries(join).forEach((joinType) => {
         const [type, join] = joinType;
         switch (type) {
           case 'leftJoin':
@@ -81,37 +81,40 @@ export class FieldHelper {
     }
   };
 
-  static #addSubqueryAliasName<Model>(
+  static #addDerivedModelAliasName<Model>(
     aliasNames: string[],
-    subQuery?: SubModelQuery<Model>,
+    derivedModel?: DerivedModel<Model>,
   ): void {
-    if (!isValidObject(subQuery)) {
+    if (isNullableValue(derivedModel) || isValidModel(derivedModel)) {
       return;
     }
-    if (isNonEmptyString(subQuery.alias)) {
-      aliasNames.push(subQuery.alias);
+    if (isNonEmptyString((derivedModel as any).alias)) {
+      aliasNames.push((derivedModel as any).alias);
     }
-    return FieldHelper.#addSubqueryAliasName(aliasNames, subQuery.subquery);
+    return FieldHelper.#addDerivedModelAliasName(
+      aliasNames,
+      (derivedModel as any).model,
+    );
   }
 
   static #getAliasNames<Model>(
     aliasNames: string[],
     alias?: AliasSubType,
-    subQuery?: SubModelQuery<Model>,
+    derivedModel?: DerivedModel<Model>,
   ): string[] {
     if (isNonEmptyString(alias)) {
       aliasNames.push(alias);
     }
-    FieldHelper.#addSubqueryAliasName(aliasNames, subQuery);
+    FieldHelper.#addDerivedModelAliasName(aliasNames, derivedModel);
     return aliasNames;
   }
 
   static #aliasFieldNames<Model>(
     names: Set<string>,
-    options?: { alias?: AliasSubType; subquery?: SubModelQuery<Model> },
+    options?: { alias?: AliasSubType; derivedModel?: DerivedModel<Model> },
   ) {
-    const { alias, subquery } = options || {};
-    const aliasNames = FieldHelper.#getAliasNames([], alias, subquery);
+    const { alias, derivedModel } = options || {};
+    const aliasNames = FieldHelper.#getAliasNames([], alias, derivedModel);
     if (!aliasNames || aliasNames.length < 1) return [];
     const nameArr = Array.from(names);
     const allowedNames = aliasNames.reduce((prev, alias) => {
@@ -144,11 +147,11 @@ export class FieldHelper {
   ) {
     const joinArrays = Array.isArray(join) ? join : [join];
     joinArrays.forEach((joinType) => {
-      const model = FieldHelper.getSubqueryModel(joinType);
+      const model = FieldHelper.getDerivedModel(joinType.model);
       const tableNames = model.tableColumns;
-      const aliasTableNames = FieldHelper.#aliasFieldNames(
+      const aliasTableNames = FieldHelper.#aliasFieldNames<Model>(
         tableNames,
-        joinType,
+        joinType.model as any,
       );
       const columnAlias = FieldHelper.#getColumnsAliasNames(
         joinType.columns,
@@ -161,18 +164,21 @@ export class FieldHelper {
   static #initializeModelFields<Model>(
     selfAllowedFields: AllowedFields,
     refAllowedFields?: AllowedFields,
-    options?: { alias?: AliasSubType; subquery?: SubModelQuery<Model> },
+    options?: { alias?: AliasSubType; derivedModel?: DerivedModel<Model> },
   ) {
-    const { alias, subquery } = options || {};
-    if (isValidObject(subquery)) {
-      const model = FieldHelper.getSubqueryModel(subquery);
+    const { alias, derivedModel } = options || {};
+    if (isNonNullableValue(derivedModel)) {
+      const model = FieldHelper.getDerivedModel(derivedModel);
       selfAllowedFields = model.tableColumns;
     }
     refAllowedFields = (refAllowedFields ?? new Set()) as Set<string>;
     return [
       ...selfAllowedFields,
       ...refAllowedFields,
-      ...FieldHelper.#aliasFieldNames(selfAllowedFields, { alias, subquery }),
+      ...FieldHelper.#aliasFieldNames(selfAllowedFields, {
+        alias,
+        derivedModel,
+      }),
     ];
   }
 }
