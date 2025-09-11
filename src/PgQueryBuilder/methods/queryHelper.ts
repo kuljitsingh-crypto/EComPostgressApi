@@ -27,7 +27,9 @@ import {
   getJoinSubqueryFields,
   isNonEmptyString,
   isNonNullableValue,
+  isNullableValue,
   isValidDerivedModel,
+  isValidModel,
   isValidObject,
   isValidSubQuery,
   isValidWhereQuery,
@@ -65,6 +67,22 @@ const prepareFinalFindQry = (
   return attachArrayWith.space(rowQueries);
 };
 
+const getRestQueryFrDerivedModel = <Model>(
+  derivedModel: DerivedModel<Model>,
+) => {
+  if (isNullableValue(derivedModel)) {
+    return throwError.invalidModelType();
+  }
+  if (isValidModel(derivedModel)) {
+    return {};
+  }
+  if (isValidModel((derivedModel as any).model)) {
+    const { model, ...rest } = derivedModel as any;
+    return rest;
+  }
+  return derivedModel;
+};
+
 export class QueryHelper {
   static prepareQuery<Model>(
     preparedValues: PreparedValues,
@@ -72,13 +90,17 @@ export class QueryHelper {
     groupByFields: GroupByFields,
     tableName: string,
     qry: QueryParams<Model>,
-    options?: { useOnlyRefAllowedFields?: boolean; modelRef?: Model },
+    memorizeOption?: {
+      useOnlyRefAllowedFields?: boolean;
+      derivedModelRef?: Model;
+    },
   ) {
     if (isNonNullableValue((qry as any).model)) {
-      qry.derivedModel = (qry as any).model;
-      delete (qry as any).model;
+      const { model, ...rest } = qry as any;
+      qry = { ...rest, derivedModel: model };
     }
-    const { useOnlyRefAllowedFields = false, modelRef } = options || {};
+    const { useOnlyRefAllowedFields = false, derivedModelRef } =
+      memorizeOption || {};
     const { columns, isDistinct, orderBy, alias, derivedModel, set, ...rest } =
       qry;
     const join = getJoinSubqueryFields(rest);
@@ -101,6 +123,7 @@ export class QueryHelper {
       groupByFields,
       preparedValues,
       selectQury,
+      { derivedModelRef },
     );
     const subQry = QueryHelper.#prepareSubquery(
       tableName,
@@ -209,9 +232,9 @@ export class QueryHelper {
     groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     selectQuery: SelectQuery<Model>,
-    options?: { customAllowFields: string[] },
+    options?: { customAllowFields?: string[]; derivedModelRef?: Model },
   ) {
-    const { customAllowFields = [] } = options || {};
+    const { customAllowFields = [], derivedModelRef } = options || {};
     const { isDistinct, columns, alias, derivedModel } = selectQuery;
     const distinctMaybe = isDistinct ? `${DB_KEYWORDS.distinct}` : '';
     const colStr = ColumnHelper.getSelectColumns(allowedFields, columns, {
@@ -225,7 +248,7 @@ export class QueryHelper {
       preparedValues,
       allowedFields,
       groupByFields,
-      { alias, derivedModel },
+      { alias, derivedModel, derivedModelRef },
     );
     const queries = [
       DB_KEYWORDS.select,
@@ -402,17 +425,21 @@ export class QueryHelper {
     preparedValues: PreparedValues,
     allowedFields: AllowedFields,
     groupByFields: GroupByFields,
-    options?: { alias?: AliasSubType; derivedModel?: DerivedModel<Model> },
+    options?: {
+      alias?: AliasSubType;
+      derivedModel?: DerivedModel<Model>;
+      derivedModelRef?: Model;
+    },
   ): string {
-    const { alias, derivedModel } = options || {};
+    const { alias, derivedModel, derivedModelRef } = options || {};
     const aliasStr = isNonEmptyString(alias) ? alias : '';
     if (!isValidDerivedModel(derivedModel)) {
       return aliasStr
         ? attachArrayWith.space([tableName, DB_KEYWORDS.as, aliasStr])
         : tableName;
     }
-    const model = FieldHelper.getDerivedModel(derivedModel);
-    const rest;
+    const model = FieldHelper.getDerivedModel(derivedModelRef ?? derivedModel);
+    const rest = getRestQueryFrDerivedModel(derivedModel);
     const tablName = model.tableName;
     const query = QueryHelper.prepareQuery(
       preparedValues,
@@ -420,7 +447,7 @@ export class QueryHelper {
       groupByFields,
       tablName,
       rest,
-      true,
+      { useOnlyRefAllowedFields: true, derivedModelRef: model },
     );
     const findAllQuery = `(${query})`;
     const queries = [findAllQuery];
