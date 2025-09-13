@@ -90,7 +90,7 @@ function isValidPreparedValues(
     preparedValues.hasOwnProperty('index') &&
     typeof (preparedValues as any).index === 'number' &&
     preparedValues.hasOwnProperty('values') &&
-    Array.isArray((preparedValues as any).values)
+    isValidArray((preparedValues as any).values, -1)
   );
 }
 
@@ -98,7 +98,7 @@ function isValidAggregateValue(value: unknown): value is boolean {
   return typeof value === 'boolean';
 }
 function isValidCustomALlowedFields(value: unknown): boolean {
-  return Array.isArray(value) && value.length > 0;
+  return isValidArray(value);
 }
 
 const validateField = (
@@ -199,6 +199,11 @@ export const fieldQuote = <T extends boolean = false>(
   return quote(str);
 };
 
+export function isValidArray<T>(arr: unknown, len?: number): arr is Array<T> {
+  len = len ?? 0;
+  return isNonNullableValue(arr) && Array.isArray(arr) && arr.length > len;
+}
+
 export function isValidFunction(func: unknown): func is Function {
   return typeof func === 'function' && func.constructor === Function;
 }
@@ -208,12 +213,7 @@ export function isNonEmptyString(str: unknown): str is string {
 }
 
 export function isValidObject(obj: unknown): obj is object {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    !Array.isArray(obj) &&
-    obj.constructor === Object
-  );
+  return typeof obj === 'object' && obj !== null && obj.constructor === Object;
 }
 
 export function isValidSetObj<T>(obj: unknown): obj is Set<T> {
@@ -243,7 +243,7 @@ export const isNotNullPrimitiveValue = (
   );
 };
 
-export const isValidModel = (model: any) => {
+export const isValidSimpleModel = <T>(model: any): model is T => {
   if (!isValidFunction(model)) {
     return false;
   }
@@ -263,7 +263,7 @@ export const isValidColumn = (
 ): boolean => {
   const isColumn = isNonEmptyString(column) || isValidFunction(column);
   const isArrayAllowed = lvl <= arrayAllowedUptoLvl;
-  if (isArrayAllowed && Array.isArray(column)) {
+  if (isArrayAllowed && isValidArray(column)) {
     return lvl === arrayAllowedUptoLvl
       ? isValidColumn(column[0], arrayAllowedUptoLvl, lvl + 1)
       : column.every((col) => isValidColumn(col, arrayAllowedUptoLvl, lvl + 1));
@@ -280,6 +280,7 @@ export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
   }
   const { model, column, columns } = subQuery as any;
   const arrayAllowedUptoLvl = column ? 0 : columns ? 1 : -1;
+
   if (!isValidDerivedModel(model)) {
     return false;
   }
@@ -317,7 +318,7 @@ export const isValidWhereQuery = <Model>(
 export function isValidDerivedModel<Model>(
   derivedModel: unknown,
 ): derivedModel is DerivedModel<Model> {
-  if (isValidModel(derivedModel)) {
+  if (isValidSimpleModel(derivedModel)) {
     return true;
   }
   if (isNonEmptyObject(derivedModel)) {
@@ -380,6 +381,10 @@ export const validCallableColCtx = (
   return rest;
 };
 
+export const ensureArray = <T>(val: T | T[]): T[] => {
+  return isValidArray(val) ? [...val] : [val];
+};
+
 //===================================== Object wrapped functions =======================//
 
 export const attachArrayWith = {
@@ -388,4 +393,17 @@ export const attachArrayWith = {
   and: attachArrayWithAndSep,
   comaAndSpace: attachArrayWithComaAndSpaceSep,
   customSep: attachArrayWithSep,
+};
+
+//==================================== Field helper depend son object ============================//
+export const covertStrArrayToStr = (
+  value: string | string[],
+  options?: { by: keyof typeof attachArrayWith; sep?: string },
+): string => {
+  const { by = 'coma', sep } = options || {};
+  return isValidArray<string>(value)
+    ? by === 'customSep'
+      ? attachArrayWith.customSep(value, sep ?? ',')
+      : attachArrayWith[by](value)
+    : value;
 };

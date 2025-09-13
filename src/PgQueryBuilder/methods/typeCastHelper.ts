@@ -18,6 +18,7 @@ import {
   getPreparedValues,
   getValidCallableFieldValues,
   isCallableColumn,
+  isValidArray,
   validCallableColCtx,
 } from './helperFunction';
 
@@ -78,7 +79,7 @@ const getValidTypeValue = (
     const nextVal = (castOptions as any)[paramAllowed[i + 1]];
     const allowedType = castOptionType[acc];
     if (!allowedType) continue;
-    if (Array.isArray(allowedType) && allowedType.includes(val)) {
+    if (isValidArray(allowedType) && allowedType.includes(val)) {
       wrapFieldParamWithBracket = false;
       const precision =
         intervalFieldsWithPrecision.includes(val) &&

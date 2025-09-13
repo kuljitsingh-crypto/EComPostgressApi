@@ -5,6 +5,7 @@ import {
   attachArrayWith,
   getPreparedValues,
   isNonEmptyString,
+  isValidArray,
 } from './helperFunction';
 
 const checkAndAddQuery = (
@@ -13,9 +14,7 @@ const checkAndAddQuery = (
   prefix?: string,
   replaceWithIndex?: number,
 ) => {
-  const isValidAttr =
-    attrName && Array.isArray(attrName) && attrName.length > 0;
-  if (!isValidAttr) {
+  if (!isValidArray(attrName)) {
     return;
   }
   attrName = attrName?.filter(Boolean) as string[];

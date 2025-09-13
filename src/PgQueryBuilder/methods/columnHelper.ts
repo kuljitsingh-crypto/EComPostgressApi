@@ -15,13 +15,13 @@ import {
   isCallableColumn,
   isNonEmptyString,
   validCallableColCtx,
+  isValidArray,
 } from './helperFunction';
 
-const isValidArray = (
+const isCustomValidArray = (
   col: FindQueryAttribute,
 ): col is [string | CallableField, string | null] => {
-  if (col === null) return false;
-  if (!Array.isArray(col)) return false;
+  if (!isValidArray(col)) return false;
   if (col.filter(Boolean).length < 1) return false;
   return true;
 };
@@ -51,7 +51,7 @@ const getColNameAndAlias = (
       groupByFields,
     });
     return rest;
-  } else if (isValidArray(col)) {
+  } else if (isCustomValidArray(col)) {
     const [column, alias] = col;
     const { col: validColumn } = getColNameAndAlias(
       column,
@@ -77,7 +77,7 @@ export class ColumnHelper {
       customAllowFields?: string[];
     },
   ) {
-    if (!columns || !Array.isArray(columns) || columns.length < 1) return '*';
+    if (!isValidArray(columns)) return '*';
     columns = columns.filter(Boolean);
     if (columns.length < 1) return '*';
     const {

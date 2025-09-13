@@ -9,13 +9,14 @@ import {
 } from '../internalTypes';
 import { throwError } from './errorHelper';
 import {
+  ensureArray,
   isNonEmptyObject,
   isNonEmptyString,
   isNonNullableValue,
   isNullableValue,
+  isValidArray,
   isValidDerivedModel,
-  isValidModel,
-  isValidObject,
+  isValidSimpleModel,
   simpleFieldValidate,
 } from './helperFunction';
 
@@ -23,7 +24,7 @@ export class FieldHelper {
   static getAllowedFields<Model>(
     selfAllowedFields: AllowedFields,
     options?: {
-      derivedModel: DerivedModel<Model>;
+      derivedModel?: DerivedModel<Model>;
       alias?: AliasSubType;
       join?: Record<TableJoinType, JoinQuery<TableJoinType, Model>>;
       refAllowedFields?: AllowedFields;
@@ -46,7 +47,7 @@ export class FieldHelper {
     if (!isValidDerivedModel<Model>(derivedModel)) {
       return throwError.invalidModelType();
     }
-    if (isValidModel(derivedModel)) {
+    if (isValidSimpleModel(derivedModel)) {
       return derivedModel as any;
     }
     return FieldHelper.getDerivedModel((derivedModel as any).model);
@@ -85,7 +86,7 @@ export class FieldHelper {
     aliasNames: string[],
     derivedModel?: DerivedModel<Model>,
   ): void {
-    if (isNullableValue(derivedModel) || isValidModel(derivedModel)) {
+    if (isNullableValue(derivedModel) || isValidSimpleModel(derivedModel)) {
       return;
     }
     if (isNonEmptyString((derivedModel as any).alias)) {
@@ -128,9 +129,13 @@ export class FieldHelper {
     columns: FindQueryAttributes = [],
     alias = '',
   ): string[] => {
-    columns = Array.isArray(columns) ? columns : [columns];
+    columns = ensureArray(columns);
     return columns.reduce((pre, acc) => {
-      if (Array.isArray(acc) && acc.length === 2 && isNonEmptyString(acc[1])) {
+      if (
+        isValidArray(acc, 1) &&
+        acc.length === 2 &&
+        isNonEmptyString(acc[1])
+      ) {
         const validField = simpleFieldValidate(acc[1], []);
         if (isNonEmptyString(alias)) {
           pre.push(`${alias}.${validField}`);
@@ -145,7 +150,7 @@ export class FieldHelper {
     join: OtherJoin<Model> | OtherJoin<Model>[],
     modelFields: string[],
   ) {
-    const joinArrays = Array.isArray(join) ? join : [join];
+    const joinArrays = ensureArray(join);
     joinArrays.forEach((joinType) => {
       const model = FieldHelper.getDerivedModel(joinType.model);
       const tableNames = model.tableColumns;

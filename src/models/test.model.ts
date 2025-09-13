@@ -305,10 +305,14 @@ BasketA.findAll({
   // alias: 't',
   // crossJoin
   crossJoin: {
-    subquery: { model: BasketB },
+    model: { model: BasketB, alias: 'y' },
     alias: 't',
-    columns: [[aggrFn.avg(castFn.int(col('a'))), 'avg_a']],
+    columns: [[aggrFn.avg(castFn.int(col('b'))), 'avg_a']],
   },
+  // innerJoin: {
+  //   model: { model: BasketB, alias: 't', where: { b: { gt: 1 } } },
+  //   on: { a: 'b' },
+  // },
   // leftJoin: [
   //   {
   //     model: BasketB,

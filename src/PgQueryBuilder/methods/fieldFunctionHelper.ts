@@ -38,6 +38,7 @@ import {
   getValidCallableFieldValues,
   isNonEmptyString,
   isNonNullableValue,
+  isValidArray,
   isValidObject,
 } from './helperFunction';
 
@@ -199,7 +200,7 @@ const attachOp = (
       opCb = attachOpInBtwOperator;
       break;
     case 'custom':
-      if (Array.isArray(attachCond) && attachCond.length > 0) {
+      if (isValidArray(attachCond)) {
         opCb = customAttach(attachCond);
       }
       break;

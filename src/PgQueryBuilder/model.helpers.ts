@@ -16,6 +16,7 @@ import { errorHandler, throwError } from './methods/errorHelper';
 import { FieldHelper } from './methods/fieldHelper';
 import {
   attachArrayWith,
+  covertStrArrayToStr,
   createPlaceholder,
   fieldQuote,
   getPreparedValues,
@@ -234,12 +235,8 @@ export class DBModel extends DBQuery {
   }
   static #createForeignColumn(parentTable: string, ref: ReferenceTable) {
     const { parentColumn, column, constraintName, onDelete, onUpdate } = ref;
-    const colStr = Array.isArray(column)
-      ? attachArrayWith.coma(column)
-      : column;
-    const parentColStr = Array.isArray(parentColumn)
-      ? attachArrayWith.coma(parentColumn)
-      : parentColumn;
+    const colStr = covertStrArrayToStr(column);
+    const parentColStr = covertStrArrayToStr(parentColumn);
     const values: string[] = [];
     if (constraintName) {
       values.push(`${DB_KEYWORDS.constraint} ${constraintName}`);

@@ -23,6 +23,7 @@ import {
   getValidCallableFieldValues,
   isNonEmptyString,
   isNonNullableValue,
+  isValidArray,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
 
@@ -125,9 +126,8 @@ const prepareAggFn = <Model>(
   const { isDistinct, orderBy, separator } = options;
   const distinctMayBe =
     distinctColFn.includes(fn) && isDistinct ? DB_KEYWORDS.distinct : '';
-
   const isValidOrderByField =
-    orderByColFn.includes(fn) && Array.isArray(orderBy);
+    orderByColFn.includes(fn) && isValidArray(orderBy);
 
   const isValidSeparator =
     separatorColFn.includes(fn) && isNonEmptyString(separator);

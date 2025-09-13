@@ -24,11 +24,14 @@ import { ColumnHelper } from './columnHelper';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
+  ensureArray,
   fieldQuote,
   getPreparedValues,
   isCallableColumn,
   isNonEmptyString,
   isPrimitiveValue,
+  isValidArray,
+  isValidObject,
   isValidSubQuery,
   validCallableColCtx,
 } from './helperFunction';
@@ -208,7 +211,7 @@ export class TableFilter {
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
   ) => {
-    if (!Array.isArray(value)) {
+    if (!isValidArray<any>(value)) {
       return throwError.invalidArrayOPType(key);
     }
     if (value.length < 1) {
@@ -216,7 +219,7 @@ export class TableFilter {
     }
 
     const validMatches = value.filter(Boolean).map((val) => {
-      val = Array.isArray(val) ? val : [val];
+      val = ensureArray(val);
       if (val.length < 1) {
         return throwError.invalidArrayOPType(key, { min: 1 });
       }
@@ -248,7 +251,7 @@ export class TableFilter {
     value: any,
     isHavingFilter: boolean,
   ) {
-    if (!Array.isArray(value)) {
+    if (!isValidArray<any>(value)) {
       return throwError.invalidArrayOPType(key);
     }
     if (value.length < 2) {
@@ -283,7 +286,7 @@ export class TableFilter {
     minArrayLenReq = 1,
     sep = 'coma' as 'coma' | 'and',
   ) {
-    if (Array.isArray(value)) {
+    if (isValidArray<any>(value)) {
       if (value.length < minArrayLenReq) {
         return throwError.invalidArrayOPType(baseOperation, {
           min: minArrayLenReq,
@@ -307,14 +310,14 @@ export class TableFilter {
         arrayQry,
       ]);
     }
-    if (typeof value !== 'object' || value === null) {
+    if (!isValidObject(value)) {
       return throwError.invalidObjectOPType(baseOperation);
     }
     const subQry = QueryHelper.otherModelSubqueryBuilder(
       subQryOperation,
       preparedValues,
       groupByFields,
-      value,
+      value as any,
       { isExistsFilter: false },
     );
     return attachArrayWith.space([key, baseOperation, subQry]);
@@ -412,7 +415,7 @@ export class TableFilter {
               val,
             );
           }
-          const updatedVal = Array.isArray(val)
+          const updatedVal = isValidArray(val)
             ? { [DB_KEYWORDS.any]: val }
             : val;
           const { key, value } = getAnyAndAllFilterValue(updatedVal, op);

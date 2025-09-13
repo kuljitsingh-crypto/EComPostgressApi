@@ -7,9 +7,11 @@ import {
 } from '../internalTypes';
 import {
   attachArrayWith,
+  ensureArray,
   fieldQuote,
   isCallableColumn,
   isNonEmptyString,
+  isValidArray,
   isValidSubQuery,
   validCallableColCtx,
 } from './helperFunction';
@@ -24,11 +26,11 @@ export class OrderByQuery {
     isAggregateAllowed = true,
     isExistsFilter = false,
   ) {
-    if (!orderBy || !Array.isArray(orderBy) || orderBy.length < 1) return '';
+    if (!isValidArray(orderBy)) return '';
     const orderStatement: string[] = [DB_KEYWORDS.orderBy];
     const rawOrderBy = orderBy
       .map((o) => {
-        const [col, order = 'DESC', nullOption] = Array.isArray(o) ? o : [o];
+        const [col, order = 'DESC', nullOption] = ensureArray(o);
         const orders: string[] = [];
         if (isNonEmptyString(col)) {
           orders.push(fieldQuote(allowedFields, col));
@@ -53,7 +55,7 @@ export class OrderByQuery {
         } else {
           return null;
         }
-        orders.push(order, nullOption || '');
+        orders.push(order as string, (nullOption as string) || '');
         return attachArrayWith.space(orders);
       })
       .filter(Boolean);

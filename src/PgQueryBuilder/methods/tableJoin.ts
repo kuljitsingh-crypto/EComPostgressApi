@@ -13,13 +13,16 @@ import {
   GroupByFields,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
+import { FieldHelper } from './fieldHelper';
 import {
   attachArrayWith,
+  ensureArray,
   fieldQuote,
   getJoinSubqueryFields,
   isEmptyObject,
+  isNonEmptyObject,
   isNonEmptyString,
-  isValidModel,
+  isValidSimpleModel,
   isValidSubQuery,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
@@ -89,7 +92,7 @@ export class TableJoin {
         TableJoinType,
         JoinQuery<TableJoinType, Model>,
       ];
-      const valArr = Array.isArray(value) ? value : [value];
+      const valArr = ensureArray(value);
       TableJoin.#prepareMultiJoinStars(
         selfModelName,
         key,
@@ -104,14 +107,29 @@ export class TableJoin {
     return attachArrayWith.space(joinArr);
   }
 
-  static #getJoinModelName<Model>(join: UpdatedJoin<Model>): string {
+  static #getJoinModelName<Model>(
+    join: UpdatedJoin<Model>,
+    options: {
+      allowedFields: AllowedFields;
+      preparedValues: PreparedValues;
+      groupByFields: GroupByFields;
+    },
+  ): string {
     if (isSelfJoin(join)) {
       return join.name;
     }
-    if (!isValidModel(join.model)) {
-      return throwError.invalidModelType();
+    if (isValidSimpleModel<Model>(join.model)) {
+      return (join.model as any).tableName;
+    } else if (isNonEmptyObject(join.model)) {
+      return QueryHelper.otherModelSubqueryBuilder(
+        '',
+        options.preparedValues,
+        options.groupByFields,
+        join.model as any,
+        { isExistsFilter: false, isColumnReq: false },
+      );
     }
-    return (join.model as any).tableName;
+    return throwError.invalidModelType();
   }
 
   static #prepareMultiJoinStars<Model>(
@@ -150,16 +168,20 @@ export class TableJoin {
       return throwError.invalidJoinType(type);
     }
     const onQuery = isCrossJoin(join) ? null : join.on;
-    const isSubquery = isValidSubQuery(restJoin as any);
+    const isSubquery = isValidSubQuery(restJoin);
     const table = isSubquery
       ? QueryHelper.otherModelSubqueryBuilder(
           '',
           preparedValues,
           groupByFields,
-          restJoin as any,
+          restJoin,
           { isExistsFilter: false },
         )
-      : TableJoin.#getJoinModelName(join);
+      : TableJoin.#getJoinModelName(join, {
+          preparedValues,
+          groupByFields,
+          allowedFields,
+        });
     const onStr =
       onQuery === null
         ? null
