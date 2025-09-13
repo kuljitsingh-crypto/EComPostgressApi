@@ -34,6 +34,7 @@ import {
   isValidObject,
   isValidSubQuery,
   isValidWhereQuery,
+  createNewObj,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
 import { PaginationQuery } from './paginationQuery';
@@ -104,7 +105,7 @@ export class QueryHelper {
   ) {
     if (isNonNullableValue((qry as any).model)) {
       const { model, ...rest } = qry as any;
-      qry = { ...rest, derivedModel: model };
+      qry = createNewObj(rest, { derivedModel: model });
     }
     const { useOnlyRefAllowedFields = false, derivedModelRef } =
       memorizeOption || {};

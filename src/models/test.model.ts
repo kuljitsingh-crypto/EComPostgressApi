@@ -304,15 +304,22 @@ BasketA.findAll({
   },
   // alias: 't',
   // crossJoin
-  crossJoin: {
-    model: { model: BasketB, alias: 'y' },
-    alias: 't',
-    columns: [[aggrFn.avg(castFn.int(col('b'))), 'avg_a']],
-  },
-  // innerJoin: {
-  //   model: { model: BasketB, alias: 't', where: { b: { gt: 1 } } },
-  //   on: { a: 'b' },
+  // crossJoin: {
+  //   model: { model: BasketB, alias: 'y' },
+  //   alias: 't',
+  //   columns: [[aggrFn.avg(castFn.int(col('y.b'))), 'avg_a']],
+  //   modelAlias: 'y',
   // },
+  innerJoin: [
+    {
+      model: { model: BasketB, alias: 't', where: { b: { gt: 2 } } },
+      on: { a: 'b' },
+    },
+    {
+      model: { model: BasketC, alias: 't', where: { c: { gt: 1 } } },
+      on: { c: 'a' },
+    },
+  ],
   // leftJoin: [
   //   {
   //     model: BasketB,
@@ -377,6 +384,7 @@ BasketA.findAll({
   //     },
   //   },
   // },
+  // derivedModel: { model: BasketB, where: { b: { gt: 2 } } },
 }).then((res) => {
   console.dir(res, { depth: null });
 });
@@ -388,8 +396,8 @@ BasketA.findAll({
 //   console.log('raw Query Result->', res);
 // });
 
-BasketA
-  .queryRawSql
+BasketA.queryRawSql(
+  'SELECT a,t.avg_a FROM basket_a CROSS JOIN (SELECT AVG(y.b::INTEGER) AS avg_a FROM (Select * from basket_b) as y) AS t',
   // "SELECT (NOW() - '2023-12-25'::TIMESTAMP) - INTERVAL '30 days'  AS deviation FROM basket_a;",
   // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
   // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
@@ -401,10 +409,9 @@ BasketA
   // 'SELECT a, ABS(a - (SELECT AVG(b) FROM basket_b)) AS deviation FROM basket_a;',
   // 'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
   // ['30 days'],
-  ()
-  .then((res) => {
-    console.dir({ 'raw Query Result->': res }, { depth: null });
-  });
+).then((res) => {
+  console.dir({ 'raw Query Result->': res }, { depth: null });
+});
 
 export function run() {
   console.log('test model running');

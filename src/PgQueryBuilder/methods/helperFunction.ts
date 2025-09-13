@@ -382,7 +382,7 @@ export const validCallableColCtx = (
 };
 
 export const ensureArray = <T>(val: T | T[]): T[] => {
-  return isValidArray(val) ? [...val] : [val];
+  return isValidArray(val, -1) ? [...val] : [val];
 };
 
 //===================================== Object wrapped functions =======================//
@@ -406,4 +406,8 @@ export const covertStrArrayToStr = (
       ? attachArrayWith.customSep(value, sep ?? ',')
       : attachArrayWith[by](value)
     : value;
+};
+
+export const createNewObj = (...objs: object[]) => {
+  return Object.assign({}, ...objs);
 };

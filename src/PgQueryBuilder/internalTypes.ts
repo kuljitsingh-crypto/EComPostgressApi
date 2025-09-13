@@ -152,14 +152,12 @@ export type SelfJoinSubQuery<Model> = Subquery<Model, 'WhereNotReq'> & {
   columns?: FindQueryAttributes;
   isDistinct?: boolean;
   alias?: string;
+  modelAlias?: string;
 };
 
-export type JoinSubQuery<Model> = ModelAndAlias<Model> &
-  Subquery<Model, 'WhereNotReq'> & {
-    orderBy?: ORDER_BY<Model>;
-    isDistinct?: boolean;
-    columns?: FindQueryAttributes;
-  };
+export type JoinSubQuery<Model> = SelfJoinSubQuery<Model> & {
+  model?: DerivedModel<Model>;
+};
 
 export type JoinCond<
   Model,

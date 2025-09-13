@@ -16,6 +16,7 @@ import { throwError } from './errorHelper';
 import { FieldHelper } from './fieldHelper';
 import {
   attachArrayWith,
+  createNewObj,
   ensureArray,
   fieldQuote,
   getJoinSubqueryFields,
@@ -162,7 +163,7 @@ export class TableJoin {
     groupByFields: GroupByFields,
     join: UpdatedJoin<Model>,
   ) {
-    const { type, alias, ...restJoin } = join;
+    const { type, alias, modelAlias, ...restJoin } = join;
     const joinName = TABLE_JOIN[type];
     if (!joinName) {
       return throwError.invalidJoinType(type);
@@ -174,7 +175,7 @@ export class TableJoin {
           '',
           preparedValues,
           groupByFields,
-          restJoin,
+          createNewObj(restJoin, { alias: modelAlias }),
           { isExistsFilter: false },
         )
       : TableJoin.#getJoinModelName(join, {
