@@ -127,7 +127,7 @@ BasketA.findAll({
     // ),
     // 'fruit_a',
     // aggrFn.corr(col('a'), {
-    //   subquery: { model: BasketB },
+    //   model: BasketB,
     //   column: 'b',
     //   where: { 't.b': { eq: col('a') } },
     //   alias: 't',
@@ -299,15 +299,22 @@ BasketA.findAll({
     // },
     // $exist:{tableName:'sf',where:{a:'5'}}
     // fruit_a: 'Apple',
-    // a: 1,
+    // 't.a': 1,
     // $exists: { subquery: { model: BasketB }, where: { b: col('t.a') } },
-    $exists: {
-      model: BasketB,
-      where: { b: col('t.a') },
-      // union: { model: BasketC },
-    },
+    // $exists: {
+    //   // model: BasketB,
+    //   model: {
+    //     model: BasketB,
+    //     union: { model: BasketC },
+    //     intersect: { model: BasketD },
+    //   },
+    //   // alias: 'y',
+    //   where: { b: col('a') },
+    //   // union: { model: BasketC },
+    //   // intersect: { model: BasketD },
+    // },
   },
-  alias: 't',
+  // alias: 't',
   // crossJoin
   // crossJoin: {
   //   model: { model: BasketB, alias: 'y' },
@@ -369,27 +376,11 @@ BasketA.findAll({
   // },
   // limit: 1,
   // offset: 1,
-  // set: {
-  //   type: 'EXCEPT',
-  //   model: BasketB,
-  //   // columns: { b: null },
-  //   // where: { b: 1 },
-
-  //   set: {
-  //     type: 'UNION',
-  //     model: BasketC,
-  //     where: { c: 1 },
-  //     // columns: { c: null },
-
-  //     set: {
-  //       type: 'UNION_ALL',
-  //       model: BasketD,
-  //       // where: { d: 1 },
-  //       // columns: { d: null },
-  //     },
-  //   },
+  // derivedModel: {
+  //   model: BasketA,
+  //   union: { model: BasketB },
+  //   unionAll: { model: BasketC },
   // },
-  // derivedModel: { model: BasketB, where: { b: { gt: 2 } } },
   // union: {
   //   model: BasketB,
   //   intersect: { model: BasketD },
@@ -397,7 +388,7 @@ BasketA.findAll({
   // },
   // union: { model: BasketB },
 
-  // unionAll: { model: BasketC },
+  // unionAll: { model: BasketC, where: { c: { gt: 2 } } },
   // intersect: { model: BasketD },
 }).then((res) => {
   console.dir(res, { depth: null });
@@ -411,7 +402,10 @@ BasketA.findAll({
 // });
 
 BasketA.queryRawSql(
-  'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM basket_b WHERE (b = t.a) UNION SELECT 1 FROM basket_c)',
+  'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM ((SELECT * FROM basket_b UNION SELECT * FROM basket_c) INTERSECT SELECT * FROM basket_d) AS y WHERE (b = t.a))',
+  // 'SELECT * FROM basket_a AS t WHERE EXISTS ((SELECT 1 FROM basket_b WHERE (b = t.a) UNION SELECT 1 FROM basket_c) INTERSECT SELECT 1 FROM basket_d)',
+  // 'SELECT * FROM ((SELECT * FROM basket_a UNION SELECT * FROM basket_b) UNION ALL SELECT * FROM basket_c) AS t',
+  // 'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM basket_b WHERE (b = t.a) UNION SELECT 1 FROM basket_c)',
   // 'SELECT a,t.avg_a FROM basket_a CROSS JOIN (SELECT AVG(y.b::INTEGER) AS avg_a FROM (Select * from basket_b) as y) AS t',
   // "SELECT (NOW() - '2023-12-25'::TIMESTAMP) - INTERVAL '30 days'  AS deviation FROM basket_a;",
   // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",

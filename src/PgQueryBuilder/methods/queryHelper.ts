@@ -1,4 +1,4 @@
-import { DB_KEYWORDS } from '../constants/dbkeywords';
+import { DB_KEYWORDS, DEFAULT_ALIAS } from '../constants/dbkeywords';
 import { OP, OP_KEYS } from '../constants/operators';
 import { setOperation } from '../constants/setOperations';
 import { TableJoinType } from '../constants/tableJoin';
@@ -32,7 +32,6 @@ import {
   isValidArray,
   isValidDerivedModel,
   isValidSimpleModel,
-  isValidObject,
   isValidSubQuery,
   isValidWhereQuery,
   createNewObj,
@@ -48,34 +47,46 @@ const prepareFinalFindQry = (
   selectQry: string,
   setQry?: string[],
   subQry?: string,
-  options?: { isMainQuery?: boolean },
+  options?: { isMainQuery?: boolean; alias?: string; needWrapper?: boolean },
 ) => {
-  const { isMainQuery = false } = options || {};
+  const {
+    isMainQuery = false,
+    alias = DEFAULT_ALIAS,
+    needWrapper: pNeedWrapper = true,
+  } = options || {};
   subQry = subQry ?? '';
   if (!isValidArray(setQry)) {
     const q = attachArrayWith.space([selectQry, subQry]);
     return isMainQuery ? q : `(${q})`;
   }
-  const createNewTable = subQry || isMainQuery;
-  const rawQueries: string[] = createNewTable
-    ? [DB_KEYWORDS.select, '*', DB_KEYWORDS.from]
-    : [];
   const totalSetQueries = setQry.length;
-  const selectUpdatedQries = repeatValInArrUpto<string>('(', totalSetQueries);
+  const needsWrapper = pNeedWrapper && (subQry || totalSetQueries > 1);
+  const totalBrackets = needsWrapper ? totalSetQueries : totalSetQueries - 1;
+  const selectUpdatedQries = repeatValInArrUpto<string>('(', totalBrackets);
   selectUpdatedQries.push(selectQry);
+  if (subQry) selectUpdatedQries.push(' ', subQry);
   for (let i = 0; i < totalSetQueries; i++) {
     selectUpdatedQries.push(' ', setQry[i], ')');
   }
+  if (!needsWrapper) selectUpdatedQries.pop();
   const finalSubquery = attachArrayWith.customSep(
     selectUpdatedQries,
     '',
     false,
   );
-  const lastSubQry = createNewTable
-    ? [DB_KEYWORDS.as, 'results', subQry]
-    : [subQry];
-  rawQueries.push(finalSubquery, ...lastSubQry);
-  return attachArrayWith.space(rawQueries);
+
+  const rawQueries = needsWrapper
+    ? [
+        DB_KEYWORDS.select,
+        '*',
+        DB_KEYWORDS.from,
+        finalSubquery,
+        DB_KEYWORDS.as,
+        alias,
+      ]
+    : [finalSubquery];
+  const q = attachArrayWith.space(rawQueries);
+  return isMainQuery ? q : `(${q})`;
 };
 
 const getRestQueryFrDerivedModel = <Model>(
@@ -125,14 +136,18 @@ export class QueryHelper {
     memorizeOption?: {
       useOnlyRefAllowedFields?: boolean;
       derivedModelRef?: Model;
+      needWrapperForSetQry?: boolean;
     },
   ) {
     if (isNonNullableValue((qry as any).model)) {
       const { model, ...rest } = qry as any;
       qry = createNewObj(rest, { derivedModel: model });
     }
-    const { useOnlyRefAllowedFields = false, derivedModelRef } =
-      memorizeOption || {};
+    const {
+      useOnlyRefAllowedFields = false,
+      derivedModelRef,
+      needWrapperForSetQry = true,
+    } = memorizeOption || {};
     const { columns, isDistinct, orderBy, alias, derivedModel, ...rest } = qry;
     const set = getSetSubqueryFields(rest);
     const join = getJoinSubqueryFields(rest);
@@ -143,10 +158,13 @@ export class QueryHelper {
           join,
           derivedModel,
         });
+    const updatedAlias =
+      (isNonNullableValue(derivedModel) && (alias || DEFAULT_ALIAS)) || alias;
+
     const selectQury = {
       columns,
       isDistinct,
-      alias,
+      alias: updatedAlias,
       derivedModel,
     };
     const selectQry = QueryHelper.#prepareSelectQuery(
@@ -173,6 +191,7 @@ export class QueryHelper {
     );
     const query = prepareFinalFindQry(selectQry, setQry, subQry, {
       isMainQuery: true,
+      needWrapper: needWrapperForSetQry,
     });
     return query;
   }
@@ -206,7 +225,7 @@ export class QueryHelper {
       isDistinct,
       ...rest
     } = value as any;
-
+    console.log(alias);
     const validSubquery =
       isExistsFilter || !isColumnReq
         ? isValidDerivedModel(m)
@@ -227,10 +246,12 @@ export class QueryHelper {
       col,
       cols,
     );
+    const updatedAlias =
+      (!isValidSimpleModel(m) && (alias || DEFAULT_ALIAS)) || alias;
     const selectQuery =
       columns.length > 0
-        ? { columns, alias, isDistinct, derivedModel: m }
-        : { alias, isDistinct, derivedModel: m };
+        ? { columns, alias: updatedAlias, isDistinct, derivedModel: m }
+        : { alias: updatedAlias, isDistinct, derivedModel: m };
     const subQryAllowedFields = FieldHelper.getAllowedFields(tableColumns, {
       alias,
       join,
@@ -284,7 +305,6 @@ export class QueryHelper {
       groupByFields,
       customAllowFields,
     });
-
     const tableAlias = QueryHelper.#prepareDerivedModelSubquery(
       tableName,
       preparedValues,
@@ -381,7 +401,9 @@ export class QueryHelper {
       groupByFields,
       set,
     );
-    queries.push(prepareFinalFindQry(selectQry, setSubqry, subQry));
+    queries.push(
+      prepareFinalFindQry(selectQry, setSubqry, subQry, { isMainQuery: true }),
+    );
     return attachArrayWith.space(queries);
   };
   static #prepareSubQry(params: {
@@ -490,11 +512,10 @@ export class QueryHelper {
     if (!isValidDerivedModel(derivedModel)) {
       return getTableWithAliasName(tableName, aliasStr);
     }
-
     const model = FieldHelper.getDerivedModel(derivedModelRef ?? derivedModel);
     const tablName = model.tableName;
     if (isValidSimpleModel<Model>(derivedModel)) {
-      return getTableWithAliasName(tablName);
+      return getTableWithAliasName(tablName, aliasStr);
     }
     const rest = getRestQueryFrDerivedModel(derivedModel);
     const query = QueryHelper.prepareQuery(
@@ -503,7 +524,11 @@ export class QueryHelper {
       groupByFields,
       tablName,
       rest,
-      { useOnlyRefAllowedFields: true, derivedModelRef: model },
+      {
+        useOnlyRefAllowedFields: true,
+        derivedModelRef: model,
+        needWrapperForSetQry: false,
+      },
     );
     const findAllQuery = `(${query})`;
     const queries = [findAllQuery];

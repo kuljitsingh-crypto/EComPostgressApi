@@ -36,5 +36,7 @@ export const DB_KEYWORDS = {
   and: 'AND',
 } as const;
 
+export const DEFAULT_ALIAS = 'results';
+
 export type DB_KEYWORDS_TYPE = typeof DB_KEYWORDS;
 export type DB_KEYWORDS_KEYS = keyof DB_KEYWORDS_TYPE;
