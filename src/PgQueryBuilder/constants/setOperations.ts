@@ -1,8 +1,8 @@
 export const setOperation = {
-  UNION: 'UNION',
-  UNION_ALL: 'UNION ALL',
-  INTERSECT: 'INTERSECT',
-  EXCEPT: 'EXCEPT',
+  union: 'UNION',
+  unionAll: 'UNION ALL',
+  intersect: 'INTERSECT',
+  except: 'EXCEPT',
 } as const;
 
 export type SetOperationType = keyof typeof setOperation;

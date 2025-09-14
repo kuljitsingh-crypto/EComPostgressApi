@@ -233,7 +233,8 @@ export type Subquery<
   limit?: PAGINATION['limit'];
   offset?: PAGINATION['offset'];
   having?: WhereClause<Model>;
-} & Partial<Join<Model>>;
+} & Partial<Join<Model>> &
+  Partial<SetQuery<Model>>;
 
 export type DerivedModel<Model> = Model | DerivedModelQuery<Model>;
 
@@ -243,7 +244,6 @@ type DerivedModelQuery<Model> = {
   alias?: string;
   columns?: FindQueryAttributes;
   orderBy?: ORDER_BY<Model>;
-  set?: SetQuery<Model>;
 } & Subquery<Model, 'WhereNotReq'> & {
     isDistinct?: boolean;
   };
@@ -256,6 +256,10 @@ export type SelectQuery<Model> = {
 };
 
 export type SetQuery<Model> = {
+  [Type in SetOperationType]: SetOperationFilter<Model>;
+};
+
+export type SetQueryArrField<Model> = {
   type: SetOperationType;
 } & SetOperationFilter<Model>;
 
@@ -264,7 +268,6 @@ export type AliasSubType = string;
 export type SetOperationFilter<Model> = ModelAndAlias<Model> & {
   columns?: FindQueryAttributes;
   orderBy?: ORDER_BY<Model>;
-  set?: SetQuery<Model>;
 } & Subquery<Model, 'WhereNotReq'>;
 
 export type WhereClauseKeys = '$and' | '$or' | string;
@@ -300,7 +303,6 @@ export type FindQueryAttributes = FindQueryAttribute[];
 export type QueryParams<Model> = SelectQuery<Model> &
   Subquery<Model, 'WhereNotReq'> & {
     orderBy?: ORDER_BY<Model>;
-    set?: SetQuery<Model>;
   };
 
 export type RawQuery =

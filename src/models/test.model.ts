@@ -301,8 +301,13 @@ BasketA.findAll({
     // fruit_a: 'Apple',
     // a: 1,
     // $exists: { subquery: { model: BasketB }, where: { b: col('t.a') } },
+    $exists: {
+      model: BasketB,
+      where: { b: col('t.a') },
+      // union: { model: BasketC },
+    },
   },
-  // alias: 't',
+  alias: 't',
   // crossJoin
   // crossJoin: {
   //   model: { model: BasketB, alias: 'y' },
@@ -310,16 +315,16 @@ BasketA.findAll({
   //   columns: [[aggrFn.avg(castFn.int(col('y.b'))), 'avg_a']],
   //   modelAlias: 'y',
   // },
-  innerJoin: [
-    {
-      model: { model: BasketB, alias: 't', where: { b: { gt: 2 } } },
-      on: { a: 'b' },
-    },
-    {
-      model: { model: BasketC, alias: 't', where: { c: { gt: 1 } } },
-      on: { c: 'a' },
-    },
-  ],
+  // innerJoin: [
+  //   {
+  //     model: { model: BasketB, alias: 't', where: { b: { gt: 2 } } },
+  //     on: { a: 'b' },
+  //   },
+  //   {
+  //     model: { model: BasketC, alias: 't', where: { c: { gt: 1 } } },
+  //     on: { c: 'a' },
+  //   },
+  // ],
   // leftJoin: [
   //   {
   //     model: BasketB,
@@ -385,6 +390,15 @@ BasketA.findAll({
   //   },
   // },
   // derivedModel: { model: BasketB, where: { b: { gt: 2 } } },
+  // union: {
+  //   model: BasketB,
+  //   intersect: { model: BasketD },
+  //   // where: { b: { gt: 1 } },
+  // },
+  // union: { model: BasketB },
+
+  // unionAll: { model: BasketC },
+  // intersect: { model: BasketD },
 }).then((res) => {
   console.dir(res, { depth: null });
 });
@@ -397,7 +411,8 @@ BasketA.findAll({
 // });
 
 BasketA.queryRawSql(
-  'SELECT a,t.avg_a FROM basket_a CROSS JOIN (SELECT AVG(y.b::INTEGER) AS avg_a FROM (Select * from basket_b) as y) AS t',
+  'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM basket_b WHERE (b = t.a) UNION SELECT 1 FROM basket_c)',
+  // 'SELECT a,t.avg_a FROM basket_a CROSS JOIN (SELECT AVG(y.b::INTEGER) AS avg_a FROM (Select * from basket_b) as y) AS t',
   // "SELECT (NOW() - '2023-12-25'::TIMESTAMP) - INTERVAL '30 days'  AS deviation FROM basket_a;",
   // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
   // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
@@ -431,3 +446,5 @@ export function run() {
 //     GROUP BY mid_sq.department_id
 // ) AS final_sq
 // WHERE final_sq.avg_salary > 50000;
+
+//SELECT * FROM (((SELECT * FROM basket_a AS t UNION ALL (SELECT * FROM basket_c)) INTERSECT (SELECT * FROM basket_d)INTERSECT (SELECT * FROM basket_e))) AS results WHERE (a = $1)

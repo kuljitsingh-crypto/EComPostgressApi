@@ -1,4 +1,5 @@
 import { OP } from '../constants/operators';
+import { setOperation } from '../constants/setOperations';
 import { TABLE_JOIN, TableJoinType } from '../constants/tableJoin';
 import { Primitive } from '../globalTypes';
 import {
@@ -13,6 +14,7 @@ import {
   NonNullPrimitive,
   Nullable,
   PreparedValues,
+  SetQueryArrField,
   Subquery,
   SubqueryMultiColFlag,
   WhereClause,
@@ -46,29 +48,43 @@ const callableFieldValidator: Record<
   customAllowedFields: isValidCustomALlowedFields,
 };
 
-const filterOutValidDbData = (a: Primitive) => {
-  if (a === null || typeof a === 'boolean' || typeof a === 'number') {
-    return true;
-  } else if (typeof a == 'string' && a.trim().length > 0) {
-    return true;
-  }
-  return false;
-};
+const filterOutValidDbData =
+  (shouldTrimStr = true) =>
+  (a: Primitive) => {
+    const trimmedStrLength = shouldTrimStr ? 0 : -1;
+    if (a === null || typeof a === 'boolean' || typeof a === 'number') {
+      return true;
+    } else if (typeof a == 'string' && a.trim().length > trimmedStrLength) {
+      return true;
+    }
+    return false;
+  };
 
-const attachArrayWithSep = (array: Array<Primitive>, sep: string) =>
-  array.filter(filterOutValidDbData).join(sep);
+const attachArrayWithSep = (
+  array: Array<Primitive>,
+  sep: string,
+  shouldTrimStr?: boolean,
+) => array.filter(filterOutValidDbData(shouldTrimStr)).join(sep);
 
-const attachArrayWithSpaceSep = (array: Array<Primitive>) =>
-  attachArrayWithSep(array, ' ');
+const attachArrayWithSpaceSep = (
+  array: Array<Primitive>,
+  shouldTrimStr?: boolean,
+) => attachArrayWithSep(array, ' ', shouldTrimStr);
 
-const attachArrayWithComaSep = (array: Array<Primitive>) =>
-  attachArrayWithSep(array, ',');
+const attachArrayWithComaSep = (
+  array: Array<Primitive>,
+  shouldTrimStr?: boolean,
+) => attachArrayWithSep(array, ',', shouldTrimStr);
 
-const attachArrayWithAndSep = (array: Array<Primitive>) =>
-  attachArrayWithSep(array, ` ${OP.$and} `);
+const attachArrayWithAndSep = (
+  array: Array<Primitive>,
+  shouldTrimStr?: boolean,
+) => attachArrayWithSep(array, ` ${OP.$and} `, shouldTrimStr);
 
-const attachArrayWithComaAndSpaceSep = (array: Array<Primitive>) =>
-  attachArrayWithSep(array, ', ');
+const attachArrayWithComaAndSpaceSep = (
+  array: Array<Primitive>,
+  shouldTrimStr?: boolean,
+) => attachArrayWithSep(array, ', ', shouldTrimStr);
 
 function isValidAllowedFields(
   allowedFields: unknown,
@@ -204,6 +220,9 @@ export function isValidArray<T>(arr: unknown, len?: number): arr is Array<T> {
   return isNonNullableValue(arr) && Array.isArray(arr) && arr.length > len;
 }
 
+export function isEmptyArray<T>(arr: unknown): arr is Array<T> {
+  return isValidArray(arr, -1) && arr.length === 0;
+}
 export function isValidFunction(func: unknown): func is Function {
   return typeof func === 'function' && func.constructor === Function;
 }
@@ -350,6 +369,18 @@ export const getJoinSubqueryFields = <Model>(subQuery: Subquery<Model>) => {
   );
 };
 
+export const getSetSubqueryFields = <Model>(
+  subQuery: Subquery<Model>,
+): SetQueryArrField<Model>[] => {
+  return Object.entries(subQuery || {}).reduce((pre, acc) => {
+    const [key, value] = acc;
+    if (key in setOperation) {
+      pre.push(createNewObj(value as any, { type: key }));
+    }
+    return pre;
+  }, [] as SetQueryArrField<Model>[]);
+};
+
 export const getValidCallableFieldValues = <T extends keyof CallableFieldParam>(
   options: CallableFieldParam,
   ...requiredValues: T[]
@@ -410,4 +441,15 @@ export const covertStrArrayToStr = (
 
 export const createNewObj = (...objs: object[]) => {
   return Object.assign({}, ...objs);
+};
+
+export const repeatValInArrUpto = <T extends Primitive>(
+  ch: T,
+  upto: number,
+) => {
+  const arr: T[] = [];
+  for (let i = 0; i < upto; i++) {
+    arr.push(ch);
+  }
+  return arr;
 };
