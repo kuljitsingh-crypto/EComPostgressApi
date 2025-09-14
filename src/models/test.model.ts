@@ -5,6 +5,8 @@ import {
   fieldFn,
   col,
   castFn,
+  windowFn,
+  frameFn,
 } from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
@@ -101,8 +103,14 @@ BasketA.findAll({
   // columns: ['a'],
   // columns: [[aggrFn.COUNT('a'), 'b']],
   columns: [
+    'a',
+    // windowFn.rowNumber({
+    //   // partitionBy: col('a'),
+    //   // orderBy: ['a'],
+    //   frameOption: frameFn.rows('UNBOUNDED', 'UNBOUNDED'),
+    // }),
     // aggrFn.count(col('*')),
-    // fieldFn.lPad(castFn.text(col('fruit_a')), 10, '0')
+    // fieldFn.lPad(castFn.text(col('fruit_a')), 10, '0'),
     // fieldFn.abs(col('a')),
     // fieldFn.now(),
     // fieldFn.abs(
@@ -302,15 +310,15 @@ BasketA.findAll({
     // 't.a': 1,
     // $exists: { subquery: { model: BasketB }, where: { b: col('t.a') } },
     // $exists: {
-    //   // model: BasketB,
-    //   model: {
-    //     model: BasketB,
-    //     union: { model: BasketC },
-    //     intersect: { model: BasketD },
-    //   },
+    //   model: BasketB,
+    //   // model: {
+    //   //   model: BasketB,
+    //   //   union: { model: BasketC },
+    //   //   intersect: { model: BasketD },
+    //   // },
     //   // alias: 'y',
     //   where: { b: col('a') },
-    //   // union: { model: BasketC },
+    //   union: { model: BasketC },
     //   // intersect: { model: BasketD },
     // },
   },
@@ -354,6 +362,7 @@ BasketA.findAll({
   //   // ['a', 'DESC'],
   //   // ['fruit_a', 'ASC'],
   // ],
+  orderBy: [['a', 'ASC']],
   // orderBy: [
   //   [
   //     fieldFn.case(

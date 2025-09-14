@@ -1,30 +1,21 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import {
   AllowedFields,
-  CallableField,
   FindQueryAttribute,
   FindQueryAttributes,
   GroupByFields,
   PreparedValues,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
+import { getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
   dynamicFieldQuote,
   fieldQuote,
-  isCallableColumn,
   isNonEmptyString,
-  validCallableColCtx,
   isValidArray,
+  isColAliasNameArr,
 } from './helperFunction';
-
-const isCustomValidArray = (
-  col: FindQueryAttribute,
-): col is [string | CallableField, string | null] => {
-  if (!isValidArray(col)) return false;
-  if (col.filter(Boolean).length < 1) return false;
-  return true;
-};
 
 const getColNameAndAlias = (
   col: FindQueryAttribute,
@@ -38,32 +29,25 @@ const getColNameAndAlias = (
   alias: string | null;
 } => {
   const { customAllowFields = [] } = options || {};
-  if (isNonEmptyString(col)) {
-    return {
-      col: fieldQuote(allowedFields, col, { customAllowFields }),
-      alias: null,
-    };
-  } else if (isCallableColumn(col) && preparedValues && groupByFields) {
-    const rest = validCallableColCtx(col, {
-      allowedFields,
+  let column: string | null = null,
+    alias: string | null = isColAliasNameArr(col) ? col[1] : null;
+  if (preparedValues && groupByFields) {
+    column = getFieldValue(col, preparedValues, groupByFields, allowedFields, {
+      treatStrAsCol: true,
+      isFromCol: true,
       isAggregateAllowed,
-      preparedValues,
-      groupByFields,
+      customAllowedFields: customAllowFields,
     });
-    return rest;
-  } else if (isCustomValidArray(col)) {
-    const [column, alias] = col;
-    const { col: validColumn } = getColNameAndAlias(
-      column,
-      allowedFields,
-      isAggregateAllowed,
-      preparedValues,
-      groupByFields,
-      options,
-    );
-    return { col: validColumn, alias };
+  } else if (isNonEmptyString(col)) {
+    column = fieldQuote(allowedFields, col, { customAllowFields });
   }
-  return throwError.invalidColumnNameType(col.toString(), allowedFields);
+  if (column) {
+    return { col: column, alias };
+  }
+  return throwError.invalidColumnNameType(
+    (col || 'null').toString(),
+    allowedFields,
+  );
 };
 
 export class ColumnHelper {
@@ -96,7 +80,6 @@ export class ColumnHelper {
           groupByFields,
           { customAllowFields },
         );
-
         if (alias === null) {
           return col;
         } else if (isNonEmptyString(alias)) {

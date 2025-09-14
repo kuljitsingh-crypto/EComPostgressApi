@@ -29,15 +29,15 @@ export type ModelAndAlias<Model> = {
   alias?: string;
 };
 
-type SingleOrderByField<Model> =
-  | string
+export type DBField<Model> =
+  | Primitive
   | CallableField
   | InOperationSubQuery<Model, 'WhereNotReq', 'single'>;
 
 export type ORDER_BY<Model> = Array<
-  | SingleOrderByField<Model>
-  | [SingleOrderByField<Model>, ORDER_OPTION]
-  | [SingleOrderByField<Model>, ORDER_OPTION, NULL_OPTION]
+  | DBField<Model>
+  | [DBField<Model>, ORDER_OPTION]
+  | [DBField<Model>, ORDER_OPTION, NULL_OPTION]
 >;
 
 export type PreparedValues = { index: number; values: Primitive[] };

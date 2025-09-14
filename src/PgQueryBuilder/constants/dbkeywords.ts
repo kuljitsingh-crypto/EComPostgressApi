@@ -34,6 +34,8 @@ export const DB_KEYWORDS = {
   then: 'THEN',
   between: 'BETWEEN',
   and: 'AND',
+  over: 'OVER',
+  partitionBy: 'PARTITION BY',
 } as const;
 
 export const DEFAULT_ALIAS = 'results';

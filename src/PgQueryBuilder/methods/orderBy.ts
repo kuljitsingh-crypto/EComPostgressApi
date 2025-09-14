@@ -5,15 +5,12 @@ import {
   ORDER_BY,
   PreparedValues,
 } from '../internalTypes';
+import { getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
   ensureArray,
-  fieldQuote,
-  isCallableColumn,
-  isNonEmptyString,
+  isNullableValue,
   isValidArray,
-  isValidSubQuery,
-  validCallableColCtx,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
 
@@ -32,29 +29,17 @@ export class OrderByQuery {
       .map((o) => {
         const [col, order = 'DESC', nullOption] = ensureArray(o);
         const orders: string[] = [];
-        if (isNonEmptyString(col)) {
-          orders.push(fieldQuote(allowedFields, col));
-        } else if (isCallableColumn(col)) {
-          const { col: finalCol } = validCallableColCtx(col, {
-            allowedFields,
-            isAggregateAllowed,
-            preparedValues,
-            groupByFields,
-          });
-          orders.push(finalCol);
-        } else if (isValidSubQuery(col)) {
-          orders.push(
-            QueryHelper.otherModelSubqueryBuilder(
-              '',
-              preparedValues,
-              groupByFields,
-              col,
-              { isExistsFilter },
-            ),
-          );
-        } else {
+        const val = getFieldValue(
+          col,
+          preparedValues,
+          groupByFields,
+          allowedFields,
+          { isExistsFilter, isAggregateAllowed, treatStrAsCol: true },
+        );
+        if (isNullableValue(val)) {
           return null;
         }
+        orders.push(val);
         orders.push(order as string, (nullOption as string) || '');
         return attachArrayWith.space(orders);
       })

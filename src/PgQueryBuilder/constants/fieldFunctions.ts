@@ -1,4 +1,19 @@
-export const aggregateFunctionName = {
+const doubleParamAggregateFunctionName = {
+  corr: 'CORR',
+  covarPop: 'COVAR_POP',
+  covarSamp: 'COVAR_SAMP',
+  regrSlope: 'REGR_SLOPE',
+  regrIntercept: 'REGR_INTERCEPT',
+  regrCount: 'REGR_COUNT',
+  regrR2: 'REGR_R2',
+  regrAvgX: 'REGR_AVGX',
+  regrAvgY: 'REGR_AVGY',
+  regrSxx: 'REGR_SXX',
+  regrSyy: 'REGR_SYY',
+  regrSxy: 'REGR_SXY',
+} as const;
+
+const singleParamAggregateFunctionName = {
   min: 'min',
   max: 'max',
   count: 'count',
@@ -14,34 +29,16 @@ export const aggregateFunctionName = {
   varSamp: 'VAR_SAMP',
   stddevPop: 'STDDEV_POP',
   stddevSamp: 'STDDEV_SAMP',
-  corr: 'CORR',
-  covarPop: 'COVAR_POP',
-  covarSamp: 'COVAR_SAMP',
-  regrSlope: 'REGR_SLOPE',
-  regrIntercept: 'REGR_INTERCEPT',
-  regrCount: 'REGR_COUNT',
-  regrR2: 'REGR_R2',
-  regrAvgX: 'REGR_AVGX',
-  regrAvgY: 'REGR_AVGY',
-  regrSxx: 'REGR_SXX',
-  regrSyy: 'REGR_SYY',
-  regrSxy: 'REGR_SXY',
 } as const;
 
-export const doubleParamAggrFunctionNames = new Set([
-  'corr',
-  'covarPop',
-  'covarSamp',
-  'regrSlope',
-  'regrIntercept',
-  'regrCount',
-  'regrR2',
-  'regrAvgX',
-  'regrAvgY',
-  'regrSxx',
-  'regrSyy',
-  'regrSxy',
-]);
+export const aggregateFunctionName = {
+  ...singleParamAggregateFunctionName,
+  ...doubleParamAggregateFunctionName,
+} as const;
+
+export const doubleParamAggrFunctionNames = new Set(
+  Object.keys(doubleParamAggregateFunctionName),
+);
 
 //=========================================== Window Functions====================================//
 
@@ -71,6 +68,24 @@ export const exprWithExtraWindowFns = {
   lag: 'LAG', // expr [, offset [, default]]
   lead: 'LEAD', // expr [, offset [, default]]
 } as const;
+
+export const windowFunctionNames = {
+  ...noArgWindowFns,
+  ...intArgWindowFns,
+  ...exprArgWindowFns,
+  ...exprWithExtraWindowFns,
+  ...aggregateFunctionName,
+};
+
+export const singleExprWindowFns = {
+  ...intArgWindowFns,
+  ...exprArgWindowFns,
+  ...singleParamAggregateFunctionName,
+};
+
+export const doubleExprWindowFns = {
+  ...doubleParamAggregateFunctionName,
+};
 
 //======================================= No Param Field OP ======================================//
 export const NO_PRAM_FIELD_OP = {
@@ -245,3 +260,19 @@ export type DoubleFieldOpKeys =
 export type TripleFieldOpKeys = TripleOpKeys | SubstringFieldOpKeys;
 export type MultipleFieldOpKeys = MultipleOpKeys | CaseOpKeys;
 export type AggregateFunctionType = keyof typeof aggregateFunctionName;
+
+//==================================== Window Function Types========================================//
+
+export type ZeroParamWindowFunction = keyof typeof noArgWindowFns;
+export type SingleParamWindowFunction =
+  | keyof typeof intArgWindowFns
+  | keyof typeof exprArgWindowFns
+  | keyof typeof exprWithExtraWindowFns
+  | keyof typeof singleParamAggregateFunctionName;
+export type DoubleParamWindowFunction =
+  keyof typeof doubleParamAggregateFunctionName;
+
+export type WindowFunctions =
+  | ZeroParamWindowFunction
+  | SingleParamWindowFunction
+  | DoubleParamWindowFunction;

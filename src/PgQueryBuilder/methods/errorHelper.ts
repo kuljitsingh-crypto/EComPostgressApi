@@ -204,6 +204,12 @@ function throwInvalidFrameFunction(methodName: string): never {
   throw new Error(`Invalid frame function option provided for ${methodName}.`);
 }
 
+function throwInvalidWindowFunctionOption(methodName: string): never {
+  throw new Error(
+    `Invalid option provided for  window function ${methodName}.`,
+  );
+}
+
 export const throwError = {
   invalidJoinType: throwInvalidJoinTypeError,
   invalidModelType: throwInvalidModelTypeError,
@@ -234,6 +240,7 @@ export const throwError = {
   invalidTypeCastFunc: throwInvalidCastFunction,
   invalidFrameFunction: throwInvalidFrameFunction,
   invalidModelSubquery: throwInvalidSubquery,
+  invalidWindowFuncOpt: throwInvalidWindowFunctionOption,
 };
 
 export const errorHandler = (query: string, error: Error) => {

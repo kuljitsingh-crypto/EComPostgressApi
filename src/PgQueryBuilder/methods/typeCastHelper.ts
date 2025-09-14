@@ -13,13 +13,13 @@ import {
 import { Primitive } from '../globalTypes';
 import { CallableField, CallableFieldParam } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
+import { throwError } from './errorHelper';
+import { getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
-  getPreparedValues,
   getValidCallableFieldValues,
-  isCallableColumn,
+  isNullableValue,
   isValidArray,
-  validCallableColCtx,
 } from './helperFunction';
 
 type ParamValue = {
@@ -133,19 +133,17 @@ class TypeCast {
           return attachArrayWith.customSep(['::', fnName, v], '');
         };
         const type = prepareType();
-        let col = '';
-        if (isCallableColumn(value)) {
-          col = validCallableColCtx(value, {
-            allowedFields,
-            groupByFields,
-            preparedValues,
-          }).col;
-          col += type;
-        } else {
-          col = getPreparedValues(preparedValues, value, {
-            type,
-          });
+        let col: string | null = null;
+        col = getFieldValue(
+          value,
+          preparedValues,
+          groupByFields,
+          allowedFields,
+        );
+        if (isNullableValue(col)) {
+          return throwError.invalidColumnNameType('null', allowedFields);
         }
+        col += type;
         return { col, alias: null, ctx: getInternalContext() };
       };
   }

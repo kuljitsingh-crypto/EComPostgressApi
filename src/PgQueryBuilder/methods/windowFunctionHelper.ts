@@ -1,18 +1,40 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import {
+  doubleExprWindowFns,
+  exprArgWindowFns,
+  exprWithExtraWindowFns,
+  noArgWindowFns,
+  singleExprWindowFns,
+  SingleParamWindowFunction,
+  windowFunctionNames,
+  WindowFunctions,
+  ZeroParamWindowFunction,
+} from '../constants/fieldFunctions';
+import { Primitive } from '../globalTypes';
+import {
   AllowedFields,
   CallableField,
   CallableFieldParam,
+  DBField,
   GroupByFields,
+  ORDER_BY,
   PreparedValues,
 } from '../internalTypes';
+import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
 import { FieldOperand, getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
+  getPreparedValues,
   getValidCallableFieldValues,
+  isNonEmptyObject,
   isNonEmptyString,
+  isNullableValue,
+  isPrimitiveValue,
+  isValidNumber,
+  prepareMultipleValues,
 } from './helperFunction';
+import { OrderByQuery } from './orderBy';
 
 const frameFunction = {
   rows: 'ROWS',
@@ -30,7 +52,7 @@ const allowedFuncParams = new Set([unbounded, currentRow]);
 type FrameFunctionKeys = keyof typeof frameFunction;
 type Suffix = typeof precedingKey | typeof followingKey;
 
-type Func<Model> = {
+type FrameFunc<Model> = {
   [key in FrameFunctionKeys]: (
     preceding: typeof unbounded | FieldOperand<Model, number>,
     following:
@@ -40,7 +62,73 @@ type Func<Model> = {
   ) => CallableField;
 };
 
-interface FrameFunction<>extends Func<any> {}
+type WindowFunctionOptions<Model> = {
+  orderBy?: ORDER_BY<Model>;
+  offset?: number;
+  defaultValue?: number;
+  n?: number;
+  frameOption?: CallableField;
+  partitionBy?: DBField<Model>;
+};
+
+type NoArgWindowFunction<Model> = (
+  options?: WindowFunctionOptions<Model>,
+) => CallableField;
+
+type SingleArgWindowFunction<Model> = (
+  arg: Primitive,
+  options?: WindowFunctionOptions<Model>,
+) => CallableField;
+
+type DoubleArgWindowFunction<Model> = (
+  arg1: Primitive,
+  arg2: Primitive,
+  options?: WindowFunctionOptions<Model>,
+) => CallableField;
+
+type WindowFunc<Model> = {
+  [key in WindowFunctions]: key extends ZeroParamWindowFunction
+    ? NoArgWindowFunction<Model>
+    : key extends SingleParamWindowFunction
+      ? SingleArgWindowFunction<Model>
+      : DoubleArgWindowFunction<Model>;
+};
+
+interface FrameFunction<>extends FrameFunc<any> {}
+interface WindowFunction<>extends WindowFunc<any> {}
+
+const prepareArg = <Model>(
+  methodName: WindowFunctions,
+  ...args: unknown[]
+): {
+  arg1?: Primitive;
+  arg2?: Primitive;
+  options: WindowFunctionOptions<Model>;
+} => {
+  const getValidOption = (options: unknown) => {
+    const isValidOptions =
+      isNullableValue(options) || isNonEmptyObject(options);
+    if (!isValidOptions) {
+      return throwError.invalidWindowFuncOpt(methodName);
+    }
+    return options;
+  };
+  const result = { arg1: undefined, arg2: undefined, options: {} };
+  if (methodName in noArgWindowFns) {
+    const options = getValidOption(args[0]);
+    result.options = options || {};
+  } else if (methodName in singleExprWindowFns) {
+    const options = getValidOption(args[1]);
+    (result as any).arg1 = args[0] as Primitive;
+    result.options = options || {};
+  } else if (methodName in doubleExprWindowFns) {
+    const options = getValidOption(args[2]);
+    (result as any).arg1 = args[0] as Primitive;
+    (result as any).arg2 = args[1] as Primitive;
+    result.options = options || {};
+  }
+  return result;
+};
 
 class FrameFunction {
   static #instance: FrameFunction | null = null;
@@ -52,9 +140,9 @@ class FrameFunction {
     return FrameFunction.#instance;
   }
 
-  #getValidParam = (
+  static #getValidParam = (
     methodName: string,
-    param: 'UNBOUNDED' | 'CURRENT ROW' | number,
+    param: 'UNBOUNDED' | 'CURRENT ROW' | number | CallableField,
     preparedValues: PreparedValues,
     groupByFields: GroupByFields,
     allowedFields: AllowedFields,
@@ -77,8 +165,8 @@ class FrameFunction {
 
   #attachMethods = <T extends FrameFunctionKeys>(methodName: T) => {
     return (
-        preceding: 'UNBOUNDED' | number,
-        following: 'UNBOUNDED' | 'CURRENT ROW' | number,
+        preceding: 'UNBOUNDED' | number | CallableField,
+        following: 'UNBOUNDED' | 'CURRENT ROW' | number | CallableField,
       ) =>
       (options: CallableFieldParam) => {
         const method = frameFunction[methodName];
@@ -92,7 +180,7 @@ class FrameFunction {
             'allowedFields',
             'groupByFields',
           );
-        const validPreceding = this.#getValidParam(
+        const validPreceding = FrameFunction.#getValidParam(
           methodName,
           preceding,
           preparedValues,
@@ -100,7 +188,7 @@ class FrameFunction {
           allowedFields,
           precedingKey,
         );
-        const validFollowing = this.#getValidParam(
+        const validFollowing = FrameFunction.#getValidParam(
           methodName,
           following,
           preparedValues,
@@ -109,13 +197,14 @@ class FrameFunction {
           following === currentRow ? '' : followingKey,
         );
 
-        return attachArrayWith.space([
+        const col = attachArrayWith.space([
           method,
           DB_KEYWORDS.between,
           validPreceding,
           DB_KEYWORDS.and,
           validFollowing,
         ]);
+        return { col, alias: null, ctx: getInternalContext() };
       };
   };
 
@@ -138,7 +227,85 @@ class WindowFunction {
     return WindowFunction.#instance;
   }
 
-  #initializeMethods() {}
+  #attachMethod(methodName: WindowFunctions) {
+    return (...args: unknown[]) =>
+      (callableParams: CallableFieldParam) => {
+        const { arg1, arg2, options } = prepareArg(methodName, ...args);
+        const { frameOption, offset, defaultValue, n, orderBy, partitionBy } =
+          options || {};
+        const { allowedFields, groupByFields, preparedValues } =
+          getValidCallableFieldValues(
+            callableParams,
+            'allowedFields',
+            'groupByFields',
+            'preparedValues',
+          );
+        const frameOptionMaybe =
+          getFieldValue(
+            frameOption,
+            preparedValues,
+            groupByFields,
+            allowedFields,
+          ) ?? '';
+        const partitionByMaybe = getFieldValue(
+          partitionBy,
+          preparedValues,
+          groupByFields,
+          allowedFields,
+        );
+        const orderByMaybe = OrderByQuery.prepareOrderByQuery(
+          allowedFields,
+          preparedValues,
+          groupByFields,
+          orderBy,
+        );
+        const {
+          offset: o,
+          defaultValue: deValue,
+          n: num,
+          arg1: param1,
+          arg2: param2,
+        } = prepareMultipleValues(preparedValues, {
+          offset: { type: 'number', val: offset },
+          defaultValue: { type: 'number', val: defaultValue },
+          n: { type: 'number', val: n },
+          arg1: { type: 'primitive', val: arg1 },
+          arg2: { type: 'primitive', val: arg2 },
+        });
+        const namesArr = [windowFunctionNames[methodName], '('];
+        if (methodName === 'nthValue') {
+          namesArr.push(param1, num);
+        } else if (methodName in exprWithExtraWindowFns) {
+          namesArr.push(param1, o, deValue);
+        } else if (methodName in singleExprWindowFns) {
+          namesArr.push(param1);
+        } else if (methodName in doubleExprWindowFns) {
+          namesArr.push(param1, param2);
+        }
+        namesArr.push(')');
+        const functionName = attachArrayWith.customSep(namesArr, '');
+        const overArr = [DB_KEYWORDS.over, ' ', '('];
+        const partitions = [];
+        if (partitionByMaybe) {
+          partitions.push(DB_KEYWORDS.partitionBy, partitionByMaybe);
+        }
+        if (orderByMaybe) {
+          partitions.push(orderByMaybe);
+        }
+        partitions.push(frameOptionMaybe);
+        overArr.push(attachArrayWith.space(partitions), ')');
+        const over = attachArrayWith.customSep(overArr, '', false);
+        const col = attachArrayWith.space([functionName, over]);
+        return { col: col, alias: null, ctx: getInternalContext() };
+      };
+  }
+
+  #initializeMethods() {
+    for (let key in windowFunctionNames) {
+      //@ts-ignore
+      this[key] = this.#attachMethod(key);
+    }
+  }
 }
 
 export const windowFn = new WindowFunction();

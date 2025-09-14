@@ -262,6 +262,12 @@ export const isNotNullPrimitiveValue = (
   );
 };
 
+export const isValidNumber = (value: unknown): value is number =>
+  typeof value === 'number';
+
+export const isValidBoolean = (value: unknown): value is boolean =>
+  typeof value === 'boolean';
+
 export const isValidSimpleModel = <T>(model: any): model is T => {
   if (!isValidFunction(model)) {
     return false;
@@ -416,6 +422,46 @@ export const ensureArray = <T>(val: T | T[]): T[] => {
   return isValidArray(val, -1) ? [...val] : [val];
 };
 
+export const isColAliasNameArr = (
+  col: unknown,
+): col is [string | CallableField, string | null] => {
+  if (!isValidArray(col)) return false;
+  if (col.filter(Boolean).length !== 2) return false;
+  return true;
+};
+
+export const prepareMultipleValues = <T extends string>(
+  preparedValues: PreparedValues,
+  arg: {
+    [key in T]: {
+      type: 'string' | 'number' | 'primitive' | 'boolean';
+      val: unknown;
+    };
+  },
+): Record<T, string> => {
+  const finalObject = {} as Record<T, string>;
+  return Object.entries(arg).reduce((acc, [key, value]) => {
+    let isValidValue = false;
+    const { type, val } = value as {
+      type: 'string' | 'number' | 'primitive' | 'boolean';
+      val: Primitive;
+    };
+    (acc as any)[key] = '';
+    if (type === 'string') {
+      isValidValue = isNonEmptyString(val);
+    } else if (type === 'number') {
+      isValidValue = isValidNumber(val);
+    } else if (type === 'boolean') {
+      isValidValue = isValidBoolean(val);
+    } else if (type === 'primitive') {
+      isValidValue = isPrimitiveValue(val);
+    }
+    if (isValidValue) {
+      (acc as any)[key] = getPreparedValues(preparedValues, val);
+    }
+    return acc;
+  }, finalObject);
+};
 //===================================== Object wrapped functions =======================//
 
 export const attachArrayWith = {
@@ -426,7 +472,7 @@ export const attachArrayWith = {
   customSep: attachArrayWithSep,
 };
 
-//==================================== Field helper depend son object ============================//
+//==================================== Field helper depend on object ============================//
 export const covertStrArrayToStr = (
   value: string | string[],
   options?: { by: keyof typeof attachArrayWith; sep?: string },

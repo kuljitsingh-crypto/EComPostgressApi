@@ -225,7 +225,6 @@ export class QueryHelper {
       isDistinct,
       ...rest
     } = value as any;
-    console.log(alias);
     const validSubquery =
       isExistsFilter || !isColumnReq
         ? isValidDerivedModel(m)

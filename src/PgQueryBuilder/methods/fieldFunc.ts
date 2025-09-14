@@ -11,8 +11,11 @@ import {
 import { TableFilter } from './filterHelper';
 import {
   attachArrayWith,
+  fieldQuote,
   getPreparedValues,
   isCallableColumn,
+  isColAliasNameArr,
+  isNonEmptyString,
   isPrimitiveValue,
   isValidCaseQuery,
   isValidSubQuery,
@@ -37,14 +40,22 @@ export const getFieldValue = <Model>(
     customAllowedFields?: string[];
     isExistsFilter?: boolean;
     refAllowedFields?: AllowedFields;
+    treatStrAsCol?: boolean;
+    isFromCol?: boolean;
   } = {},
 ): string | null => {
   const {
     isExistsFilter = false,
     refAllowedFields,
+    treatStrAsCol = false,
+    isFromCol = false,
     ...callableOptions
   } = options;
-  if (isPrimitiveValue(value)) {
+  if (treatStrAsCol && isNonEmptyString(value)) {
+    return fieldQuote(allowedFields, value, {
+      customAllowFields: callableOptions.customAllowedFields,
+    });
+  } else if (isPrimitiveValue(value)) {
     return getPreparedValues(preparedValues, value as Primitive);
   } else if (isCallableColumn(value)) {
     const { col } = validCallableColCtx(value, {
@@ -95,6 +106,14 @@ export const getFieldValue = <Model>(
       { isExistsFilter, refAllowedFields },
     );
     return query;
+  } else if (isFromCol && isColAliasNameArr(value)) {
+    return getFieldValue(
+      value[0],
+      preparedValues,
+      groupByFields,
+      allowedFields,
+      options,
+    );
   } else if (isValidWhereQuery(value)) {
     const query = TableFilter.prepareFilterStatement(
       allowedFields,
