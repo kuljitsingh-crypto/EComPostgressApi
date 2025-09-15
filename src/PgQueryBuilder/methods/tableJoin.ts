@@ -58,7 +58,7 @@ const joinTableCond = <Model>(
   const onStr = attachArrayWith.and(
     Object.entries(cond).map(([baseColumn, joinColumn]) => {
       const value = isNonEmptyString(joinColumn)
-        ? fieldQuote(allowedFields, joinColumn)
+        ? fieldQuote(allowedFields, preparedValues, joinColumn)
         : QueryHelper.otherModelSubqueryBuilder(
             '',
             preparedValues,
@@ -67,7 +67,7 @@ const joinTableCond = <Model>(
             { isExistsFilter: false },
           );
       return attachArrayWith.space([
-        fieldQuote(allowedFields, baseColumn),
+        fieldQuote(allowedFields, preparedValues, baseColumn),
         OP.eq,
         value,
       ]);

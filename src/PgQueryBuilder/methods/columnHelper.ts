@@ -39,7 +39,9 @@ const getColNameAndAlias = (
       customAllowedFields: customAllowFields,
     });
   } else if (isNonEmptyString(col)) {
-    column = fieldQuote(allowedFields, col, { customAllowFields });
+    column = fieldQuote(allowedFields, null, col, {
+      customAllowFields,
+    });
   }
   if (column) {
     return { col: column, alias };

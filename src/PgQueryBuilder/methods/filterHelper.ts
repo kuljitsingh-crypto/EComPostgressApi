@@ -1,4 +1,4 @@
-import { PG_DATA_TYPE } from '../constants/dataTypes';
+import { PgDataType } from '../constants/dataTypes';
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import {
   conditionalOperator,
@@ -25,7 +25,7 @@ import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   ensureArray,
-  fieldQuote,
+  getAllEntries,
   getPreparedValues,
   isCallableColumn,
   isNonEmptyString,
@@ -33,6 +33,7 @@ import {
   isValidArray,
   isValidObject,
   isValidSubQuery,
+  validateColumn,
   validCallableColCtx,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
@@ -79,11 +80,11 @@ const prepareQryForPrimitiveOp = (
 const getArrayDataType = (value: Primitive[]) => {
   const firstValue = value[0];
   if (typeof firstValue === 'number') {
-    return PG_DATA_TYPE.int;
+    return PgDataType.int;
   } else if (isNonEmptyString(firstValue)) {
-    return PG_DATA_TYPE.text;
+    return PgDataType.text;
   } else if (typeof firstValue === 'boolean') {
-    return PG_DATA_TYPE.boolean;
+    return PgDataType.boolean;
   } else {
     return throwError.invalidDataType(firstValue);
   }
@@ -129,8 +130,9 @@ export class TableFilter {
     } else {
       filterStatements.push(DB_KEYWORDS.where);
     }
+
     const qry = attachArrayWith.and(
-      Object.entries(filter)
+      getAllEntries(filter)
         .map((filter) => {
           return TableFilter.#getQueryStatement(
             allowedFields,
@@ -153,7 +155,7 @@ export class TableFilter {
   static #getQueryStatement(
     allowedFields: AllowedFields,
     groupByFields: GroupByFields,
-    singleQry: [WhereClauseKeys, any],
+    singleQry: [WhereClauseKeys | symbol, any],
     preparedValues: PreparedValues,
     isHavingFilter: boolean,
     shouldSkipFieldValidation = false,
@@ -260,7 +262,7 @@ export class TableFilter {
     const sep = ` ${OP[key]} `;
     const cond = value
       .map((v) => {
-        const entries = Object.entries(v);
+        const entries = getAllEntries(v);
         return entries.map((filter) => {
           return TableFilter.#getQueryStatement(
             allowedFields,
@@ -333,9 +335,11 @@ export class TableFilter {
     returnRaw = false,
     shouldSkipFieldValidation = false,
   ) {
-    const validKey = shouldSkipFieldValidation
-      ? key
-      : fieldQuote(allowedFields, key);
+    const validKey = validateColumn(key, { shouldSkipFieldValidation })({
+      preparedValues,
+      allowedFields,
+      groupByFields,
+    });
     const prepareQry = (entry: [string, FilterColumnValue<Model>]) => {
       const [op, val] = entry as [SIMPLE_OP_KEYS, FilterColumnValue<Model>];
       const operation = OP[op];

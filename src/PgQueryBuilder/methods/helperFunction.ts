@@ -8,6 +8,7 @@ import {
   CallableFieldParam,
   CaseSubquery,
   DerivedModel,
+  FieldMetadata,
   GroupByFields,
   InOperationSubQuery,
   JoinQuery,
@@ -21,6 +22,7 @@ import {
 } from '../internalTypes';
 import { isValidInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
+import { symbolFuncRegister } from './symbolHelper';
 
 type FieldQuoteReturn<T extends boolean> = T extends false
   ? string
@@ -33,9 +35,8 @@ type ValidOption = Exclude<
 
 const MIN_COLUMN_LENGTH = 1;
 const MAX_COLUMN_LENGTH = 63;
-const validColumnNameRegex = /^[a-zA-Z_][a-zA-Z0-9_$]*$/;
-const validAliasColumnNameRegex =
-  /^([a-zA-Z_][a-zA-Z0-9_$]*\.[a-zA-Z_][a-zA-Z0-9_$]*)$/;
+const validColumnNameRegex = /^([a-zA-Z_][a-zA-Z0-9_$]*)(\.[a-zA-Z0-9_$]*)*$/;
+const digitRegex = /^([0-9]+)$/;
 
 const callableFieldValidator: Record<
   keyof CallableFieldParam,
@@ -66,10 +67,20 @@ const attachArrayWithSep = (
   shouldTrimStr?: boolean,
 ) => array.filter(filterOutValidDbData(shouldTrimStr)).join(sep);
 
+const attachArrayWithDotSep = (
+  array: Array<Primitive>,
+  shouldTrimStr?: boolean,
+) => attachArrayWithSep(array, '.', shouldTrimStr);
+
 const attachArrayWithSpaceSep = (
   array: Array<Primitive>,
   shouldTrimStr?: boolean,
 ) => attachArrayWithSep(array, ' ', shouldTrimStr);
+
+const attachArrayWithNoSpaceSep = (
+  array: Array<Primitive>,
+  shouldTrimStr?: boolean,
+) => attachArrayWithSep(array, '', shouldTrimStr);
 
 const attachArrayWithComaSep = (
   array: Array<Primitive>,
@@ -117,19 +128,97 @@ function isValidCustomALlowedFields(value: unknown): boolean {
   return isValidArray(value);
 }
 
+const prepareFieldForJson = (
+  fieldArr: string[],
+  preparedValues: PreparedValues,
+  startIndex: number,
+  asJson: boolean,
+) => {
+  const fieldName = attachArrayWith.dot(fieldArr.slice(0, startIndex)); //
+  const placeholders = fieldArr
+    .slice(startIndex)
+    .map((val) =>
+      getPreparedValues(preparedValues, val, { returnNumAsItIs: true }),
+    );
+  const lastIndex = placeholders.length - 1;
+  const lastFieldKey = asJson ? '->' : '->>';
+  if (placeholders.length < 2) {
+    return attachArrayWith.noSpace([
+      fieldName,
+      lastFieldKey,
+      placeholders[lastIndex],
+    ]);
+  }
+  const middleFields = attachArrayWith.customSep(
+    placeholders.slice(0, lastIndex),
+    '->',
+  );
+  return attachArrayWith.noSpace([
+    fieldName,
+    '->',
+    middleFields,
+    lastFieldKey,
+    placeholders[lastIndex],
+  ]);
+};
+
+const isFieldAllowed =
+  (allowed: AllowedFields, customAllowFields: string[]) => (field: string) =>
+    allowed.has(field) || customAllowFields.includes(field);
+
+const checkForJsonField =
+  (
+    allowed: AllowedFields,
+    preparedValues: PreparedValues | null,
+    customAllowFields: string[],
+    asJson: boolean,
+  ) =>
+  (field: string) => {
+    if (isNullableValue(preparedValues)) {
+      return null;
+    }
+    const fieldArr = field.split('.');
+    const simpleField = fieldArr[0];
+    const aliasField = `${fieldArr[0]}.${fieldArr[1]}`;
+    if (isFieldAllowed(allowed, customAllowFields)(simpleField)) {
+      return prepareFieldForJson(fieldArr, preparedValues, 1, asJson);
+    } else if (isFieldAllowed(allowed, customAllowFields)(aliasField)) {
+      return prepareFieldForJson(fieldArr, preparedValues, 2, asJson);
+    }
+    return null;
+  };
+
 const validateField = (
   field: string,
   allowed: AllowedFields,
-  options?: { customAllowFields: string[] },
+  preparedValues: PreparedValues | null,
+  options?: {
+    customAllowFields: string[];
+    metadata?: FieldMetadata;
+    asJson?: boolean;
+  },
 ) => {
-  const { customAllowFields = [] } = options || {};
+  const {
+    customAllowFields = [],
+    metadata = {},
+    asJson = false,
+  } = options || {};
   field = simpleFieldValidate(field, customAllowFields);
-  const isAllowedField =
-    allowed.has(field) || customAllowFields.includes(field);
-  if (!isAllowedField) {
-    return throwError.invalidColumnNameType(field, allowed);
+  const isAllowedField = isFieldAllowed(allowed, customAllowFields)(field);
+  if (isAllowedField) {
+    return field;
   }
-  return field as string;
+  const jsonField = checkForJsonField(
+    allowed,
+    preparedValues,
+    customAllowFields,
+    asJson,
+  )(field);
+  if (isNonEmptyString(jsonField)) {
+    metadata.isJSONField = true;
+    return jsonField;
+  }
+  return throwError.invalidColumnNameType(field, allowed);
 };
 
 const callableCol = (col: CallableField, options: CallableFieldParam) => {
@@ -146,20 +235,33 @@ const callableCol = (col: CallableField, options: CallableFieldParam) => {
   return col(validOptions);
 };
 
+const createSymbolMethodRef = (method: CallableField, ...keys: string[]) => {
+  const symbolName = attachArrayWith.dot(keys);
+  const symbol = Symbol(symbolName);
+  symbolFuncRegister.addToRegistry(symbol, method);
+  return symbol;
+};
+
 //=================== export functions ======================//
 
 export const createPlaceholder = (index: number, type?: string) => {
   return type ? `$${index}${type}` : `$${index}`;
 };
+const prepareVal = (val: Primitive) =>
+  digitRegex.test((val as any) || '') ? Number(val) : val;
 
 export const getPreparedValues = (
   preparedValues: PreparedValues,
   value: Primitive,
-  options?: { type: string },
+  options?: { type?: string; returnNumAsItIs?: boolean },
 ) => {
-  const { type } = options || {};
+  const { type, returnNumAsItIs = false } = options || {};
+  const val = prepareVal(value);
+  if (isValidNumber(val) && returnNumAsItIs) {
+    return val;
+  }
   const placeholder = createPlaceholder(preparedValues.index + 1, type);
-  preparedValues.values[preparedValues.index] = value;
+  preparedValues.values[preparedValues.index] = val;
   preparedValues.index++;
   return placeholder;
 };
@@ -181,8 +283,7 @@ export const simpleFieldValidate = (
   if (customAllowFields.includes(field)) {
     return field;
   }
-  const isValidRegexField =
-    validColumnNameRegex.test(field) || validAliasColumnNameRegex.test(field);
+  const isValidRegexField = validColumnNameRegex.test(field);
   if (!isValidRegexField) {
     return throwError.invalidColumnNameRegexType(field);
   }
@@ -201,17 +302,32 @@ export const dynamicFieldQuote = (
 
 export const fieldQuote = <T extends boolean = false>(
   allowedFields: AllowedFields,
+  preparedValues: PreparedValues | null,
   str: string | null,
-  options?: { isNullColAllowed?: T; customAllowFields?: string[] },
+  options?: {
+    isNullColAllowed?: T;
+    customAllowFields?: string[];
+    metadata?: FieldMetadata;
+    asJson?: boolean;
+  },
 ): FieldQuoteReturn<T> => {
-  const { isNullColAllowed = false, customAllowFields = [] } = options || {};
+  const {
+    isNullColAllowed = false,
+    customAllowFields = [],
+    metadata,
+    asJson,
+  } = options || {};
   if (str === null && isNullColAllowed) {
     return str as any;
   }
   if (!isNonEmptyString(str)) {
     return throwError.invalidColumnNameType(str, allowedFields);
   }
-  str = validateField(str, allowedFields, { customAllowFields });
+  str = validateField(str, allowedFields, preparedValues, {
+    customAllowFields,
+    metadata,
+    asJson,
+  });
   return quote(str);
 };
 
@@ -267,6 +383,9 @@ export const isValidNumber = (value: unknown): value is number =>
 
 export const isValidBoolean = (value: unknown): value is boolean =>
   typeof value === 'boolean';
+
+export const isValidSymbol = (value: unknown): value is Symbol =>
+  typeof value === 'symbol' && value.constructor === Symbol;
 
 export const isValidSimpleModel = <T>(model: any): model is T => {
   if (!isValidFunction(model)) {
@@ -462,12 +581,82 @@ export const prepareMultipleValues = <T extends string>(
     return acc;
   }, finalObject);
 };
+
+export const getAllEntries = (obj: unknown): Array<[string | symbol, any]> => {
+  if (!isValidObject(obj)) {
+    return [];
+  }
+  const symbolKeys = Object.getOwnPropertySymbols(obj);
+  const keyEntries = Object.entries(obj) as [string | symbol, any];
+  for (let symbol of symbolKeys) {
+    keyEntries.push([symbol, (obj as any)[symbol]]);
+  }
+  return keyEntries;
+};
+
+export const validateColumn =
+  (
+    col: string | symbol,
+    colOptions?: {
+      shouldSkipFieldValidation?: boolean;
+      isNullColAllowed?: false | undefined;
+      customAllowFields?: string[];
+      isAggregateAllowed?: boolean | undefined;
+    },
+  ) =>
+  (options: {
+    preparedValues: PreparedValues;
+    groupByFields: GroupByFields;
+    allowedFields: AllowedFields;
+  }) => {
+    const { shouldSkipFieldValidation, isAggregateAllowed, ...rest } =
+      colOptions || {};
+    const { allowedFields, preparedValues } = options;
+    if (isValidSymbol(col)) {
+      const registry = symbolFuncRegister.getFrmRegistry(col);
+      if (!isValidFunction(registry)) {
+        return throwError.invalidColumnNameRegexType(col.toString());
+      }
+      const { col: val } = registry({
+        ...options,
+        isAggregateAllowed,
+        customAllowedFields: rest.customAllowFields,
+      });
+      symbolFuncRegister.deleteFrmRegistry(col);
+      return val;
+    }
+    if (isNonEmptyString(col)) {
+      if (shouldSkipFieldValidation) {
+        return col;
+      }
+      return fieldQuote(allowedFields, preparedValues, col, rest);
+    }
+    return throwError.invalidColumnNameRegexType(
+      ((col as any) || 'null').toString(),
+    );
+  };
+
+export const attachMethodToSymbolRegistry = (
+  method: any,
+  ...keys: string[]
+) => {
+  method.toString = () => {
+    const symbol = createSymbolMethodRef(
+      method,
+      ...keys,
+      Date.now().toString(),
+    );
+    return symbol;
+  };
+};
 //===================================== Object wrapped functions =======================//
 
 export const attachArrayWith = {
   space: attachArrayWithSpaceSep,
   coma: attachArrayWithComaSep,
   and: attachArrayWithAndSep,
+  dot: attachArrayWithDotSep,
+  noSpace: attachArrayWithNoSpaceSep,
   comaAndSpace: attachArrayWithComaAndSpaceSep,
   customSep: attachArrayWithSep,
 };

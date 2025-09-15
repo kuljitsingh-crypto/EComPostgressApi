@@ -83,7 +83,7 @@ export class DBQuery {
     const preparedValues: PreparedValues = { index: 0, values: [] };
     Object.entries(fields).forEach((entry) => {
       const [key, value] = entry;
-      keys.push(fieldQuote(allowedFields, key));
+      keys.push(fieldQuote(allowedFields, preparedValues, key));
       const placeholder = getPreparedValues(preparedValues, value);
       valuePlaceholder.push(placeholder);
     });

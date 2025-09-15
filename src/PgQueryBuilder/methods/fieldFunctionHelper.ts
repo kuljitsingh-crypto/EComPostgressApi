@@ -35,6 +35,7 @@ import { throwError } from './errorHelper';
 import { FieldOperand, getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
+  attachMethodToSymbolRegistry,
   getValidCallableFieldValues,
   isNonEmptyString,
   isNonNullableValue,
@@ -221,22 +222,6 @@ const resolveOperand = <Model>(
   const isValidPrefixValue = isNonEmptyString(prefixValue);
   const isValidSuffixValue = isNonEmptyString(suffixValue);
   const operandsRef: Primitive[] = isValidPrefixValue ? [prefixValue] : [];
-  // For Now primitive data type treated as value , For Column use col(colNme)
-  // const [col, ...operands] = colAndOperands;
-  // if (col === null || typeof col === 'string') {
-  //   operandsRef.push(fieldQuote(allowedFields, col, isNullColAllowed));
-  // } else {
-  //   operandsRef.push(
-  //     getFieldValue(
-  //       col,
-  //       preparedValues,
-  //       groupByFields,
-  //       allowedFields,
-  //       isNullColAllowed,
-  //       operandAllowed,
-  //     ),
-  //   );
-  // }
   colAndOperands.forEach((op) => {
     const value = getFieldValue(
       op,
@@ -452,7 +437,7 @@ class FieldFunction {
 
   #operateOnFields<Model>(args: FieldOperatorCb<Model>) {
     const { colAndOperands, op, operatorRef, isNullColAllowed, ...rest } = args;
-    return (options: CallableFieldParam) => {
+    const callable = (options: CallableFieldParam) => {
       const { preparedValues, groupByFields, allowedFields } =
         getValidCallableFieldValues(
           options,
@@ -477,6 +462,8 @@ class FieldFunction {
         ctx: getInternalContext(),
       };
     };
+    attachMethodToSymbolRegistry(callable, 'fieldFn', op);
+    return callable;
   }
 }
 

@@ -69,12 +69,7 @@ const prepareFinalFindQry = (
     selectUpdatedQries.push(' ', setQry[i], ')');
   }
   if (!needsWrapper) selectUpdatedQries.pop();
-  const finalSubquery = attachArrayWith.customSep(
-    selectUpdatedQries,
-    '',
-    false,
-  );
-
+  const finalSubquery = attachArrayWith.noSpace(selectUpdatedQries, false);
   const rawQueries = needsWrapper
     ? [
         DB_KEYWORDS.select,
@@ -420,6 +415,7 @@ export class QueryHelper {
   static #prepareGroupByQuery(
     allowedFields: AllowedFields,
     groupByFields: GroupByFields,
+    preparedValues: PreparedValues,
     groupBy?: string[],
   ) {
     groupByFields.clear();
@@ -427,7 +423,7 @@ export class QueryHelper {
     const groupStatements: string[] = [DB_KEYWORDS.groupBy];
     const qry = attachArrayWith.coma(
       groupBy.map((key) => {
-        const validKey = fieldQuote(allowedFields, key);
+        const validKey = fieldQuote(allowedFields, preparedValues, key);
         groupByFields.add(validKey);
         return validKey;
       }),
@@ -467,6 +463,7 @@ export class QueryHelper {
     const groupByStr = QueryHelper.#prepareGroupByQuery(
       allowedFields,
       groupByFields,
+      preparedValues,
       groupBy,
     );
     const orderStr = OrderByQuery.prepareOrderByQuery(

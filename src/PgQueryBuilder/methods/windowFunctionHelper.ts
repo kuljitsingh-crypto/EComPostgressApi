@@ -25,6 +25,7 @@ import { throwError } from './errorHelper';
 import { FieldOperand, getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
+  attachMethodToSymbolRegistry,
   getPreparedValues,
   getValidCallableFieldValues,
   isNonEmptyObject,
@@ -228,8 +229,8 @@ class WindowFunction {
   }
 
   #attachMethod(methodName: WindowFunctions) {
-    return (...args: unknown[]) =>
-      (callableParams: CallableFieldParam) => {
+    return (...args: unknown[]) => {
+      const callable = (callableParams: CallableFieldParam) => {
         const { arg1, arg2, options } = prepareArg(methodName, ...args);
         const { frameOption, offset, defaultValue, n, orderBy, partitionBy } =
           options || {};
@@ -283,7 +284,7 @@ class WindowFunction {
           namesArr.push(param1, param2);
         }
         namesArr.push(')');
-        const functionName = attachArrayWith.customSep(namesArr, '');
+        const functionName = attachArrayWith.noSpace(namesArr);
         const overArr = [DB_KEYWORDS.over, ' ', '('];
         const partitions = [];
         if (partitionByMaybe) {
@@ -294,10 +295,13 @@ class WindowFunction {
         }
         partitions.push(frameOptionMaybe);
         overArr.push(attachArrayWith.space(partitions), ')');
-        const over = attachArrayWith.customSep(overArr, '', false);
+        const over = attachArrayWith.noSpace(overArr, false);
         const col = attachArrayWith.space([functionName, over]);
         return { col: col, alias: null, ctx: getInternalContext() };
       };
+      attachMethodToSymbolRegistry(callable, 'windowFn', methodName);
+      return callable;
+    };
   }
 
   #initializeMethods() {

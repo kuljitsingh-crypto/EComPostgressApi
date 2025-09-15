@@ -23,6 +23,7 @@ export type NULL_OPTION = 'NULLS FIRST' | 'NULLS LAST';
 export type PAGINATION = { limit: number; offset?: number };
 export type GroupByFields = Set<string>;
 export type AllowedFields = Set<string>;
+export type FieldMetadata = { isJSONField?: boolean };
 
 export type ModelAndAlias<Model> = {
   model?: DerivedModel<Model>;

@@ -17,10 +17,12 @@ import { throwError } from './errorHelper';
 import { getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
+  attachMethodToSymbolRegistry,
   getValidCallableFieldValues,
   isNullableValue,
   isValidArray,
 } from './helperFunction';
+import { symbolFuncRegister } from './symbolHelper';
 
 type ParamValue = {
   length: number;
@@ -31,12 +33,12 @@ type ParamValue = {
 
 type TypeCastRefVal = { value: string; paramAllowed: (keyof ParamValue)[] };
 
-type NoParamFunc = (value: Primitive | CallableField) => CallableField;
+type NoParamFunc = (value: Primitive | CallableField) => any;
 
 type ParamFunc = (
   value: Primitive | CallableField,
   options?: Partial<ParamValue>,
-) => CallableField;
+) => any;
 
 type TypeCastFunc = {
   [Key in TypeCastKeys]: Key extends NoParamTypeCast ? NoParamFunc : ParamFunc;
@@ -117,8 +119,8 @@ class TypeCast {
   }
 
   #prepareMethodForTypeCast(refVal: TypeCastRefVal) {
-    return (value: Primitive | CallableField, castOptions?: ParamValue) =>
-      (options: CallableFieldParam) => {
+    return (value: Primitive | CallableField, castOptions?: ParamValue) => {
+      const callable = (options: CallableFieldParam) => {
         const { value: fnName, paramAllowed = [] } = refVal;
         const { allowedFields, groupByFields, preparedValues } =
           getValidCallableFieldValues(
@@ -146,6 +148,10 @@ class TypeCast {
         col += type;
         return { col, alias: null, ctx: getInternalContext() };
       };
+
+      attachMethodToSymbolRegistry(callable, 'castFn', refVal.value);
+      return callable;
+    };
   }
 
   #attachMethods<T extends TypeCastKeys>(

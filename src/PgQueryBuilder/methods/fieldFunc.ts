@@ -52,7 +52,7 @@ export const getFieldValue = <Model>(
     ...callableOptions
   } = options;
   if (treatStrAsCol && isNonEmptyString(value)) {
-    return fieldQuote(allowedFields, value, {
+    return fieldQuote(allowedFields, preparedValues, value, {
       customAllowFields: callableOptions.customAllowedFields,
     });
   } else if (isPrimitiveValue(value)) {

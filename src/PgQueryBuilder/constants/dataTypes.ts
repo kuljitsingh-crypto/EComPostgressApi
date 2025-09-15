@@ -1,6 +1,6 @@
 import { attachArrayWith } from '../methods/helperFunction';
 
-export const PG_DATA_TYPE = {
+export const PgDataType = {
   boolean: 'BOOLEAN',
   true: 'TRUE',
   false: 'FALSE',
