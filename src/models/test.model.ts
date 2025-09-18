@@ -563,7 +563,26 @@ Company.init(
 // });
 
 Company.findAll({
-  columns: [col('x.metadata.tags', { asJson: true })],
+  // columns: [col('x.metadata.tags', { asJson: true })],
+  columns: [
+    fieldFn.jsonbTypeOf(col('metadata.ratings.indeed', { asJson: true })),
+    fieldFn.jsonbKeys(col('metadata')),
+    fieldFn.jsonbEntries(col('metadata')),
+    fieldFn.jsonbEntiresText(col('metadata')),
+    fieldFn.jsonbArrayElements(col('metadata.tags', { asJson: true })),
+    fieldFn.jsonbArrayElementsText(col('metadata.tags', { asJson: true })),
+    fieldFn.jsonbArrayLength(col('metadata.tags', { asJson: true })),
+    fieldFn.jsonbBuildArray(
+      col('metadata.tags', { asJson: true }),
+      castFn.int(1),
+      castFn.int(2),
+      castFn.text('f'),
+      castFn.text(null),
+      castFn.boolean(false),
+    ),
+    fieldFn.jsonBuildObject(castFn.text('name'), castFn.text('kuljit')),
+    // fieldFn.jsonbTypeOf(col('metadata.ratings.indeed', { asJson: true })),
+  ],
   where: {
     // 'metadata.ratings.indeed': { gt: 4 },
     // $or: [

@@ -144,6 +144,24 @@ export const SINGLE_FIELD_OP = {
   toHex: 'TO_HEX',
   md5: 'MD5',
   typeOf: 'pg_typeof',
+  jsonTypeOf: 'json_typeof',
+  jsonbTypeOf: 'jsonb_typeof',
+  jsonKeys: 'json_object_keys',
+  jsonbKeys: 'jsonb_object_keys',
+  jsonEntries: 'json_each',
+  jsonEach: 'json_each',
+  jsonbEntries: 'jsonb_each',
+  jsonbEach: 'jsonb_each',
+  jsonEntriesText: 'json_each_text',
+  jsonEachText: 'json_each_text',
+  jsonbEntiresText: 'jsonb_each_text',
+  jsonbEachText: 'jsonb_each_text',
+  jsonArrayElements: 'json_array_elements',
+  jsonbArrayElements: 'jsonb_array_elements',
+  jsonArrayElementsText: 'json_array_elements_text',
+  jsonbArrayElementsText: 'jsonb_array_elements_text',
+  jsonArrayLength: 'json_array_length',
+  jsonbArrayLength: 'jsonb_array_length',
 } as const;
 
 //====================================== Double Field Op ======================================//
@@ -205,6 +223,10 @@ export const MULTIPLE_FIELD_OP = {
   age: 'AGE',
   greatest: 'GREATEST',
   least: 'LEAST',
+  jsonBuildArray: 'json_build_array',
+  jsonbBuildArray: 'jsonb_build_array',
+  jsonBuildObject: 'json_build_object',
+  jsonbBuildObject: 'jsonb_build_object',
 } as const;
 
 export const CASE_FIELD_OP = {
