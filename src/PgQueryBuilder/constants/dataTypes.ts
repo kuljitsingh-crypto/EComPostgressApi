@@ -1,4 +1,13 @@
-import { attachArrayWith } from '../methods/helperFunction';
+import { Primitive } from '../globalTypes';
+
+const filterOutValidDbData = (a: Primitive) => {
+  if (a === null || typeof a === 'boolean' || typeof a === 'number') {
+    return true;
+  } else if (typeof a == 'string' && a.trim().length > 0) {
+    return true;
+  }
+  return false;
+};
 
 export const PgDataType = {
   boolean: 'BOOLEAN',
@@ -18,6 +27,7 @@ export const PgDataType = {
   json: 'JSON',
   jsonb: 'JSONB',
   uuid: 'UUID',
+  null: 'NULL',
   string(n: number) {
     return `VARCHAR(${n})`;
   },
@@ -25,7 +35,10 @@ export const PgDataType = {
     return `NUMERIC(${precision}, ${scale})`;
   },
   enum(values: string[]) {
-    const valueStr = attachArrayWith.coma(values.map((v) => `'${v}'`));
+    const valueStr = values
+      .filter(filterOutValidDbData)
+      .map((v) => `'${v}'`)
+      .join(',');
     return `ENUM(${valueStr})`;
   },
 };

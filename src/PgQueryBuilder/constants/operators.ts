@@ -33,8 +33,8 @@ export const OP = {
   iNotMatch: '!~*',
   ANY: 'ANY',
   ALL: 'ALL',
-  arrayContains: '@>',
-  arrayContainBy: '<@',
+  jsonContains: '@>',
+  jsonContainsBy: '<@',
   arrayOverlap: '&&',
   $exists: 'EXISTS',
   $notExists: 'NOT EXISTS',
@@ -84,5 +84,5 @@ export type ARRAY_OP_KEYS = Extract<
 
 export type ARRAY_OPERATION_KEYS = Extract<
   OP_KEYS,
-  'arrayContains' | 'arrayContainBy' | 'arrayOverlap'
+  'jsonContains' | 'jsonContainsBy' | 'arrayOverlap'
 >;

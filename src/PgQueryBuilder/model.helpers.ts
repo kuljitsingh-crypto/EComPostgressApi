@@ -45,6 +45,7 @@ export class DBQuery {
       queryParams || {},
     );
     try {
+      console.log(preparedValues.values);
       const result = await query(findAllQuery, preparedValues.values);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {

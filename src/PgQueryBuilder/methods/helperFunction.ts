@@ -1,3 +1,4 @@
+import { PgDataType } from '../constants/dataTypes';
 import { OP } from '../constants/operators';
 import { setOperation } from '../constants/setOperations';
 import { TABLE_JOIN, TableJoinType } from '../constants/tableJoin';
@@ -250,15 +251,15 @@ export const createPlaceholder = (index: number, type?: string) => {
 const prepareVal = (val: Primitive) =>
   digitRegex.test((val as any) || '') ? Number(val) : val;
 
-export const getPreparedValues = (
+export const getPreparedValues = <T extends boolean = false>(
   preparedValues: PreparedValues,
   value: Primitive,
-  options?: { type?: string; returnNumAsItIs?: boolean },
-) => {
+  options?: { type?: string; returnNumAsItIs?: T },
+): T extends true ? string | number : string => {
   const { type, returnNumAsItIs = false } = options || {};
   const val = prepareVal(value);
   if (isValidNumber(val) && returnNumAsItIs) {
-    return val;
+    return val as any;
   }
   const placeholder = createPlaceholder(preparedValues.index + 1, type);
   preparedValues.values[preparedValues.index] = val;
@@ -649,6 +650,34 @@ export const attachMethodToSymbolRegistry = (
     return symbol;
   };
 };
+
+export const isFloatVal = (val: unknown): val is number => {
+  return isValidNumber(val) && !Number.isInteger(val);
+};
+
+export const isIntegerVal = (val: unknown): val is number => {
+  return isValidNumber(val) && Number.isInteger(val);
+};
+
+export const covertJSDataToSQLData = (data: Primitive) => {
+  if (data === null) {
+    return PgDataType.null;
+  } else if (typeof data === 'boolean') {
+    return PgDataType.boolean;
+  } else if (typeof data === 'string') {
+    return PgDataType.text;
+  } else if (typeof data === 'bigint') {
+    return PgDataType.bigInt;
+  } else if (isFloatVal(data)) {
+    return PgDataType.float;
+  } else if (isIntegerVal(data)) {
+    return PgDataType.int;
+  }
+  return throwError.invalidDataType(data);
+};
+
+export const prepareSQLDataType = (data: Primitive) =>
+  `::${covertJSDataToSQLData(data)}`;
 //===================================== Object wrapped functions =======================//
 
 export const attachArrayWith = {

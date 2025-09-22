@@ -24,15 +24,18 @@ import { ColumnHelper } from './columnHelper';
 import { throwError } from './errorHelper';
 import {
   attachArrayWith,
+  covertJSDataToSQLData,
   ensureArray,
   getAllEntries,
   getPreparedValues,
   isCallableColumn,
+  isNonEmptyObject,
   isNonEmptyString,
   isPrimitiveValue,
   isValidArray,
   isValidObject,
   isValidSubQuery,
+  prepareSQLDataType,
   validateColumn,
   validCallableColCtx,
 } from './helperFunction';
@@ -64,6 +67,28 @@ const preparePlachldrForArray = <Model>(
   return placeholderArr;
 };
 
+const preparePlachldrForObject = (
+  values: Record<string, Primitive>,
+  preparedValues: PreparedValues,
+) => {
+  const prepareArrayPlaceholder = (val: any[], results: any = []) => {
+    for (let ele of val) {
+      if (isPrimitiveValue(ele)) {
+        results.push(
+          getPreparedValues(preparedValues, ele, {
+            type: prepareSQLDataType(ele),
+          }),
+        );
+      } else if (isValidArray(ele)) {
+        results.push(prepareArrayPlaceholder(ele, []));
+      }
+    }
+    return results;
+  };
+  const placeholderArr = prepareArrayPlaceholder(Object.entries(values));
+  return JSON.stringify(Object.fromEntries(placeholderArr));
+};
+
 const prepareQryForPrimitiveOp = (
   preparedValues: PreparedValues,
   key: string,
@@ -79,15 +104,7 @@ const prepareQryForPrimitiveOp = (
 
 const getArrayDataType = (value: Primitive[]) => {
   const firstValue = value[0];
-  if (typeof firstValue === 'number') {
-    return PgDataType.int;
-  } else if (isNonEmptyString(firstValue)) {
-    return PgDataType.text;
-  } else if (typeof firstValue === 'boolean') {
-    return PgDataType.boolean;
-  } else {
-    return throwError.invalidDataType(firstValue);
-  }
+  return covertJSDataToSQLData(firstValue);
 };
 
 const getAnyAndAllFilterValue = <Model>(val: any, op: string) => {
@@ -311,18 +328,26 @@ export class TableFilter {
         subQryOperation,
         arrayQry,
       ]);
+    } else if (isValidSubQuery(value)) {
+      const subQry = QueryHelper.otherModelSubqueryBuilder(
+        subQryOperation,
+        preparedValues,
+        groupByFields,
+        value as any,
+        { isExistsFilter: false },
+      );
+      return attachArrayWith.space([key, baseOperation, subQry]);
+    } else if (isNonEmptyObject(value)) {
+      let placeholder = preparePlachldrForObject(value as any, preparedValues);
+      placeholder = getPreparedValues(preparedValues, placeholder);
+      return attachArrayWith.space([
+        key,
+        baseOperation,
+        subQryOperation,
+        placeholder,
+      ]);
     }
-    if (!isValidObject(value)) {
-      return throwError.invalidObjectOPType(baseOperation);
-    }
-    const subQry = QueryHelper.otherModelSubqueryBuilder(
-      subQryOperation,
-      preparedValues,
-      groupByFields,
-      value as any,
-      { isExistsFilter: false },
-    );
-    return attachArrayWith.space([key, baseOperation, subQry]);
+    return throwError.invalidObjectOPType(baseOperation);
   }
 
   static #buildCondition<Model>(
@@ -491,8 +516,8 @@ export class TableFilter {
           );
           return subQry;
         }
-        case 'arrayContainBy':
-        case 'arrayContains':
+        case 'jsonContainsBy':
+        case 'jsonContains':
         case 'arrayOverlap': {
           const subQuery = TableFilter.#buildQueryForSubQryOperator(
             validKey,

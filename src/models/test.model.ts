@@ -396,7 +396,7 @@ Company.init(
 //     //   ),
 //     // ],
 //     // a: { gt: fieldFn.sub(castFn.int(4), 2) },
-//     // a: { arrayContains: { model: BasketB, column: aggrFn.arrayAgg('b') } },
+//     // a: { jsonContains: { model: BasketB, column: aggrFn.arrayAgg('b') } },
 //     // $matches: [[fieldFn.sub(col('a'), 2), { gt: 2 }]],
 //     // a: { arrayOverlap: [1, 2] },
 //     // fruit_a: { iLike: { ALL: ['a%', 'o%'] } },
@@ -594,6 +594,7 @@ Company.findAll({
     // [castFn.text(col('metadata.tags', { asJson: true }))]: {
     //   in: ['IT'],
     // },
+    metadata: { jsonContains: { hq: 'ceo' } },
   },
   alias: 'x',
 }).then((res) => {

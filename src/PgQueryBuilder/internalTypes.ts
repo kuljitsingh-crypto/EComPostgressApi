@@ -70,8 +70,14 @@ export type ConditionMap<Model, T extends SubqueryWhereReq = 'WhereNotReq'> = {
   between: (Primitive | InOperationSubQuery<Model, T, 'single'>)[];
   notBetween: (Primitive | InOperationSubQuery<Model, T, 'single'>)[];
   $matches: Array<[string | CallableField, Condition<Model>]>;
-  arrayContains: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
-  arrayContainBy: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
+  jsonContains:
+    | Primitive[]
+    | Record<string, Primitive>
+    | InOperationSubQuery<Model, T, 'single'>;
+  jsonContainsBy:
+    | Primitive[]
+    | Record<string, Primitive>
+    | InOperationSubQuery<Model, T, 'single'>;
   arrayOverlap: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
   isNull: null;
   notNull: null;
