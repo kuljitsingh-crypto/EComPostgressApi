@@ -659,7 +659,7 @@ export const isIntegerVal = (val: unknown): val is number => {
   return isValidNumber(val) && Number.isInteger(val);
 };
 
-export const covertJSDataToSQLData = (data: Primitive) => {
+export const covertJSDataToSQLData = (data: unknown): string => {
   if (data === null) {
     return PgDataType.null;
   } else if (typeof data === 'boolean') {
@@ -672,6 +672,8 @@ export const covertJSDataToSQLData = (data: Primitive) => {
     return PgDataType.float;
   } else if (isIntegerVal(data)) {
     return PgDataType.int;
+  } else if (isValidArray(data)) {
+    return `${covertJSDataToSQLData(data[0])}[]`;
   }
   return throwError.invalidDataType(data);
 };

@@ -1,5 +1,6 @@
 import { PgDataType } from '../constants/dataTypes';
 import { DB_KEYWORDS } from '../constants/dbkeywords';
+import { MULTIPLE_FIELD_OP } from '../constants/fieldFunctions';
 import {
   conditionalOperator,
   matchQueryOperator,
@@ -71,22 +72,20 @@ const preparePlachldrForObject = (
   values: Record<string, Primitive>,
   preparedValues: PreparedValues,
 ) => {
-  const prepareArrayPlaceholder = (val: any[], results: any = []) => {
-    for (let ele of val) {
-      if (isPrimitiveValue(ele)) {
-        results.push(
-          getPreparedValues(preparedValues, ele, {
-            type: prepareSQLDataType(ele),
-          }),
-        );
-      } else if (isValidArray(ele)) {
-        results.push(prepareArrayPlaceholder(ele, []));
-      }
-    }
-    return results;
-  };
-  const placeholderArr = prepareArrayPlaceholder(Object.entries(values));
-  return JSON.stringify(Object.fromEntries(placeholderArr));
+  const flattenArray: string[] = [];
+  let key, val, keyType, valType;
+  for (key in values) {
+    val = values[key];
+    keyType = prepareSQLDataType(key);
+    valType = prepareSQLDataType(val);
+    flattenArray.push(
+      getPreparedValues(preparedValues, key, { type: keyType }),
+    );
+    flattenArray.push(
+      getPreparedValues(preparedValues, val, { type: valType }),
+    );
+  }
+  return flattenArray;
 };
 
 const prepareQryForPrimitiveOp = (
@@ -294,6 +293,28 @@ export class TableFilter {
     return cond ? `(${cond})` : '';
   }
 
+  static #buildJsonbQryOperator = (
+    key: string,
+    baseOperation: string,
+    preparedValues: PreparedValues,
+    value: any,
+  ) => {
+    if (isNonEmptyObject(value)) {
+      const flattenArray = preparePlachldrForObject(
+        value as any,
+        preparedValues,
+      );
+      const placeholder = attachArrayWith.noSpace([
+        MULTIPLE_FIELD_OP.jsonbBuildObject,
+        '(',
+        attachArrayWith.coma(flattenArray),
+        ')',
+      ]);
+      return attachArrayWith.space([key, baseOperation, placeholder]);
+    }
+    return throwError.invalidObjectOPType(baseOperation);
+  };
+
   static #buildQueryForSubQryOperator(
     key: string,
     baseOperation: string,
@@ -337,15 +358,6 @@ export class TableFilter {
         { isExistsFilter: false },
       );
       return attachArrayWith.space([key, baseOperation, subQry]);
-    } else if (isNonEmptyObject(value)) {
-      let placeholder = preparePlachldrForObject(value as any, preparedValues);
-      placeholder = getPreparedValues(preparedValues, placeholder);
-      return attachArrayWith.space([
-        key,
-        baseOperation,
-        subQryOperation,
-        placeholder,
-      ]);
     }
     return throwError.invalidObjectOPType(baseOperation);
   }
@@ -516,8 +528,17 @@ export class TableFilter {
           );
           return subQry;
         }
-        case 'jsonContainsBy':
-        case 'jsonContains':
+        case 'jsonbContainsBy':
+        case 'jsonbContains':
+          const subqry = TableFilter.#buildJsonbQryOperator(
+            validKey,
+            operation,
+            preparedValues,
+            val,
+          );
+          return subqry;
+        case 'arrayContainsBy':
+        case 'arrayContains':
         case 'arrayOverlap': {
           const subQuery = TableFilter.#buildQueryForSubQryOperator(
             validKey,
