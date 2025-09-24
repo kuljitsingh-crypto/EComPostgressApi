@@ -482,7 +482,6 @@ export class TableFilter {
         case 'isUnknown':
         case 'notUnknown':
           return attachArrayWith.space([key, operation]);
-
         case 'startsWith':
         case 'iStartsWith': {
           checkPrimitiveValueForOp(op, val as any);
@@ -528,15 +527,6 @@ export class TableFilter {
           );
           return subQry;
         }
-        case 'jsonbContainsBy':
-        case 'jsonbContains':
-          const subqry = TableFilter.#buildJsonbQryOperator(
-            validKey,
-            operation,
-            preparedValues,
-            val,
-          );
-          return subqry;
         case 'arrayContainsBy':
         case 'arrayContains':
         case 'arrayOverlap': {
@@ -567,6 +557,38 @@ export class TableFilter {
           );
           return subQry;
         }
+
+        case 'jsonbContainsBy':
+        case 'jsonbContains':
+          const subqry = TableFilter.#buildJsonbQryOperator(
+            validKey,
+            operation,
+            preparedValues,
+            val,
+          );
+          return subqry;
+        case 'jsonbHasKey':
+          if (isPrimitiveValue(val)) {
+            return prepareQryForPrimitiveOp(
+              preparedValues,
+              validKey,
+              operation,
+              val,
+            );
+          }
+        case 'jsonbHasAll':
+        case 'jsonbHasAny':
+          const subQry = TableFilter.#buildQueryForSubQryOperator(
+            validKey,
+            operation,
+            '',
+            preparedValues,
+            groupByFields,
+            val,
+            true,
+            1,
+          );
+          return subQry;
         default:
           return throwError.invalidOperatorType(op, validOperations);
       }

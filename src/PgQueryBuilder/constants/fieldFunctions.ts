@@ -162,6 +162,10 @@ export const SINGLE_FIELD_OP = {
   jsonbArrayElementsText: 'jsonb_array_elements_text',
   jsonArrayLength: 'json_array_length',
   jsonbArrayLength: 'jsonb_array_length',
+  jsonAgg: 'json_agg',
+  jsonbAgg: 'jsonb_agg',
+  jsonTypeof: 'json_typeof',
+  jsonbTypeof: 'jsonb_typeof',
 } as const;
 
 //====================================== Double Field Op ======================================//
@@ -191,6 +195,8 @@ export const DOUBLE_FIELD_OP = {
   coalesce: 'COALESCE',
   encode: 'ENCODE',
   decode: 'DECODE',
+  jsonObjectAgg: 'json_object_agg',
+  jsonbObjectAgg: 'jsonb_object_agg',
 } as const;
 
 export const STR_FIELD_OP = {

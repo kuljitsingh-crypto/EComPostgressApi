@@ -75,6 +75,9 @@ export type ConditionMap<Model, T extends SubqueryWhereReq = 'WhereNotReq'> = {
   arrayContains: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
   arrayContainsBy: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
   arrayOverlap: Primitive[] | InOperationSubQuery<Model, T, 'single'>;
+  jsonbHasKey: string;
+  jsonbHasAny: string[];
+  jsonbHasAll: string[];
   isNull: null;
   notNull: null;
   isTrue: null;

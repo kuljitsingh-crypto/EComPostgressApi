@@ -43,6 +43,9 @@ export const OP = {
   $and: 'AND',
   $or: 'OR',
   $matches: '',
+  jsonbHasKey: '?',
+  jsonbHasAny: '?|',
+  jsonbHasAll: '?&',
 } as const;
 
 export const conditionalOperator = new Set(['$or', '$and'] as const);

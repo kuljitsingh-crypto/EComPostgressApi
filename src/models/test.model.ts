@@ -582,6 +582,8 @@ Company.findAll({
     // ),
     // fieldFn.jsonBuildObject(castFn.text('name'), castFn.text('kuljit')),
     // fieldFn.jsonbTypeOf(col('metadata.ratings.indeed', { asJson: true })),
+    fieldFn.jsonbAgg(col('metadata.hq')),
+    fieldFn.jsonbObjectAgg(col('metadata.hq'), col('metadata.ceo')),
   ],
   where: {
     // 'metadata.ratings.indeed': { gt: 4 },
@@ -595,7 +597,8 @@ Company.findAll({
     //   in: ['IT'],
     // },
     // [col('metadata.tags', { asJson: true })]: { jsonbContains: ['AI'] },
-    metadata: { jsonbContains: { tags: ['AI', 'ML'] } },
+    // metadata: { jsonbContains: { tags: ['AI', 'ML'] } },
+    // metadata: { jsonbHasAny: ['hq', 'ceo'] },
   },
   alias: 'x',
 }).then((res) => {
