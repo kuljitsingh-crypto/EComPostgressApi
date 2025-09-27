@@ -1,19 +1,25 @@
 import { aggregateFn } from './aggregateFunctionHelper';
 import { colFn } from './columnFunctionHelepr';
+import { fieldFn } from './fieldFunctionHelper';
 import { jsonPathFn } from './jsonPathHelper';
 import { typeCastFn } from './typeCastHelper';
-import { windowFn } from './windowFunctionHelper';
+import { frameFn, windowFn } from './windowFunctionHelper';
 
 type AggrKeys = keyof typeof aggregateFn;
+type FrameKeys = keyof typeof frameFn;
+type fieldKeys = keyof typeof fieldFn;
 
-type Aggr = { [k in AggrKeys]: (typeof aggregateFn)[k] };
+type Func = { [k in AggrKeys]: (typeof aggregateFn)[k] } & {
+  [k in FrameKeys]: (typeof frameFn)[k];
+} & {
+  [k in fieldKeys]: (typeof fieldFn)[k];
+};
 
-interface GlobalFunction extends Aggr {
+interface GlobalFunction extends Func {
   cast: typeof typeCastFn;
   window: typeof windowFn;
 }
 
-console.log(Object.keys(aggregateFn));
 class GlobalFunction {
   static #instance: GlobalFunction | null = null;
 
@@ -23,6 +29,8 @@ class GlobalFunction {
       this.cast = typeCastFn;
       this.window = windowFn;
       this.#attachAggregateFunctions();
+      this.#attachFrameFunctions();
+      this.#attachFieldFunctions();
     }
     return GlobalFunction.#instance;
   }
@@ -30,6 +38,20 @@ class GlobalFunction {
     for (let key in aggregateFn) {
       //@ts-ignore
       this[key] = aggregateFn[key];
+    }
+  }
+
+  #attachFrameFunctions() {
+    for (let key in frameFn) {
+      //@ts-ignore
+      this[key] = frameFn[key];
+    }
+  }
+
+  #attachFieldFunctions() {
+    for (let key in fieldFn) {
+      //@ts-ignore
+      this[key] = fieldFn[key];
     }
   }
 

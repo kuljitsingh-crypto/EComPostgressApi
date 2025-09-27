@@ -1,11 +1,4 @@
-import {
-  PgDataType,
-  DBModel,
-  fieldFn,
-  frameFn,
-  fn,
-  RawQuery,
-} from '../PgQueryBuilder';
+import { PgDataType, DBModel, fn, RawQuery } from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
 export class BasketB extends DBModel {}
@@ -253,361 +246,361 @@ Company.init(
 //   ],
 // );
 
-// BasketA.select({
-//   // columns: ['a'],
-//   // columns: [[aggrFn.COUNT('a'), 'b']],
-//   columns: [
-//     // 'a',
-//     // [
-//     //   windowFn.rowNumber({
-//     //     partitionBy: 'a',
-//     //     // orderBy: ['a'],
-//     //     // frameOption: frameFn.rows('UNBOUNDED', 'UNBOUNDED'),
-//     //   }),
-//     //   'b',
-//     // ],
-//     // aggrFn.count(col('*')),
-//     // fieldFn.lPad(castFn.text(col('fruit_a')), 10, '0'),
-//     // fieldFn.abs(col('a')),
-//     // fieldFn.now(),
-//     // fieldFn.abs(
-//     //   aggrFn.avg(
-//     //     fieldFn.case(
-//     //       {
-//     //         when: { a: { gte: 1, lte: 2 } },
-//     //         then: { model: BasketB, column: aggrFn.avg(col('b')) },
-//     //       },
-//     //       // { when: { a: 3 }, then: 0 },
-//     //       { else: fieldFn.multiple(col('a'), -1) },
-//     //     ),
-//     //   ),
-//     // ),
-//     // fieldFn.case(
-//     //   {
-//     //     when: { a: { gte: 1, lte: 2 } },
-//     //     then: { model: BasketB, column: aggrFn.avg(col('b')) },
-//     //   },
-//     //   // { when: { a: 3 }, then: 0 },
-//     //   { else: fieldFn.multiple(col('a'), -1) },
-//     // ),
-//     // 'fruit_a',
-//     // aggrFn.corr(col('a'), {
-//     //   model: BasketB,
-//     //   column: 'b',
-//     //   where: { 't.b': { eq: col('a') } },
-//     //   alias: 't',
-//     // }),
-//     // aggrFn.sum(
-//     //   castFn.int(
-//     //     fieldFn.case(
-//     //       { when: { fruit_a: { iLike: ['A%', 'o%'] } }, then: 1 },
-//     //       { else: 0 },
-//     //     ),
-//     //   ),
-//     // ),
-//     // fieldFn.age(fieldFn.now(), castFn.timestamp('2023-12-25')),
-//     // fieldFn.datePart('month', fieldFn.now()),
-//     // fieldFn.toNumber('123.454', '999.99'),
-//     // fieldFn.currentTime(),
-//     // fieldFn.typeOf(col('a')),
-//     // fieldFn.case({when:6,then:5},{else:4})
-//     // fieldFn.least(col('a'), 0),
-//     // fieldFn.substring(col('fruit_a'), castFn.int(1), castFn.int(1)),
-//     // fieldFn.trim('A', col('fruit_a')),
-//     // fieldFn.position(col('fruit_a'), col('fruit_a')),
-//     // fieldFn.extractYear(castFn.timestamp('2023-12-25')),
-//     // castFn.timestamp(fieldFn.clockTimestamp(), { precision: 2 }),
-//     // fieldFn.sub(fieldFn.now(), castFn.timestamp('2023-12-25')),
-//     // fieldFn.concat(
-//     //   castFn.text('Mr'),
-//     //   col('fruit_a'),
-//     //   castFn.text(':'),
-//     //   col('fruit_a'),
-//     // ),
-//     // 'a',
-//     // aggrFn.avg(fieldFn.abs(fieldFn.sub(col('a'), 8))),
-//     // aggrFn.boolOr('a'),
-//     // aggrFn.avg('a', {
-//     //   isDistinct: true,
-//     // }),
-//     // 'a',
-//     // 'a',
-//     // 'fruit_a',
-//     // fieldFn.abs(castFn.int('2')),
-//     // [aggrFn.avg(fieldFn.power('a', 2)), 'd'],
-//     // [fieldFn.abs(fieldFn.sub('a', fieldFn.col('t.avg_a'))), 'deviation'],
-//     // fieldFn.abs(fieldFn.sub(5, aggrFn.avg('a'))),
-//     // fieldFn.abs(fieldFn.sub(5, fieldFn.col('a'))),
-//     // [fieldFn.sub('a', { model: BasketB, column: aggrFn.avg('b') }), 'av'],
-//     // fieldFn.power(fieldFn.val(5), fieldFn.col('a')),
-//     // [
-//     //   fieldFn.sub(
-//     //     { model: BasketB, column: aggrFn.avg('b') },
-//     //     fieldFn.col('a'),
-//     //   ),
-//     //   'sub',
-//     // ],
-//     // fieldFn.abs(
-//     //   fieldFn.sub('a', {
-//     //     model: BasketB,
-//     //     column: aggrFn.avg('b'),
-//     //   }),
-//     // ),
-//     // 'fruit_a',
-//     // [
-//     //   fieldFn.sqrt({
-//     //     model: BasketB,
-//     //     column: 'b',
-//     //     where: { b: { eq: 3 } },
-//     //   }),
-//     //   'sum',
-//     // ],
-//     // [
-//     //   fieldFn.add('a', {
-//     //     model: BasketB,
-//     //     column: 'b',
-//     //     where: { b: { eq: 3 } },
-//     //   }),
-//     //   'sum',
-//     // ],
-//   ],
-//   // columns: { a: 'b' },
-//   // where: {
-//   //   fruit_a: { iStartsWith: 'a' },
-//   // },
-//   // alias: {
-//   //   as: 'ac',
-//   //   query: {
-//   //     alias: { query: { model: BasketC }, as: 'fine' },
-//   //     where: { 'fine.c': { gt: 2 } },
-//   //   },
-//   // },
-//   where: {
-//     // $matches: [
-//     //   fieldFn.case(
-//     //     {
-//     //       when: { a: { gte: 1, lte: 2 } },
-//     //       then: castFn.boolean(true),
-//     //     },
-//     //     // { when: { a: 3 }, then: 0 },
-//     //     // { else: fieldFn.multiple(col('a'), -1) },
-//     //   ),
-//     // ],
-//     // a: { gt: fieldFn.sub(castFn.int(4), 2) },
-//     // a: { jsonbContains: { model: BasketB, column: aggrFn.arrayAgg('b') } },
-//     // $matches: [[fieldFn.sub(col('a'), 2), { gt: 2 }]],
-//     // a: { arrayOverlap: [1, 2] },
-//     // fruit_a: { iLike: { ALL: ['a%', 'o%'] } },
-//     // fruit_a:{startsWith:}
-//     // a: { isTrue: null },
-//     // a: {
-//     //   between: [
-//     //     1,
-//     //     { model: BasketB, column: fieldFn.add(aggrFn.avg('b'), 0) },
-//     //   ],
-//     // },
-//     // $matches: [
-//     //   [
-//     //     fieldFn.abs(fieldFn.sub('a', fieldFn.col('t.avg_a'))),
-//     //     { gt: 2 },
-//     //     // { gt: { model } },
-//     //   ],
-//     //   // [fieldFn.upper(fieldFn.col('fruit_a')), { startsWith: 'O' }],
-//     // ],
-//     // a: { gte: 2 },
-//     // a: { gt: { model: BasketB, column: fieldFn.add(aggrFn.avg('b'), 0) } },
-//     // a: 2,
-//     // fruit_a: { startsWith: 'A' },
-//     // $or: [{ a: { gt: 2 } }, { '1': '1' }],
-//     // deviation: { gt: 2 },
-//     // fruit_a: 'a OR 1=1',
-//     // fruit_a: { notMatch: 5 },
-//     // 1: '1',
-//     // a: { between: [1, 3], gte: 1 },
-//     // where: { a: { gt: 1 } },
-//     // b: { gt: 1 },
-//     // a: {
-//     //   eq: {
-//     //     ANY: { model: BasketB, column: 'b' },
-//     //   },
-//     // },
-//     // in: { model: BasketB, column: 'b' },
-//     // },
-//     // a:{in:{}}
-//     // fruit_a: 'Apple',
-//     // $and: [
-//     //   {
-//     //     $exists: {
-//     //       model: BasketB,
-//     //       alias: 'b',
-//     //       where: { 'b.fruit_b': { iStartsWith: 'a' } },
-//     //     },
-//     //   },
-//     //   {
-//     //     $exists: {
-//     //       model: BasketB,
-//     //       alias: 'b',
-//     //       where: { 'b.fruit_b': { iStartsWith: 'o' } },
-//     //     },
-//     //   },
-//     // ],
-//     // a: {},
-//     // $or: [
-//     //   { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
-//     //   { fruit_a: { iStartsWith: 'a' } },
-//     // ],
-//     // fruit_a: { iStartsWith: 'a' },
-//     // $exists: {
-//     //   model: BasketB,
-//     //   alias: 'b',
-//     //   where: { 'b.fruit_b': { iStartsWith: 'a' } },
-//     // },
-//     // $exist:{tableName:'sf',where:{a:'5'}}
-//     // fruit_a: 'Apple',
-//     't.a': 1,
-//     // $exists: { subquery: { model: BasketB }, where: { b: col('t.a') } },
-//     // $exists: {
-//     //   model: BasketB,
-//     //   // model: {
-//     //   //   model: BasketB,
-//     //   //   union: { model: BasketC },
-//     //   //   intersect: { model: BasketD },
-//     //   // },
-//     //   // alias: 'y',
-//     //   where: { b: col('a') },
-//     //   union: { model: BasketC },
-//     //   // intersect: { model: BasketD },
-//     // },
-//   },
-//   alias: 't',
-//   // crossJoin
-//   // crossJoin: {
-//   //   model: { model: BasketB, alias: 'y' },
-//   //   alias: 't',
-//   //   columns: [[aggrFn.avg(castFn.int(col('y.b'))), 'avg_a']],
-//   //   modelAlias: 'y',
-//   // },
-//   // innerJoin: [
-//   //   {
-//   //     model: { model: BasketB, alias: 't', where: { b: { gt: 2 } } },
-//   //     on: { a: 'b' },
-//   //   },
-//   //   {
-//   //     model: { model: BasketC, alias: 't', where: { c: { gt: 1 } } },
-//   //     on: { c: 'a' },
-//   //   },
-//   // ],
-//   // leftJoin: [
-//   //   {
-//   //     model: BasketB,
-//   //     alias: 'basket_b',
-//   //     on: { fruit_a: 'basket_b.fruit_b' },
-//   //   },
-//   //   {
-//   //     model: BasketC,
-//   //     alias: 'basket_c',
-//   //     on: { fruit_a: 'basket_c.fruit_c' },
-//   //   },
-//   // ],
-//   //   where: {
-//   //     'basket_b.fruit_b': 'Orange',
-//   //   },
-//   // alias: { query: { model: BasketB }, as: 't' },
-//   // alias: 'fruit',
-//   // orderBy: [
-//   //   aggrFn.avg('a'),
-//   //   // ['a', 'DESC'],
-//   //   // ['fruit_a', 'ASC'],
-//   // ],
-//   // orderBy: [['a', 'ASC']],
-//   // orderBy: [
-//   //   [
-//   //     fieldFn.case(
-//   //       { when: { fruit_a: { iLike: ['A%', 'o%'] } }, then: 1 },
-//   //       { else: 0 },
-//   //     ),
-//   //     'ASC',
-//   //   ],
-//   // ],
-//   // groupBy: ['fruit_a', 'a'],
-//   // groupBy: ['a'],
-//   // groupBy: ['fruit_a'],
-//   // having: {
-//   //   $matches: [
-//   //     [
-//   //       aggrFn.count(fieldFn.abs(fieldFn.sub(fieldFn.col('a'), 5))),
-//   //       { gt: 2 },
-//   //     ],
-//   //   ],
-//   // },
-//   // limit: 1,
-//   // offset: 1,
-//   // derivedModel: {
-//   //   model: BasketA,
-//   //   union: { model: BasketB },
-//   //   unionAll: { model: BasketC },
-//   // },
-//   // union: {
-//   //   model: BasketB,
-//   //   intersect: { model: BasketD },
-//   //   // where: { b: { gt: 1 } },
-//   // },
-//   // union: { model: BasketB },
-
-//   // unionAll: { model: BasketC, where: { c: { gt: 2 } } },
-//   // intersect: { model: BasketD },
-// }).then((res) => {
-//   console.dir(res, { depth: null });
-// });
-
-Company.select({
-  // columns: [col('x.metadata.tags', { asJson: true })],
+BasketA.select({
+  // columns: ['a'],
+  // columns: [[fn.COUNT('a'), 'b']],
   columns: [
-    // fieldFn.jsonbTypeOf(col('metadata.ratings.indeed', { asJson: true })),
-    // fieldFn.jsonbKeys(col('metadata')),
-    // fieldFn.jsonbEntries(col('metadata')),
-    // fieldFn.jsonbEntiresText(col('metadata')),
-    // fieldFn.jsonbArrayElements(col('metadata.tags', { asJson: true })),
-    // fieldFn.jsonbArrayElementsText(col('metadata.tags', { asJson: true })),
-    // fieldFn.jsonbArrayLength(col('metadata.tags', { asJson: true })),
-    fieldFn.jsonbBuildArray(
-      fn.col('metadata.tags', { asJson: true }),
-      fn.cast.int(1),
-      fn.cast.int(2),
-      fn.cast.text('f'),
-      fn.cast.text(null),
-      fn.cast.boolean(false),
-    ),
-    // fieldFn.jsonBuildObject(castFn.text('name'), castFn.text('kuljit')),
-    // fieldFn.jsonbTypeOf(col('metadata.ratings.indeed', { asJson: true })),
-    // fieldFn.jsonbAgg(col('metadata.hq')),
-    // fieldFn.jsonbObjectAgg(col('metadata.hq'), col('metadata.ceo')),
-    // fn.jPath(['metadata', 'tags']),
-    fieldFn.jsonObject(
-      fn.jPath(['metadata', 'tags']),
-      fn.jPath(['metadata', 4]),
-    ),
-  ],
-  where: {
-    // 'metadata.ratings.indeed': { gt: 4 },
-    // $or: [
-    //   { [castFn.numeric(col('x.metadata.ratings.indeed'))]: { gt: 4 } },
+    // 'a',
+    // [
+    //   fn.window.rowNumber({
+    //     partitionBy: 'a',
+    //     // orderBy: ['a'],
+    //     frameOption: fn.rows('UNBOUNDED', 'UNBOUNDED'),
+    //   }),
+    //   'b',
+    // ],
+    // fn.count(col('*')),
+    // fn.lPad(fn.cast.text(col('fruit_a')), 10, '0'),
+    // fn.abs(col('a')),
+    // fn.now(),
+    // fn.abs(
+    //   fn.avg(
+    //     fn.case(
+    //       {
+    //         when: { a: { gte: 1, lte: 2 } },
+    //         then: { model: BasketB, column: fn.avg(col('b')) },
+    //       },
+    //       // { when: { a: 3 }, then: 0 },
+    //       { else: fn.multiple(col('a'), -1) },
+    //     ),
+    //   ),
+    // ),
+    // fn.case(
     //   {
-    //     [col('x.metadata.ratings.glassdoor')]: { gt: 4.5 },
+    //     when: { a: { gte: 1, lte: 2 } },
+    //     then: { model: BasketB, column: fn.avg(col('b')) },
+    //   },
+    //   // { when: { a: 3 }, then: 0 },
+    //   { else: fn.multiple(col('a'), -1) },
+    // ),
+    // 'fruit_a',
+    // fn.corr(col('a'), {
+    //   model: BasketB,
+    //   column: 'b',
+    //   where: { 't.b': { eq: col('a') } },
+    //   alias: 't',
+    // }),
+    // fn.sum(
+    //   fn.cast.int(
+    //     fn.case(
+    //       { when: { fruit_a: { iLike: ['A%', 'o%'] } }, then: 1 },
+    //       { else: 0 },
+    //     ),
+    //   ),
+    // ),
+    // fn.age(fn.now(), fn.cast.timestamp('2023-12-25')),
+    // fn.datePart('month', fn.now()),
+    // fn.toNumber('123.454', '999.99'),
+    // fn.currentTime(),
+    // fn.typeOf(col('a')),
+    // fn.case({when:6,then:5},{else:4})
+    // fn.least(col('a'), 0),
+    // fn.substring(col('fruit_a'), fn.cast.int(1), fn.cast.int(1)),
+    // fn.trim('A', col('fruit_a')),
+    // fn.position(col('fruit_a'), col('fruit_a')),
+    // fn.extractYear(fn.cast.timestamp('2023-12-25')),
+    // fn.cast.timestamp(fn.clockTimestamp(), { precision: 2 }),
+    // fn.sub(fn.now(), fn.cast.timestamp('2023-12-25')),
+    // fn.concat(
+    //   fn.cast.text('Mr'),
+    //   col('fruit_a'),
+    //   fn.cast.text(':'),
+    //   col('fruit_a'),
+    // ),
+    // 'a',
+    fn.avg(fn.abs(fn.sub(fn.col('a'), 8))),
+    // fn.boolOr('a'),
+    // fn.avg('a', {
+    //   isDistinct: true,
+    // }),
+    // 'a',
+    // 'a',
+    // 'fruit_a',
+    // fn.abs(fn.cast.int('2')),
+    // [fn.avg(fn.power('a', 2)), 'd'],
+    // [fn.abs(fn.sub('a', fn.col('t.avg_a'))), 'deviation'],
+    // fn.abs(fn.sub(5, fn.avg('a'))),
+    // fn.abs(fn.sub(5, fn.col('a'))),
+    // [fn.sub('a', { model: BasketB, column: fn.avg('b') }), 'av'],
+    // fn.power(fn.val(5), fn.col('a')),
+    // [
+    //   fn.sub(
+    //     { model: BasketB, column: fn.avg('b') },
+    //     fn.col('a'),
+    //   ),
+    //   'sub',
+    // ],
+    // fn.abs(
+    //   fn.sub('a', {
+    //     model: BasketB,
+    //     column: fn.avg('b'),
+    //   }),
+    // ),
+    // 'fruit_a',
+    // [
+    //   fn.sqrt({
+    //     model: BasketB,
+    //     column: 'b',
+    //     where: { b: { eq: 3 } },
+    //   }),
+    //   'sum',
+    // ],
+    // [
+    //   fn.add('a', {
+    //     model: BasketB,
+    //     column: 'b',
+    //     where: { b: { eq: 3 } },
+    //   }),
+    //   'sum',
+    // ],
+  ],
+  // columns: { a: 'b' },
+  // where: {
+  //   fruit_a: { iStartsWith: 'a' },
+  // },
+  // alias: {
+  //   as: 'ac',
+  //   query: {
+  //     alias: { query: { model: BasketC }, as: 'fine' },
+  //     where: { 'fine.c': { gt: 2 } },
+  //   },
+  // },
+  where: {
+    // $matches: [
+    //   fn.case(
+    //     {
+    //       when: { a: { gte: 1, lte: 2 } },
+    //       then: fn.cast.boolean(true),
+    //     },
+    //     // { when: { a: 3 }, then: 0 },
+    //     // { else: fn.multiple(col('a'), -1) },
+    //   ),
+    // ],
+    // a: { gt: fn.sub(fn.cast.int(4), 2) },
+    // a: { jsonbContains: { model: BasketB, column: fn.arrayAgg('b') } },
+    // $matches: [[fn.sub(col('a'), 2), { gt: 2 }]],
+    // a: { arrayOverlap: [1, 2] },
+    // fruit_a: { iLike: { ALL: ['a%', 'o%'] } },
+    // fruit_a:{startsWith:}
+    // a: { isTrue: null },
+    // a: {
+    //   between: [
+    //     1,
+    //     { model: BasketB, column: fn.add(fn.avg('b'), 0) },
+    //   ],
+    // },
+    // $matches: [
+    //   [
+    //     fn.abs(fn.sub('a', fn.col('t.avg_a'))),
+    //     { gt: 2 },
+    //     // { gt: { model } },
+    //   ],
+    //   // [fn.upper(fn.col('fruit_a')), { startsWith: 'O' }],
+    // ],
+    // a: { gte: 2 },
+    // a: { gt: { model: BasketB, column: fn.add(fn.avg('b'), 0) } },
+    // a: 2,
+    // fruit_a: { startsWith: 'A' },
+    // $or: [{ a: { gt: 2 } }, { '1': '1' }],
+    // deviation: { gt: 2 },
+    // fruit_a: 'a OR 1=1',
+    // fruit_a: { notMatch: 5 },
+    // 1: '1',
+    // a: { between: [1, 3], gte: 1 },
+    // where: { a: { gt: 1 } },
+    // b: { gt: 1 },
+    // a: {
+    //   eq: {
+    //     ANY: { model: BasketB, column: 'b' },
+    //   },
+    // },
+    // in: { model: BasketB, column: 'b' },
+    // },
+    // a:{in:{}}
+    // fruit_a: 'Apple',
+    // $and: [
+    //   {
+    //     $exists: {
+    //       model: BasketB,
+    //       alias: 'b',
+    //       where: { 'b.fruit_b': { iStartsWith: 'a' } },
+    //     },
+    //   },
+    //   {
+    //     $exists: {
+    //       model: BasketB,
+    //       alias: 'b',
+    //       where: { 'b.fruit_b': { iStartsWith: 'o' } },
+    //     },
     //   },
     // ],
-    // [castFn.text(col('metadata.tags', { asJson: true }))]: {
-    //   in: ['IT'],
+    // a: {},
+    // $or: [
+    //   { fruit_a: { iStartsWith: 'c', iEndsWith: 'r' } },
+    //   { fruit_a: { iStartsWith: 'a' } },
+    // ],
+    // fruit_a: { iStartsWith: 'a' },
+    // $exists: {
+    //   model: BasketB,
+    //   alias: 'b',
+    //   where: { 'b.fruit_b': { iStartsWith: 'a' } },
     // },
-    // [col('metadata.tags', { asJson: true })]: { jsonbContains: ['AI'] },
-    // metadata: { jsonbContains: { tags: ['AI', 'ML'] } },
-    // metadata: { jsonbHasAny: ['hq', 'ceo'] },
+    // $exist:{tableName:'sf',where:{a:'5'}}
+    // fruit_a: 'Apple',
+    't.a': 1,
+    // $exists: { subquery: { model: BasketB }, where: { b: col('t.a') } },
+    // $exists: {
+    //   model: BasketB,
+    //   // model: {
+    //   //   model: BasketB,
+    //   //   union: { model: BasketC },
+    //   //   intersect: { model: BasketD },
+    //   // },
+    //   // alias: 'y',
+    //   where: { b: col('a') },
+    //   union: { model: BasketC },
+    //   // intersect: { model: BasketD },
+    // },
   },
-  alias: 'x',
+  alias: 't',
+  // crossJoin
+  // crossJoin: {
+  //   model: { model: BasketB, alias: 'y' },
+  //   alias: 't',
+  //   columns: [[fn.avg(fn.cast.int(col('y.b'))), 'avg_a']],
+  //   modelAlias: 'y',
+  // },
+  // innerJoin: [
+  //   {
+  //     model: { model: BasketB, alias: 't', where: { b: { gt: 2 } } },
+  //     on: { a: 'b' },
+  //   },
+  //   {
+  //     model: { model: BasketC, alias: 't', where: { c: { gt: 1 } } },
+  //     on: { c: 'a' },
+  //   },
+  // ],
+  // leftJoin: [
+  //   {
+  //     model: BasketB,
+  //     alias: 'basket_b',
+  //     on: { fruit_a: 'basket_b.fruit_b' },
+  //   },
+  //   {
+  //     model: BasketC,
+  //     alias: 'basket_c',
+  //     on: { fruit_a: 'basket_c.fruit_c' },
+  //   },
+  // ],
+  //   where: {
+  //     'basket_b.fruit_b': 'Orange',
+  //   },
+  // alias: { query: { model: BasketB }, as: 't' },
+  // alias: 'fruit',
+  // orderBy: [
+  //   fn.avg('a'),
+  //   // ['a', 'DESC'],
+  //   // ['fruit_a', 'ASC'],
+  // ],
+  // orderBy: [['a', 'ASC']],
+  // orderBy: [
+  //   [
+  //     fn.case(
+  //       { when: { fruit_a: { iLike: ['A%', 'o%'] } }, then: 1 },
+  //       { else: 0 },
+  //     ),
+  //     'ASC',
+  //   ],
+  // ],
+  // groupBy: ['fruit_a', 'a'],
+  // groupBy: ['a'],
+  // groupBy: ['fruit_a'],
+  // having: {
+  //   $matches: [
+  //     [
+  //       fn.count(fn.abs(fn.sub(fn.col('a'), 5))),
+  //       { gt: 2 },
+  //     ],
+  //   ],
+  // },
+  // limit: 1,
+  // offset: 1,
+  // derivedModel: {
+  //   model: BasketA,
+  //   union: { model: BasketB },
+  //   unionAll: { model: BasketC },
+  // },
+  // union: {
+  //   model: BasketB,
+  //   intersect: { model: BasketD },
+  //   // where: { b: { gt: 1 } },
+  // },
+  // union: { model: BasketB },
+
+  // unionAll: { model: BasketC, where: { c: { gt: 2 } } },
+  // intersect: { model: BasketD },
 }).then((res) => {
   console.dir(res, { depth: null });
 });
-// console.log(castFn.numeric('fdd'));
+
+// Company.select({
+//   // columns: [col('x.metadata.tags', { asJson: true })],
+//   columns: [
+//     // fn.jsonbTypeOf(col('metadata.ratings.indeed', { asJson: true })),
+//     // fn.jsonbKeys(col('metadata')),
+//     // fn.jsonbEntries(col('metadata')),
+//     // fn.jsonbEntiresText(col('metadata')),
+//     // fn.jsonbArrayElements(col('metadata.tags', { asJson: true })),
+//     // fn.jsonbArrayElementsText(col('metadata.tags', { asJson: true })),
+//     // fn.jsonbArrayLength(col('metadata.tags', { asJson: true })),
+//     fn.jsonbBuildArray(
+//       fn.col('metadata.tags', { asJson: true }),
+//       fn.cast.int(1),
+//       fn.cast.int(2),
+//       fn.cast.text('f'),
+//       fn.cast.text(null),
+//       fn.cast.boolean(false),
+//     ),
+//     // fn.jsonBuildObject(fn.cast.text('name'), fn.cast.text('kuljit')),
+//     // fn.jsonbTypeOf(col('metadata.ratings.indeed', { asJson: true })),
+//     // fn.jsonbAgg(col('metadata.hq')),
+//     // fn.jsonbObjectAgg(col('metadata.hq'), col('metadata.ceo')),
+//     // fn.jPath(['metadata', 'tags']),
+//     fn.jsonObject(
+//       fn.jPath(['metadata', 'tags']),
+//       fn.jPath(['metadata', 4]),
+//     ),
+//   ],
+//   where: {
+//     // 'metadata.ratings.indeed': { gt: 4 },
+//     // $or: [
+//     //   { [fn.cast.numeric(col('x.metadata.ratings.indeed'))]: { gt: 4 } },
+//     //   {
+//     //     [col('x.metadata.ratings.glassdoor')]: { gt: 4.5 },
+//     //   },
+//     // ],
+//     // [fn.cast.text(col('metadata.tags', { asJson: true }))]: {
+//     //   in: ['IT'],
+//     // },
+//     // [col('metadata.tags', { asJson: true })]: { jsonbContains: ['AI'] },
+//     // metadata: { jsonbContains: { tags: ['AI', 'ML'] } },
+//     // metadata: { jsonbHasAny: ['hq', 'ceo'] },
+//   },
+//   alias: 'x',
+// }).then((res) => {
+//   console.dir(res, { depth: null });
+// });
+// console.log(fn.cast.numeric('fdd'));
 // BasketE.queryRawSql({
 //   columns: ['SIGN(d)'],
 //   // where: ['a & 1'],

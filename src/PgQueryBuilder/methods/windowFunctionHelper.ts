@@ -1,7 +1,6 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import {
   doubleExprWindowFns,
-  exprArgWindowFns,
   exprWithExtraWindowFns,
   noArgWindowFns,
   singleExprWindowFns,
@@ -26,13 +25,10 @@ import { FieldOperand, getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
   attachMethodToSymbolRegistry,
-  getPreparedValues,
   getValidCallableFieldValues,
   isNonEmptyObject,
   isNonEmptyString,
   isNullableValue,
-  isPrimitiveValue,
-  isValidNumber,
   prepareMultipleValues,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
