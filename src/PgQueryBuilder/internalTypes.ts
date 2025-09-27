@@ -41,7 +41,10 @@ export type ORDER_BY<Model> = Array<
   | [DBField<Model>, ORDER_OPTION, NULL_OPTION]
 >;
 
-export type PreparedValues = { index: number; values: Primitive[] };
+export type PreparedValues = {
+  index: number;
+  values: Array<Primitive | Primitive[]>;
+};
 
 export type SubQueryFilterKey = DB_KEYWORDS_TYPE['any' | 'all'];
 export type SubQueryFilterRecord<Model> = {
@@ -314,6 +317,7 @@ export type QueryParams<Model> = SelectQuery<Model> &
 export type RawQuery =
   | string
   | {
+      table?: string;
       columns?: string[];
       where?: string[];
       groupBy?: string[];

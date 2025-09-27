@@ -34,7 +34,7 @@ export class DBQuery {
   static tableName: string = '';
   static tableColumns: AllowedFields = new Set();
 
-  static async findAll<Model>(queryParams?: QueryParams<Model>) {
+  static async select<Model>(queryParams?: QueryParams<Model>) {
     const preparedValues: PreparedValues = { index: 0, values: [] };
     const groupByFields: GroupByFields = new Set();
     const findAllQuery = QueryHelper.prepareQuery(
@@ -45,29 +45,10 @@ export class DBQuery {
       queryParams || {},
     );
     try {
-      console.log(preparedValues.values);
       const result = await query(findAllQuery, preparedValues.values);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {
       return errorHandler(findAllQuery, error as Error);
-    }
-  }
-
-  static async queryRawSql(
-    qry: RawQuery = {} as RawQuery,
-    params: Primitive[] = [],
-  ) {
-    const tableName = this.tableName;
-    const { query: rawQry, values } = RawQueryHandler.buildRawQuery(
-      qry,
-      tableName,
-      params,
-    );
-    try {
-      const result = await query(rawQry, values);
-      return { rows: result.rows, count: result.rowCount };
-    } catch (error) {
-      return errorHandler(rawQry, error as Error);
     }
   }
 
@@ -251,5 +232,20 @@ export class DBModel extends DBQuery {
       values.push(`${DB_KEYWORDS.onUpdate} ${onUpdate}`);
     }
     return attachArrayWith.space(values);
+  }
+}
+
+export class RawQueryHelper {
+  static async query(qry: RawQuery = {} as RawQuery, params: Primitive[] = []) {
+    const { query: rawQry, values } = RawQueryHandler.buildRawQuery(
+      qry,
+      params,
+    );
+    try {
+      const result = await query(rawQry, values);
+      return { rows: result.rows, count: result.rowCount };
+    } catch (error) {
+      return errorHandler(rawQry, error as Error);
+    }
   }
 }

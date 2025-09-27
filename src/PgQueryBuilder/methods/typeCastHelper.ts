@@ -22,7 +22,6 @@ import {
   isNullableValue,
   isValidArray,
 } from './helperFunction';
-import { symbolFuncRegister } from './symbolHelper';
 
 type ParamValue = {
   length: number;

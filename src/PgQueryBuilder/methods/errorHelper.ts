@@ -24,6 +24,10 @@ function throwInvalidAggFuncTypeError(
   );
 }
 
+function throwInvalidJsonPathDataTypeError(type: any): never {
+  throw new Error(`Unsupported data type jsonPath: ${typeof type}`);
+}
+
 function throwInvalidDataTypeError(type: any): never {
   throw new Error(`Unsupported data type for array: ${typeof type}`);
 }
@@ -90,6 +94,10 @@ function throwInvalidOrderOptionError(key: string): never {
 
 function throwInvalidWhereClauseError(key: string): never {
   throw new Error(`Where clause is required for subquery operator "${key}".`);
+}
+
+function throwInvalidArrayDataTypeError(): never {
+  throw new Error('Value should be an array.');
 }
 
 function throwInvalidArrayOpTypeError(
@@ -210,6 +218,12 @@ function throwInvalidWindowFunctionOption(methodName: string): never {
   );
 }
 
+function throwInvalidRawQueryOption(): never {
+  throw new Error(
+    'Invalid raw query option provided.Only string or object allowed.',
+  );
+}
+
 export const throwError = {
   invalidJoinType: throwInvalidJoinTypeError,
   invalidModelType: throwInvalidModelTypeError,
@@ -241,6 +255,9 @@ export const throwError = {
   invalidFrameFunction: throwInvalidFrameFunction,
   invalidModelSubquery: throwInvalidSubquery,
   invalidWindowFuncOpt: throwInvalidWindowFunctionOption,
+  invalidArrayDataType: throwInvalidArrayDataTypeError,
+  invalidJsonPathType: throwInvalidJsonPathDataTypeError,
+  invalidRawQueryType: throwInvalidRawQueryOption,
 };
 
 export const errorHandler = (query: string, error: Error) => {

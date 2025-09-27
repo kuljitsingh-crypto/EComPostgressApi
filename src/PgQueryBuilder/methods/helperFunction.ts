@@ -129,40 +129,6 @@ function isValidCustomALlowedFields(value: unknown): boolean {
   return isValidArray(value);
 }
 
-const prepareFieldForJson = (
-  fieldArr: string[],
-  preparedValues: PreparedValues,
-  startIndex: number,
-  asJson: boolean,
-) => {
-  const fieldName = attachArrayWith.dot(fieldArr.slice(0, startIndex)); //
-  const placeholders = fieldArr
-    .slice(startIndex)
-    .map((val) =>
-      getPreparedValues(preparedValues, val, { returnNumAsItIs: true }),
-    );
-  const lastIndex = placeholders.length - 1;
-  const lastFieldKey = asJson ? '->' : '->>';
-  if (placeholders.length < 2) {
-    return attachArrayWith.noSpace([
-      fieldName,
-      lastFieldKey,
-      placeholders[lastIndex],
-    ]);
-  }
-  const middleFields = attachArrayWith.customSep(
-    placeholders.slice(0, lastIndex),
-    '->',
-  );
-  return attachArrayWith.noSpace([
-    fieldName,
-    '->',
-    middleFields,
-    lastFieldKey,
-    placeholders[lastIndex],
-  ]);
-};
-
 const isFieldAllowed =
   (allowed: AllowedFields, customAllowFields: string[]) => (field: string) =>
     allowed.has(field) || customAllowFields.includes(field);
@@ -245,15 +211,53 @@ const createSymbolMethodRef = (method: CallableField, ...keys: string[]) => {
 
 //=================== export functions ======================//
 
+export function prepareFieldForJson(
+  fieldArr: string[],
+  preparedValues: PreparedValues,
+  startIndex: number,
+  asJson: boolean,
+) {
+  const fieldName = attachArrayWith.dot(fieldArr.slice(0, startIndex)); //
+  const placeholders = fieldArr
+    .slice(startIndex)
+    .map((val) =>
+      getPreparedValues(preparedValues, val, { returnNumAsItIs: true }),
+    );
+  const lastIndex = placeholders.length - 1;
+  const lastFieldKey = asJson ? '->' : '->>';
+  if (placeholders.length < 2) {
+    return attachArrayWith.noSpace([
+      fieldName,
+      lastFieldKey,
+      placeholders[lastIndex],
+    ]);
+  }
+  const middleFields = attachArrayWith.customSep(
+    placeholders.slice(0, lastIndex),
+    '->',
+  );
+  return attachArrayWith.noSpace([
+    fieldName,
+    '->',
+    middleFields,
+    lastFieldKey,
+    placeholders[lastIndex],
+  ]);
+}
+
 export const createPlaceholder = (index: number, type?: string) => {
   return type ? `$${index}${type}` : `$${index}`;
 };
-const prepareVal = (val: Primitive) =>
-  digitRegex.test((val as any) || '') ? Number(val) : val;
+const prepareVal = (val: Primitive | Primitive[]) =>
+  isValidArray(val)
+    ? val
+    : digitRegex.test((val as any) || '')
+      ? Number(val)
+      : val;
 
 export const getPreparedValues = <T extends boolean = false>(
   preparedValues: PreparedValues,
-  value: Primitive,
+  value: Primitive | Primitive[],
   options?: { type?: string; returnNumAsItIs?: T },
 ): T extends true ? string | number : string => {
   const { type, returnNumAsItIs = false } = options || {};

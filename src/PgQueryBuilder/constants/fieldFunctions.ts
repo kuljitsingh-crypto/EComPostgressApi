@@ -197,6 +197,8 @@ export const DOUBLE_FIELD_OP = {
   decode: 'DECODE',
   jsonObjectAgg: 'json_object_agg',
   jsonbObjectAgg: 'jsonb_object_agg',
+  jsonObject: 'json_object',
+  jsonbObject: 'jsonb_object',
 } as const;
 
 export const STR_FIELD_OP = {

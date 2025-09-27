@@ -1,10 +1,13 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { Primitive } from '../globalTypes';
 import { PreparedValues, RawQuery } from '../internalTypes';
+import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   getPreparedValues,
+  isNonEmptyObject,
   isNonEmptyString,
+  isNullableValue,
   isValidArray,
 } from './helperFunction';
 
@@ -35,46 +38,52 @@ const checkAndAddQuery = (
 };
 
 export class RawQueryHandler {
-  static buildRawQuery(
-    query: RawQuery,
-    tableName: string,
-    params: Primitive[] = [],
-  ) {
+  static buildRawQuery(query: RawQuery, params: Primitive[] = []) {
     if (isNonEmptyString(query)) {
       return {
         query,
         values: params,
       };
     }
-    const queries: string[] = [DB_KEYWORDS.select];
-    const { columns, distinct, limit, offset, ...rest } = query;
-    const preparedValues: PreparedValues = {
-      index: params.length,
-      values: params,
-    };
+    if (isNonEmptyObject(query)) {
+      const queries: string[] = [DB_KEYWORDS.select];
+      const {
+        table: tableName = '',
+        columns,
+        distinct,
+        limit,
+        offset,
+        ...rest
+      } = query;
+      const preparedValues: PreparedValues = {
+        index: params.length,
+        values: params,
+      };
 
-    if (distinct) {
-      queries.push(DB_KEYWORDS.distinct);
+      if (distinct) {
+        queries.push(DB_KEYWORDS.distinct);
+      }
+      queries.push('*');
+      const lastIndx = queries.length - 1;
+      checkAndAddQuery(queries, columns, undefined, lastIndx);
+      queries.push(DB_KEYWORDS.from, tableName);
+      Object.entries(rest).forEach((entry: [string, string[]]) => {
+        const [key, val] = entry;
+        checkAndAddQuery(queries, val, (DB_KEYWORDS as any)[key]);
+      });
+      if (limit) {
+        const placeholder = getPreparedValues(preparedValues, limit);
+        queries.push(attachArrayWith.space([DB_KEYWORDS.limit, placeholder]));
+      }
+      if (offset) {
+        const placeholder = getPreparedValues(preparedValues, offset);
+        queries.push(attachArrayWith.space([DB_KEYWORDS.offset, placeholder]));
+      }
+      return {
+        query: attachArrayWith.space(queries),
+        values: preparedValues.values,
+      };
     }
-    queries.push('*');
-    const lastIndx = queries.length - 1;
-    checkAndAddQuery(queries, columns, undefined, lastIndx);
-    queries.push(DB_KEYWORDS.from, tableName);
-    Object.entries(rest).forEach((entry: [string, string[]]) => {
-      const [key, val] = entry;
-      checkAndAddQuery(queries, val, (DB_KEYWORDS as any)[key]);
-    });
-    if (limit) {
-      const placeholder = getPreparedValues(preparedValues, limit);
-      queries.push(attachArrayWith.space([DB_KEYWORDS.limit, placeholder]));
-    }
-    if (offset) {
-      const placeholder = getPreparedValues(preparedValues, offset);
-      queries.push(attachArrayWith.space([DB_KEYWORDS.offset, placeholder]));
-    }
-    return {
-      query: attachArrayWith.space(queries),
-      values: preparedValues.values,
-    };
+    return throwError.invalidRawQueryType();
   }
 }

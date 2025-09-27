@@ -1,12 +1,10 @@
 import {
   PgDataType,
   DBModel,
-  aggrFn,
   fieldFn,
-  col,
-  castFn,
-  windowFn,
   frameFn,
+  fn,
+  RawQuery,
 } from '../PgQueryBuilder';
 
 export class BasketA extends DBModel {}
@@ -255,7 +253,7 @@ Company.init(
 //   ],
 // );
 
-// BasketA.findAll({
+// BasketA.select({
 //   // columns: ['a'],
 //   // columns: [[aggrFn.COUNT('a'), 'b']],
 //   columns: [
@@ -562,7 +560,7 @@ Company.init(
 //   console.dir(res, { depth: null });
 // });
 
-Company.findAll({
+Company.select({
   // columns: [col('x.metadata.tags', { asJson: true })],
   columns: [
     // fieldFn.jsonbTypeOf(col('metadata.ratings.indeed', { asJson: true })),
@@ -572,18 +570,23 @@ Company.findAll({
     // fieldFn.jsonbArrayElements(col('metadata.tags', { asJson: true })),
     // fieldFn.jsonbArrayElementsText(col('metadata.tags', { asJson: true })),
     // fieldFn.jsonbArrayLength(col('metadata.tags', { asJson: true })),
-    // fieldFn.jsonbBuildArray(
-    //   col('metadata.tags', { asJson: true }),
-    //   castFn.int(1),
-    //   castFn.int(2),
-    //   castFn.text('f'),
-    //   castFn.text(null),
-    //   castFn.boolean(false),
-    // ),
+    fieldFn.jsonbBuildArray(
+      fn.col('metadata.tags', { asJson: true }),
+      fn.cast.int(1),
+      fn.cast.int(2),
+      fn.cast.text('f'),
+      fn.cast.text(null),
+      fn.cast.boolean(false),
+    ),
     // fieldFn.jsonBuildObject(castFn.text('name'), castFn.text('kuljit')),
     // fieldFn.jsonbTypeOf(col('metadata.ratings.indeed', { asJson: true })),
-    fieldFn.jsonbAgg(col('metadata.hq')),
-    fieldFn.jsonbObjectAgg(col('metadata.hq'), col('metadata.ceo')),
+    // fieldFn.jsonbAgg(col('metadata.hq')),
+    // fieldFn.jsonbObjectAgg(col('metadata.hq'), col('metadata.ceo')),
+    // fn.jPath(['metadata', 'tags']),
+    fieldFn.jsonObject(
+      fn.jPath(['metadata', 'tags']),
+      fn.jPath(['metadata', 4]),
+    ),
   ],
   where: {
     // 'metadata.ratings.indeed': { gt: 4 },
@@ -612,7 +615,7 @@ Company.findAll({
 //   console.log('raw Query Result->', res);
 // });
 
-BasketA.queryRawSql(
+RawQuery.query(
   'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM ((SELECT * FROM basket_b UNION SELECT * FROM basket_c) INTERSECT SELECT * FROM basket_d) AS y WHERE (b = t.a))',
   // 'SELECT * FROM basket_a AS t WHERE EXISTS ((SELECT 1 FROM basket_b WHERE (b = t.a) UNION SELECT 1 FROM basket_c) INTERSECT SELECT 1 FROM basket_d)',
   // 'SELECT * FROM ((SELECT * FROM basket_a UNION SELECT * FROM basket_b) UNION ALL SELECT * FROM basket_c) AS t',
