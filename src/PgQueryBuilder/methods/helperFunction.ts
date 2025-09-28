@@ -714,7 +714,7 @@ export const covertJSDataToSQLData = (data: unknown): string => {
   } else if (typeof data === 'bigint') {
     return PgDataType.bigInt;
   } else if (isFloatVal(data)) {
-    return PgDataType.float;
+    return PgDataType.double;
   } else if (isIntegerVal(data)) {
     return PgDataType.int;
   } else if (isValidArray(data)) {

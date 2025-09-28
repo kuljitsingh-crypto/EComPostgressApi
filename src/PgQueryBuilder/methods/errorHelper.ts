@@ -3,6 +3,10 @@ import { TABLE_JOIN } from '../constants/tableJoin';
 import { AllowedFields } from '../internalTypes';
 import { attachArrayWith } from './helperFunction';
 
+function throwInvalidJsonString(methodName: string): never {
+  throw new Error(`Invalid JSON string provided to ${methodName} method.`);
+}
+
 function throwInvalidJoinTypeError(type: string): never {
   throw new Error(
     `Invalid join type:"${type}". Valid join types:${attachArrayWith.coma(
@@ -258,6 +262,7 @@ export const throwError = {
   invalidArrayDataType: throwInvalidArrayDataTypeError,
   invalidJsonPathType: throwInvalidJsonPathDataTypeError,
   invalidRawQueryType: throwInvalidRawQueryOption,
+  invalidJsonStrType: throwInvalidJsonString,
 };
 
 export const errorHandler = (query: string, error: Error) => {

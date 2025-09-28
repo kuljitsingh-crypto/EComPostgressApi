@@ -2,6 +2,7 @@ import { aggregateFn } from './aggregateFunctionHelper';
 import { arrayFn } from './arrayFunctionHelepr';
 import { colFn } from './columnFunctionHelepr';
 import { fieldFn } from './fieldFunctionHelper';
+import { jsonToObj, objToJson } from './jsonFunctionHelepr';
 import { jsonPathFn } from './jsonPathHelper';
 import { typeCastFn } from './typeCastHelper';
 import { frameFn, windowFn } from './windowFunctionHelper';
@@ -64,6 +65,17 @@ class GlobalFunction {
   }
   array(...args: Parameters<typeof arrayFn>): ReturnType<typeof arrayFn> {
     return arrayFn(...args);
+  }
+  objToJson(
+    ...args: Parameters<typeof objToJson>
+  ): ReturnType<typeof objToJson> {
+    return objToJson(...args);
+  }
+
+  jsonToObj(
+    ...args: Parameters<typeof jsonToObj>
+  ): ReturnType<typeof jsonToObj> {
+    return jsonToObj(...args);
   }
 }
 

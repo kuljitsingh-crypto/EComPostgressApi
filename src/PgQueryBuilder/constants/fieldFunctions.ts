@@ -199,6 +199,7 @@ export const DOUBLE_FIELD_OP = {
   jsonbObjectAgg: 'jsonb_object_agg',
   jsonObject: 'json_object',
   jsonbObject: 'jsonb_object',
+  jsonbDelete: 'jsonb_delete',
 } as const;
 
 export const STR_FIELD_OP = {
@@ -236,6 +237,8 @@ export const MULTIPLE_FIELD_OP = {
   jsonBuildObject: 'json_build_object',
   jsonbBuildObject: 'jsonb_build_object',
   row: 'ROW',
+  jsonbSet: 'jsonb_set',
+  jsonbInsert: 'jsonb_insert',
 } as const;
 
 export const CASE_FIELD_OP = {
