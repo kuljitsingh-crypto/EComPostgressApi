@@ -1,4 +1,5 @@
 import { PgDataType } from '../constants/dataTypes';
+import { WHERE_KEYWORD } from '../constants/dbkeywords';
 import { OP } from '../constants/operators';
 import { setOperation } from '../constants/setOperations';
 import { TABLE_JOIN, TableJoinType } from '../constants/tableJoin';
@@ -38,6 +39,14 @@ const MIN_COLUMN_LENGTH = 1;
 const MAX_COLUMN_LENGTH = 63;
 const validColumnNameRegex = /^([a-zA-Z_][a-zA-Z0-9_$]*)(\.[a-zA-Z0-9_$]*)*$/;
 const digitRegex = /^([0-9]+)$/;
+
+const allowedWhereKeyWOrds = new Set([
+  '$and',
+  '$or',
+  '$exists',
+  '$notExists',
+  '$matches',
+]);
 
 const callableFieldValidator: Record<
   keyof CallableFieldParam,
@@ -205,7 +214,7 @@ const callableCol = (col: CallableField, options: CallableFieldParam) => {
 const createSymbolMethodRef = (method: CallableField, ...keys: string[]) => {
   const symbolName = attachArrayWith.dot(keys);
   const symbol = Symbol(symbolName);
-  symbolFuncRegister.addToRegistry(symbol, method);
+  symbolFuncRegister.add(symbol, method);
   return symbol;
 };
 
@@ -441,27 +450,59 @@ export const isValidSubQuery = <Model, W extends SubqueryMultiColFlag>(
 
 export const isValidCaseQuery = <Model>(
   query: unknown,
+  options: { treatSimpleObjAsWhereSubQry: boolean },
 ): query is CaseSubquery<Model> => {
   const q = query as any;
   if (typeof q !== 'object' || q === null) return false;
+  const { treatSimpleObjAsWhereSubQry } = options || {};
   const isValidResultQry = (val: unknown) =>
     isPrimitiveValue(val) ||
     isCallableColumn(val) ||
     isValidSubQuery(val) ||
-    isValidWhereQuery(val);
+    isValidWhereQuery(null, val, { treatSimpleObjAsWhereSubQry });
   const isValidElse = isValidResultQry(q?.else);
   const isValidCond = isValidResultQry(q?.then) && isValidObject(q?.when);
   if (isValidElse || isValidCond) return true;
   return false;
 };
 
+const isValidWhereSubQuery = (
+  value: object,
+  treatSimpleObjAsWhereSubQry: boolean,
+) => {
+  const isValidObjValue = (val: unknown) =>
+    isNonEmptyObject(val) || isCallableColumn(val);
+  for (let key in value) {
+    if (!value.hasOwnProperty(key)) continue;
+    if (allowedWhereKeyWOrds.has(key)) {
+      return true;
+    }
+    const val = (value as any)[key];
+    if (isValidObjValue(val)) {
+      return true;
+    }
+  }
+  for (let sym of Object.getOwnPropertySymbols(value)) {
+    if (symbolFuncRegister.has(sym)) {
+      return true;
+    }
+  }
+  return treatSimpleObjAsWhereSubQry;
+};
+
 export const isValidWhereQuery = <Model>(
+  key: string | null,
   value: unknown,
+  options: { treatSimpleObjAsWhereSubQry: boolean },
 ): value is WhereClause<Model> => {
-  if (isNonEmptyObject(value)) {
+  if (!isValidObject(value)) return false;
+  const { treatSimpleObjAsWhereSubQry = true } = options || {};
+  const hasWhereKey =
+    (value as any)[WHERE_KEYWORD] !== undefined || key === WHERE_KEYWORD;
+  if (hasWhereKey) {
     return true;
   }
-  return false;
+  return isValidWhereSubQuery(value, treatSimpleObjAsWhereSubQry);
 };
 
 export function isValidDerivedModel<Model>(
@@ -618,7 +659,7 @@ export const validateColumn =
       colOptions || {};
     const { allowedFields, preparedValues } = options;
     if (isValidSymbol(col)) {
-      const registry = symbolFuncRegister.getFrmRegistry(col);
+      const registry = symbolFuncRegister.get(col);
       if (!isValidFunction(registry)) {
         return throwError.invalidColumnNameRegexType(col.toString());
       }
@@ -627,7 +668,7 @@ export const validateColumn =
         isAggregateAllowed,
         customAllowedFields: rest.customAllowFields,
       });
-      symbolFuncRegister.deleteFrmRegistry(col);
+      symbolFuncRegister.delete(col);
       return val;
     }
     if (isNonEmptyString(col)) {

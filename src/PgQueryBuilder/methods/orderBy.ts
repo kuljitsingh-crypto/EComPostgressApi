@@ -30,6 +30,7 @@ export class OrderByQuery {
         const [col, order = 'DESC', nullOption] = ensureArray(o);
         const orders: string[] = [];
         const val = getFieldValue(
+          null,
           col,
           preparedValues,
           groupByFields,

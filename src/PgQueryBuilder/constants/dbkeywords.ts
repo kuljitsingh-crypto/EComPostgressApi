@@ -38,6 +38,7 @@ export const DB_KEYWORDS = {
   partitionBy: 'PARTITION BY',
 } as const;
 
+export const WHERE_KEYWORD = 'where';
 export const DEFAULT_ALIAS = 'results';
 
 export type DB_KEYWORDS_TYPE = typeof DB_KEYWORDS;

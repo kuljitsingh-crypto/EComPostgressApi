@@ -178,6 +178,7 @@ const prepareAggrCol =
     const updatedCol = getUpdatedColumnAndCustomAllowedFields(col, fn);
     col = updatedCol.column;
     const val = getFieldValue(
+      fn,
       col,
       preparedValues,
       groupByFields,

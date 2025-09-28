@@ -9,15 +9,18 @@ class SymbolFuncRegistry {
     }
     return SymbolFuncRegistry.#instance;
   }
-  getFrmRegistry(symbol: Symbol) {
+  get(symbol: Symbol) {
     return this.#symbolFuncRegister.get(symbol);
   }
 
-  addToRegistry(symbol: Symbol, method: CallableField) {
+  add(symbol: Symbol, method: CallableField) {
     this.#symbolFuncRegister.set(symbol, method);
   }
-  deleteFrmRegistry(symbol: Symbol) {
+  delete(symbol: Symbol) {
     this.#symbolFuncRegister.delete(symbol);
+  }
+  has(symbol: Symbol) {
+    return this.#symbolFuncRegister.has(symbol);
   }
 }
 

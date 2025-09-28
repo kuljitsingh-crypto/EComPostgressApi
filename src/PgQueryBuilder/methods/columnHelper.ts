@@ -32,12 +32,19 @@ const getColNameAndAlias = (
   let column: string | null = null,
     alias: string | null = isColAliasNameArr(col) ? col[1] : null;
   if (preparedValues && groupByFields) {
-    column = getFieldValue(col, preparedValues, groupByFields, allowedFields, {
-      treatStrAsCol: true,
-      isFromCol: true,
-      isAggregateAllowed,
-      customAllowedFields: customAllowFields,
-    });
+    column = getFieldValue(
+      null,
+      col,
+      preparedValues,
+      groupByFields,
+      allowedFields,
+      {
+        treatStrAsCol: true,
+        isFromCol: true,
+        isAggregateAllowed,
+        customAllowedFields: customAllowFields,
+      },
+    );
   } else if (isNonEmptyString(col)) {
     column = fieldQuote(allowedFields, null, col, {
       customAllowFields,

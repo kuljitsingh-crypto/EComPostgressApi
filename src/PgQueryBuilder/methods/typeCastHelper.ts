@@ -117,7 +117,7 @@ class TypeCast {
     return TypeCast.#instance;
   }
 
-  #prepareMethodForTypeCast(refVal: TypeCastRefVal) {
+  #prepareMethodForTypeCast(refVal: TypeCastRefVal, key: string) {
     return (value: Primitive | CallableField, castOptions?: ParamValue) => {
       const callable = (options: CallableFieldParam) => {
         const { value: fnName, paramAllowed = [] } = refVal;
@@ -136,6 +136,7 @@ class TypeCast {
         const type = prepareType();
         let col: string | null = null;
         col = getFieldValue(
+          key,
           value,
           preparedValues,
           groupByFields,
@@ -158,7 +159,7 @@ class TypeCast {
   ) {
     for (let key in methodKeyRef) {
       //@ts-ignore
-      this[key] = this.#prepareMethodForTypeCast(methodKeyRef[key]);
+      this[key] = this.#prepareMethodForTypeCast(methodKeyRef[key], key);
     }
   }
 }

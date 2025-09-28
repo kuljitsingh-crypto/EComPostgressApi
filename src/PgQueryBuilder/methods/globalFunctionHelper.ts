@@ -1,4 +1,5 @@
 import { aggregateFn } from './aggregateFunctionHelper';
+import { arrayFn } from './arrayFunctionHelepr';
 import { colFn } from './columnFunctionHelepr';
 import { fieldFn } from './fieldFunctionHelper';
 import { jsonPathFn } from './jsonPathHelper';
@@ -60,6 +61,9 @@ class GlobalFunction {
   }
   col(...args: Parameters<typeof colFn>): ReturnType<typeof colFn> {
     return colFn(...args);
+  }
+  array(...args: Parameters<typeof arrayFn>): ReturnType<typeof arrayFn> {
+    return arrayFn(...args);
   }
 }
 

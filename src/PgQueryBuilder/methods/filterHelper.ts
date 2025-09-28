@@ -101,10 +101,8 @@ const prepareQryForPrimitiveOp = (
   return attachArrayWith.space([key, operation, valPlaceholder]);
 };
 
-const getArrayDataType = (value: Primitive[]) => {
-  const firstValue = value[0];
-  return covertJSDataToSQLData(firstValue);
-};
+const getArrayDataType = (value: Primitive[]) =>
+  covertJSDataToSQLData(value[0]);
 
 const getAnyAndAllFilterValue = <Model>(val: any, op: string) => {
   if (typeof val !== 'object' || val === null) {
@@ -134,16 +132,24 @@ export class TableFilter {
     groupByFields: GroupByFields,
     preparedValues: PreparedValues,
     filter?: WhereClause<Model>,
-    options?: { isHavingFilter?: boolean; customKeyWord?: string },
+    options?: {
+      isHavingFilter?: boolean;
+      customKeyWord?: string;
+      isWhereKeywordReq?: boolean;
+    },
   ) {
     if (!filter) return '';
-    const { isHavingFilter = false, customKeyWord } = options || {};
+    const {
+      isHavingFilter = false,
+      customKeyWord,
+      isWhereKeywordReq = true,
+    } = options || {};
     const filterStatements: string[] = [];
     if (isHavingFilter) {
       filterStatements.push(DB_KEYWORDS.having);
     } else if (isNonEmptyString(customKeyWord)) {
       filterStatements.push(customKeyWord);
-    } else {
+    } else if (isWhereKeywordReq) {
       filterStatements.push(DB_KEYWORDS.where);
     }
 
@@ -163,7 +169,8 @@ export class TableFilter {
     if (qry) {
       filterStatements.push(qry);
     }
-    return filterStatements.length > 1
+    const minLength = isWhereKeywordReq ? 1 : 0;
+    return filterStatements.length > minLength
       ? attachArrayWith.space(filterStatements)
       : '';
   }

@@ -21,7 +21,7 @@ import {
 } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
-import { FieldOperand, getFieldValue } from './fieldFunc';
+import { Arg, getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
   attachMethodToSymbolRegistry,
@@ -51,11 +51,8 @@ type Suffix = typeof precedingKey | typeof followingKey;
 
 type FrameFunc<Model> = {
   [key in FrameFunctionKeys]: (
-    preceding: typeof unbounded | FieldOperand<Model, number>,
-    following:
-      | typeof unbounded
-      | typeof currentRow
-      | FieldOperand<Model, number>,
+    preceding: typeof unbounded | Arg<Model, number>,
+    following: typeof unbounded | typeof currentRow | Arg<Model, number>,
   ) => CallableField;
 };
 
@@ -149,6 +146,7 @@ class FrameFunction {
       return attachArrayWith.space([param, suffix]);
     }
     const val = getFieldValue(
+      methodName,
       param,
       preparedValues,
       groupByFields,
@@ -239,12 +237,14 @@ class WindowFunction {
           );
         const frameOptionMaybe =
           getFieldValue(
+            methodName,
             frameOption,
             preparedValues,
             groupByFields,
             allowedFields,
           ) ?? '';
         const partitionByMaybe = getFieldValue(
+          methodName,
           partitionBy,
           preparedValues,
           groupByFields,

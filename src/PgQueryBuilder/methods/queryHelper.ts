@@ -1,4 +1,8 @@
-import { DB_KEYWORDS, DEFAULT_ALIAS } from '../constants/dbkeywords';
+import {
+  DB_KEYWORDS,
+  DEFAULT_ALIAS,
+  WHERE_KEYWORD,
+} from '../constants/dbkeywords';
 import { OP, OP_KEYS } from '../constants/operators';
 import { setOperation } from '../constants/setOperations';
 import { TableJoinType } from '../constants/tableJoin';
@@ -227,7 +231,12 @@ export class QueryHelper {
     if (!validSubquery) {
       return throwError.invalidModelType();
     }
-    if (isExistsFilter && !isValidWhereQuery(rest.where)) {
+    if (
+      isExistsFilter &&
+      !isValidWhereQuery(WHERE_KEYWORD, rest.where, {
+        treatSimpleObjAsWhereSubQry: true,
+      })
+    ) {
       return throwError.invalidWhereClauseType(existFilterKey);
     }
     const join = getJoinSubqueryFields(rest);

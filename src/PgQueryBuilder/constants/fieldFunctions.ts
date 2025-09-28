@@ -235,6 +235,7 @@ export const MULTIPLE_FIELD_OP = {
   jsonbBuildArray: 'jsonb_build_array',
   jsonBuildObject: 'json_build_object',
   jsonbBuildObject: 'jsonb_build_object',
+  row: 'ROW',
 } as const;
 
 export const CASE_FIELD_OP = {

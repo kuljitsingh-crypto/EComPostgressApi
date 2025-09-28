@@ -41,7 +41,7 @@ export const PgDataType = {
       .join(',');
     return `ENUM(${valueStr})`;
   },
-};
+} as const;
 
 export const PG_DEFAULT_VALUE = {
   currentDate: 'CURRENT_DATE',

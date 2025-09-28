@@ -32,7 +32,7 @@ import {
 } from '../internalTypes';
 import { getInternalContext } from './ctxHelper';
 import { throwError } from './errorHelper';
-import { FieldOperand, getFieldValue } from './fieldFunc';
+import { Arg, getFieldValue } from './fieldFunc';
 import {
   attachArrayWith,
   attachMethodToSymbolRegistry,
@@ -43,45 +43,20 @@ import {
   isValidObject,
 } from './helperFunction';
 
-// type ColFunc = () => {
-//   colName: string;
-//   isCol: boolean;
-//   ctx: symbol;
-// };
-
-// type ValFunc = () => {
-//   value: Primitive;
-//   isVal: boolean;
-//   ctx: symbol;
-// };
-
-type CombinedFun = () => {
-  value?: Primitive;
-  isVal?: boolean;
-  colName?: string;
-  isCol?: boolean;
-  ctx: symbol;
-};
-
 type CaseFieldOp = <Model>(...query: CaseSubquery<Model>[]) => CallableField;
 
 type NoFieldOpCb = <Model>() => CallableField;
 
-type DoubleFieldOpCb = <Model>(
-  a: FieldOperand<Model>,
-  b: FieldOperand<Model>,
-) => CallableField;
+type DoubleFieldOpCb = <Model>(a: Arg<Model>, b: Arg<Model>) => CallableField;
 
-type SingleFieldOpCb = <Model>(b: FieldOperand<Model>) => CallableField;
+type SingleFieldOpCb = <Model>(b: Arg<Model>) => CallableField;
 type TripleFieldOpCb = <Model>(
-  a: FieldOperand<Model>,
-  b: FieldOperand<Model>,
-  c: FieldOperand<Model>,
+  a: Arg<Model>,
+  b: Arg<Model>,
+  c: Arg<Model>,
 ) => CallableField;
 
-type MultipleFieldOpCb = <Model>(
-  ...args: FieldOperand<Model>[]
-) => CallableField;
+type MultipleFieldOpCb = <Model>(...args: Arg<Model>[]) => CallableField;
 
 type Ops =
   | DoubleFieldOpKeys
@@ -123,7 +98,7 @@ type OpGroup = CommonParamForOpGroup & {
 };
 
 type PrepareCb<Model> = {
-  colAndOperands: FieldOperand<Model>[];
+  colAndOperands: Arg<Model>[];
   operator: Ops;
   preparedValues: PreparedValues;
   groupByFields: GroupByFields;
@@ -139,7 +114,7 @@ type MultiOperatorFieldCb = {
 } & CommonParamForOpGroup;
 
 type FieldOperatorCb<Model> = {
-  colAndOperands: FieldOperand<Model>[];
+  colAndOperands: Arg<Model>[];
   op: Ops;
   operatorRef: Record<string, string>;
   isNullColAllowed: boolean;
@@ -211,7 +186,8 @@ const attachOp = (
 };
 
 const resolveOperand = <Model>(
-  colAndOperands: FieldOperand<Model>[],
+  op: string,
+  colAndOperands: Arg<Model>[],
   allowedFields: AllowedFields,
   preparedValues: PreparedValues,
   groupByFields: GroupByFields,
@@ -222,9 +198,10 @@ const resolveOperand = <Model>(
   const isValidPrefixValue = isNonEmptyString(prefixValue);
   const isValidSuffixValue = isNonEmptyString(suffixValue);
   const operandsRef: Primitive[] = isValidPrefixValue ? [prefixValue] : [];
-  colAndOperands.forEach((op) => {
+  colAndOperands.forEach((arg) => {
     const value = getFieldValue(
       op,
+      arg,
       preparedValues,
       groupByFields,
       allowedFields,
@@ -267,6 +244,7 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
   const prefixValue = (validPrefixRef && prefixRef[operator]) || null;
   const suffixValue = (validSuffixRef && suffixRef[operator]) || null;
   const operands = resolveOperand(
+    op,
     colAndOperands,
     allowedFields,
     preparedValues,
@@ -287,8 +265,8 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
 
 const getColAndOperands = <Model>(
   type: OperandType,
-  ...operands: FieldOperand<Model>[]
-): FieldOperand<Model>[] => {
+  ...operands: Arg<Model>[]
+): Arg<Model>[] => {
   switch (type) {
     case 'noParam':
       return [];
@@ -417,7 +395,7 @@ class FieldFunction {
 
   #multiFieldOperator = (args: MultiOperatorFieldCb) => {
     const { operandType, op, operatorRef, ...rest } = args;
-    return <Model>(...ops: FieldOperand<Model>[]) => {
+    return <Model>(...ops: Arg<Model>[]) => {
       const colAndOperands = getColAndOperands(operandType, ...ops);
       return this.#operateOnFields({
         colAndOperands,
