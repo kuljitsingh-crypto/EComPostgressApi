@@ -5,7 +5,7 @@ import {
   STR_FIELD_OP,
   DoubleFieldOpKeys,
   SingleFieldOpKeys,
-  MATH_FIELD_OP,
+  SYMBOL_FIELD_OP,
   STR_IN_FIELD_OP,
   MultipleFieldOpKeys,
   TripleFieldOpKeys,
@@ -318,7 +318,7 @@ const opGroups: OpGroup[] = [
     attachCond: [DB_KEYWORDS.from],
   },
   {
-    set: MATH_FIELD_OP,
+    set: SYMBOL_FIELD_OP,
     type: 'double',
     attachBy: 'opInBtw',
   },

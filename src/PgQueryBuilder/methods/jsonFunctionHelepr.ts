@@ -1,17 +1,17 @@
 import { throwError } from './errorHelper';
-import { isValidObject } from './helperFunction';
 
-export function objToJson(obj: Record<string, unknown>): any {
-  if (!isValidObject(obj)) {
-    return throwError.invalidObjectOPType('objToJson');
+export function toJsonStr(val: unknown): string {
+  try {
+    return JSON.stringify(val);
+  } catch (_) {
+    return throwError.invalidJsonType('fromJsonStr');
   }
-  return JSON.stringify(obj);
 }
 
-export function jsonToObj(jsonStr: string): any {
+export function fromJsonStr(jsonStr: string): any {
   try {
     return JSON.parse(jsonStr);
   } catch (err) {
-    return throwError.invalidJsonStrType('jsonToObj');
+    return throwError.invalidJsonType('fromJsonStr');
   }
 }

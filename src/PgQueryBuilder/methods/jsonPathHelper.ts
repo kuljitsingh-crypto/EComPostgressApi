@@ -35,6 +35,7 @@ export function jsonPathFn(
       if (path.length < 1) {
         return throwError.invalidArrayDataType();
       }
+      path = `{${attachArrayWith.coma(path)}}`;
       const d = getPreparedValues(preparedValues, path);
       return {
         col: d,

@@ -166,16 +166,31 @@ export const SINGLE_FIELD_OP = {
   jsonbAgg: 'jsonb_agg',
   jsonTypeof: 'json_typeof',
   jsonbTypeof: 'jsonb_typeof',
+  toJson: 'to_json',
+  toJsonb: 'to_jsonb',
+  jsonbStripNulls: 'jsonb_strip_nulls',
+  arrayToJson: 'array_to_json',
+  rowToJson: 'row_to_json',
+  jsonValid: 'json_valid',
+  jsonPretty: 'json_pretty',
+  // Needs further work
+  // jsonbToRecord: 'jsonb_to_record',
+  // jsonToRecord: 'json_to_record',
+  // jsonbToRecordSet: 'jsonb_to_recordset',
+  // jsonToRecordSet: 'json_to_recordset',
 } as const;
 
 //====================================== Double Field Op ======================================//
-export const MATH_FIELD_OP = {
+export const SYMBOL_FIELD_OP = {
   add: '+',
   sub: '-',
   multiple: '*',
   divide: '/',
   modulo: '%',
   exponent: '^',
+  jsonConcat: '||',
+  jsonbOPPathExists: '@?',
+  jsonbOPPathMatch: '@@',
 } as const;
 
 export const DOUBLE_FIELD_OP = {
@@ -200,6 +215,14 @@ export const DOUBLE_FIELD_OP = {
   jsonObject: 'json_object',
   jsonbObject: 'jsonb_object',
   jsonbDelete: 'jsonb_delete',
+  jsonbDeletePath: 'jsonb_delete_path',
+  jsonbPathExists: 'jsonb_path_exists',
+  jsonbPathMatch: 'jsonb_path_match',
+  jsonbPathQuery: 'jsonb_path_query',
+  jsonbPathQueryArray: 'jsonb_path_query_array',
+  jsonbPathQueryFirst: 'jsonb_path_query_first',
+  jsonbPathExistsTz: 'jsonb_path_exists_tz',
+  jsonbPathMatchTz: 'jsonb_path_match_tz',
 } as const;
 
 export const STR_FIELD_OP = {
@@ -271,7 +294,7 @@ type SingleOpKeys = keyof typeof SINGLE_FIELD_OP;
 type DateExtractOpKeys = keyof typeof DATE_EXTRACT_FIELD_OP;
 
 //====================================== Double Field Op ======================================//
-type SimpleMathOpKeys = keyof typeof MATH_FIELD_OP;
+type SymbolOpKeys = keyof typeof SYMBOL_FIELD_OP;
 type TrimFieldOpKeys = keyof typeof TRIM_FIELD_OP;
 type DoubleOpKeys = keyof typeof DOUBLE_FIELD_OP;
 type StrFieldOpKeys = keyof typeof STR_FIELD_OP | keyof typeof STR_IN_FIELD_OP;
@@ -290,7 +313,7 @@ export type DoubleFieldOpKeys =
   | DoubleOpKeys
   | TrimFieldOpKeys
   | StrFieldOpKeys
-  | SimpleMathOpKeys;
+  | SymbolOpKeys;
 export type TripleFieldOpKeys = TripleOpKeys | SubstringFieldOpKeys;
 export type MultipleFieldOpKeys = MultipleOpKeys | CaseOpKeys;
 export type AggregateFunctionType = keyof typeof aggregateFunctionName;

@@ -2,8 +2,9 @@ import { aggregateFn } from './aggregateFunctionHelper';
 import { arrayFn } from './arrayFunctionHelepr';
 import { colFn } from './columnFunctionHelepr';
 import { fieldFn } from './fieldFunctionHelper';
-import { jsonToObj, objToJson } from './jsonFunctionHelepr';
+import { fromJsonStr, toJsonStr } from './jsonFunctionHelepr';
 import { jsonPathFn } from './jsonPathHelper';
+import { JPathBuilder } from './jsonQueryBuilder';
 import { typeCastFn } from './typeCastHelper';
 import { frameFn, windowFn } from './windowFunctionHelper';
 
@@ -66,16 +67,21 @@ class GlobalFunction {
   array(...args: Parameters<typeof arrayFn>): ReturnType<typeof arrayFn> {
     return arrayFn(...args);
   }
-  objToJson(
-    ...args: Parameters<typeof objToJson>
-  ): ReturnType<typeof objToJson> {
-    return objToJson(...args);
+  toJsonStr(
+    ...args: Parameters<typeof toJsonStr>
+  ): ReturnType<typeof toJsonStr> {
+    return toJsonStr(...args);
   }
 
-  jsonToObj(
-    ...args: Parameters<typeof jsonToObj>
-  ): ReturnType<typeof jsonToObj> {
-    return jsonToObj(...args);
+  fromJsonStr(
+    ...args: Parameters<typeof fromJsonStr>
+  ): ReturnType<typeof fromJsonStr> {
+    return fromJsonStr(...args);
+  }
+
+  jQuery(root?: string): JPathBuilder {
+    const jPathBuilder = new JPathBuilder(root);
+    return jPathBuilder;
   }
 }
 

@@ -92,7 +92,7 @@ export class ColumnHelper {
         if (alias === null) {
           return col;
         } else if (isNonEmptyString(alias)) {
-          const validValue = dynamicFieldQuote(alias);
+          const validValue = alias; // dynamicFieldQuote(alias);
           allowedFields.add(validValue);
           return attachArrayWith.space([col, DB_KEYWORDS.as, validValue]);
         }

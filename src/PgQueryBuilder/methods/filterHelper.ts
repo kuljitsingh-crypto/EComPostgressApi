@@ -575,6 +575,8 @@ export class TableFilter {
           );
           return subqry;
         case 'jsonbHasKey':
+        case 'jsonbExists':
+        case 'jsonbMatch':
           if (isPrimitiveValue(val)) {
             return prepareQryForPrimitiveOp(
               preparedValues,

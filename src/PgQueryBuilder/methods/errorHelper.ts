@@ -3,8 +3,18 @@ import { TABLE_JOIN } from '../constants/tableJoin';
 import { AllowedFields } from '../internalTypes';
 import { attachArrayWith } from './helperFunction';
 
-function throwInvalidJsonString(methodName: string): never {
-  throw new Error(`Invalid JSON string provided to ${methodName} method.`);
+function throwInvalidJson(methodName: string): never {
+  throw new Error(`Invalid JSON data  provided to ${methodName} method.`);
+}
+
+function throwInvalidJsonPathSlicing(): never {
+  throw new Error(
+    'Invalid JSON path slicing format. Provide at least start or end index.',
+  );
+}
+
+function throwInvalidJsonQuery(): never {
+  throw new Error(`Invalid data  provided JSON Path query builder.`);
 }
 
 function throwInvalidJoinTypeError(type: string): never {
@@ -262,7 +272,9 @@ export const throwError = {
   invalidArrayDataType: throwInvalidArrayDataTypeError,
   invalidJsonPathType: throwInvalidJsonPathDataTypeError,
   invalidRawQueryType: throwInvalidRawQueryOption,
-  invalidJsonStrType: throwInvalidJsonString,
+  invalidJsonType: throwInvalidJson,
+  invalidJsonSlicingType: throwInvalidJsonPathSlicing,
+  invalidJsonQueryBuilderType: throwInvalidJsonQuery,
 };
 
 export const errorHandler = (query: string, error: Error) => {

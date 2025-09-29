@@ -63,7 +63,12 @@ const filterOutValidDbData =
   (shouldTrimStr = true) =>
   (a: Primitive) => {
     const trimmedStrLength = shouldTrimStr ? 0 : -1;
-    if (a === null || typeof a === 'boolean' || typeof a === 'number') {
+    if (
+      a === null ||
+      typeof a === 'boolean' ||
+      typeof a === 'number' ||
+      isValidArray(a)
+    ) {
       return true;
     } else if (typeof a == 'string' && a.trim().length > trimmedStrLength) {
       return true;

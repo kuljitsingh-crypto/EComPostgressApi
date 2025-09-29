@@ -7,6 +7,8 @@ export class BasketD extends DBModel {}
 export class BasketE extends DBModel {}
 export class Company extends DBModel {}
 export class Examples extends DBModel {}
+export class Employees extends DBModel {}
+export class Order extends DBModel {}
 
 BasketA.init(
   {
@@ -70,6 +72,29 @@ Examples.init(
     data: { type: PgDataType.jsonb },
   },
   { tableName: 'examples' },
+);
+
+Employees.init(
+  {
+    id: { type: PgDataType.serial, isPrimary: true },
+    data: { type: PgDataType.jsonb },
+  },
+  { tableName: 'employees' },
+);
+
+Employees.init(
+  {
+    id: { type: PgDataType.serial, isPrimary: true },
+    data: { type: PgDataType.jsonb },
+  },
+  { tableName: 'employees' },
+);
+Order.init(
+  {
+    id: { type: PgDataType.serial, isPrimary: true },
+    info: { type: PgDataType.jsonb },
+  },
+  { tableName: 'orders' },
 );
 
 // BasketA.createBulk(
@@ -259,7 +284,7 @@ Examples.init(
 //   ['data'],
 //   [
 //     [
-//       fn.objToJson({
+//       fn.toJsonStr({
 //         name: 'Alice',
 //         age: 30,
 //         skills: ['Python', 'SQL'],
@@ -267,7 +292,7 @@ Examples.init(
 //       }),
 //     ],
 //     [
-//       fn.objToJson({
+//       fn.toJsonStr({
 //         name: 'Bob',
 //         age: 25,
 //         hobbies: ['reading', 'gaming'],
@@ -275,7 +300,7 @@ Examples.init(
 //       }),
 //     ],
 //     [
-//       fn.objToJson({
+//       fn.toJsonStr({
 //         products: [
 //           { id: 1, name: 'Laptop' },
 //           { id: 2, name: 'Mouse' },
@@ -642,6 +667,119 @@ Examples.init(
 // }).then((res) => {
 //   console.log('raw Query Result->', res);
 // });
+
+// Examples.select({
+//   columns: [
+//     // fn.jsonbSet(fn.col('data'), fn.jPath(['age']), 35),
+//     // fn.jsonbSet(
+//     //   fn.col('data'),
+//     //   fn.jPath(['address', 'country']),
+//     //   fn.toJsonStr('india'),
+//     //   true,
+//     // ),
+//     // fn.arrayToJson(
+//     //   fn.array([fn.add(fn.cast.int(1), 32), 2, 3], { type: PgDataType.int }),
+//     // ),
+//     // fn.jsonConcat(fn.col('data'), fn.toJsonStr({ country: 'USA' })),
+//     // fn.jsonbPathQuery(
+//     //   fn.col('data'),
+//     //   fn
+//     //     .jQuery()
+//     //     .start()
+//     //     .key('skills')
+//     //     .at(0)
+//     //     .end()
+//     //     .and()
+//     //     .start()
+//     //     .key('age')
+//     //     .end()
+//     //     .build(),
+//     // ),
+//   ],
+//   // where: { id: 1 },
+// }).then((res) => {
+//   console.dir({ ' Query Result->': res }, { depth: null });
+// });
+
+Employees.select({
+  columns: [
+    // fn.jsonbSet(fn.col('data'), fn.jPath(['age']), 35),
+    // fn.jsonbSet(
+    //   fn.col('data'),
+    //   fn.jPath(['address', 'country']),
+    //   fn.toJsonStr('india'),
+    //   true,
+    // ),
+    // fn.arrayToJson(
+    //   fn.array([fn.add(fn.cast.int(1), 32), 2, 3], { type: PgDataType.int }),
+    // ),
+    // fn.jsonConcat(fn.col('data'), fn.toJsonStr({ country: 'USA' })),
+    // fn.jsonbPathQuery(
+    //   fn.col('data'),
+    //   fn
+    //     .jQuery()
+    //     .start()
+    //     .key('skills')
+    //     .at(0)
+    //     .end()
+    //     .and()
+    //     .start()
+    //     .key('age')
+    //     .end()
+    //     .build(),
+    // ),
+    // fn.jsonbPathQuery(fn.col('info'), fn.jQuery().s.build()),
+    fn.jsonbPathQuery(
+      fn.col('data'),
+      fn
+        .jQuery()
+        .ctxStart('$')
+        // .grpStart()
+        .key('salary')
+        .gt(65000)
+        .and()
+        .key('salary')
+        .lte(75000)
+        .or()
+        .key('age')
+        .eq(28)
+        // .grpEnd()
+        .ctxEnd()
+        // .or()
+        // .ctxStart('age')
+        // .eq(28)
+        // .ctxEnd()
+        // .grpEnd()
+        .build(),
+    ),
+  ],
+  // where: { id: 1 },
+  where: {
+    data: {
+      //   jsonbMatch: fn
+      //     .jQuery()
+      //     .not()
+      //     .start()
+      //     .key('age')
+      //     .gt(25)
+      //     .and()
+      //     .key('age')
+      //     .lt(35)
+      //     .end()
+      //     .build(),
+      // jsonbMatch: fn
+      //   .jQuery()
+      //   .key('salary')
+      //   .filterStart()
+      //   .in([65000, 75000])
+      //   .filterEnd()
+      //   .build(),
+      // jsonbMatch: fn.jQuery().key('skills').at(0).neq('Python').build(),
+    },
+  },
+}).then((res) => {
+  console.dir({ ' Query Result->': res }, { depth: null });
+});
 
 RawQuery.query(
   'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM ((SELECT * FROM basket_b UNION SELECT * FROM basket_c) INTERSECT SELECT * FROM basket_d) AS y WHERE (b = t.a))',

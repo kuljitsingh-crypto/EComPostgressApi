@@ -81,6 +81,8 @@ export type ConditionMap<Model, T extends SubqueryWhereReq = 'WhereNotReq'> = {
   jsonbHasKey: string;
   jsonbHasAny: string[];
   jsonbHasAll: string[];
+  jsonbMatch: string;
+  jsonbExists: string;
   isNull: null;
   notNull: null;
   isTrue: null;
