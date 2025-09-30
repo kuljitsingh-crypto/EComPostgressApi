@@ -50,10 +50,11 @@ import {
 
 type CustomFieldOptions = {
   name: string;
-  callable: boolean;
+  callable?: boolean;
   suffix?: string;
   prefix?: string;
-  inBetween?: boolean;
+  attachMode?: AttachType;
+  conditions?: string[];
 };
 
 type CaseFieldOp = <Model>(...query: CaseSubquery<Model>[]) => CallableField;
@@ -99,7 +100,7 @@ type Func = {
               : MultipleFieldOpCb;
 };
 type OperandType = 'single' | 'double' | 'multiple' | 'triple' | 'noParam';
-type AttachType = 'opInBtw' | 'default' | 'custom' | 'arrayOp';
+type AttachType = 'operatorInBetween' | 'default' | 'custom' | 'arrayOperator';
 
 type CommonParamForOpGroup = {
   attachBy: AttachType;
@@ -207,7 +208,7 @@ const attachOp = (
     ...values: Primitive[]
   ) => string = attachOperator;
   switch (attachBy) {
-    case 'opInBtw':
+    case 'operatorInBetween':
       opCb = attachOpInBtwOperator;
       break;
     case 'custom':
@@ -215,7 +216,7 @@ const attachOp = (
         opCb = customAttach(attachCond);
       }
       break;
-    case 'arrayOp':
+    case 'arrayOperator':
       opCb = arrayAttach;
       break;
   }
@@ -366,7 +367,7 @@ const opGroups: OpGroup[] = [
   {
     set: SYMBOL_FIELD_OP,
     type: 'double',
-    attachBy: 'opInBtw',
+    attachBy: 'operatorInBetween',
   },
   {
     set: DOUBLE_FIELD_OP,
@@ -399,7 +400,7 @@ const opGroups: OpGroup[] = [
   {
     set: ARRAY_INDEX_OP,
     type: 'double',
-    attachBy: 'arrayOp',
+    attachBy: 'arrayOperator',
   },
   {
     set: TRIPLE_FIELD_OP,
@@ -415,7 +416,7 @@ const opGroups: OpGroup[] = [
   {
     set: ARRAY_SLICE_OP,
     type: 'triple',
-    attachBy: 'arrayOp',
+    attachBy: 'arrayOperator',
   },
   {
     set: MULTIPLE_FIELD_OP,
@@ -500,14 +501,13 @@ class FieldFunction {
       suffix,
       prefix,
       callable = true,
-      inBetween,
-      ...restOptions
+      attachMode = 'default',
+      conditions,
     } = options;
     fieldOptions = {
       ...fieldOptions,
-      ...restOptions,
-      attachBy: inBetween && !callable ? 'opInBtw' : 'custom',
-      attachCond: callable ? [] : [name],
+      attachBy: attachMode,
+      attachCond: conditions ?? (callable ? [] : [name]),
       ...(isNonEmptyString(suffix)
         ? { suffixAllowed: true, suffixRef: { [name]: suffix } }
         : {}),

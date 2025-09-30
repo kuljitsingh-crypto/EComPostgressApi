@@ -788,7 +788,12 @@ Company.select({
     // fn.custom({ name: 'va', isCallableOp: false }, 2, 3),
     // fn.custom({ name: 'va', isCallableOp: false }, 2, 3),
     // fn.add(fn.cast.int(1), 2),
-    // fn.custom({ name: 'NOT', callable: false }, fn.cast.boolean(true)),
+    // fn.custom(
+    //   { name: 'AND', callable: false, attachMode: 'operatorBetween' },
+    //   fn.cast.boolean(true),
+    //   false,
+    // ),
+    // fn.custom({ name: 'ROUND' }, 4.67345, 2),
     // fn.not(false),
     // fn.slice([1, 2, 3], 2, 3),
   ],
