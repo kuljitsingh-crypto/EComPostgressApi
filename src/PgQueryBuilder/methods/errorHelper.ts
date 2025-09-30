@@ -1,5 +1,6 @@
 import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { TABLE_JOIN } from '../constants/tableJoin';
+import { Primitive } from '../globalTypes';
 import { AllowedFields } from '../internalTypes';
 import { attachArrayWith } from './helperFunction';
 
@@ -277,8 +278,13 @@ export const throwError = {
   invalidJsonQueryBuilderType: throwInvalidJsonQuery,
 };
 
-export const errorHandler = (query: string, error: Error) => {
-  const msg = `Error executing query: "${query}". Error: ${error.message}`;
+export const errorHandler = (
+  query: string,
+  flatedValues: Primitive[],
+  error: Error,
+) => {
+  const strValues = attachArrayWith.coma(flatedValues);
+  const msg = `Error executing query: "${query}" with params "(${strValues})". Error: ${error.message}`;
   const err = new Error(msg);
   throw err;
 };

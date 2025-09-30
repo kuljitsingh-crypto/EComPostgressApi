@@ -1,6 +1,10 @@
 import { Primitive } from '../globalTypes';
 import { throwError } from './errorHelper';
-import { attachArrayWith } from './helperFunction';
+import {
+  attachArrayWith,
+  isNonNullableValue,
+  isNullableValue,
+} from './helperFunction';
 import { toJsonStr } from './jsonFunctionHelepr';
 
 const funcs = {
@@ -71,7 +75,7 @@ type PrivateData = {
 
 const privates = new WeakMap<JPathBuilder, PrivateData>();
 
-const functionHelperObj = {
+const funcHelper = {
   startCtx(caller: JPathBuilder) {
     const ref = this.getValidRef(caller);
     ref.insideCtx = true;
@@ -108,22 +112,32 @@ const functionHelperObj = {
     ref.queryStringArr.push(ref.base);
   },
 
-  addProperty(caller: JPathBuilder, key: Primitive, addDot = true) {
+  addProperty(
+    caller: JPathBuilder,
+    key: Primitive,
+    addDot = true,
+    isReplace = false,
+  ) {
     const ref = this.getValidRef(caller);
-    if (keysPrefixWithBase.has(key as any)) {
+    if (keysPrefixWithBase.has(key as any) && !funcHelper.isInsideCtx(caller)) {
       this.addBase(caller);
     }
     if (keyToInitializePrefixFlag.has(key as any)) {
       ref.hasPrefixedWithBase = false;
     }
     key = addDot ? `.${key}` : key;
-    ref.queryStringArr.push(key as any);
+    if (isReplace) {
+      ref.queryStringArr[ref.queryStringArr.length - 1] = key;
+    } else {
+      ref.queryStringArr.push(key);
+    }
     return caller;
   },
 
   addMultiProperties(
     caller: JPathBuilder,
     addDot: boolean,
+    isReplace: boolean,
     ...params: Primitive[]
   ) {
     if (params.length < 0) {
@@ -133,7 +147,7 @@ const functionHelperObj = {
     //@ts-ignore
     let ref: JPathBuilder = caller;
     for (let param of params) {
-      ref = this.addProperty(caller, param, addDot);
+      ref = this.addProperty(caller, param, addDot, isReplace);
     }
     return ref;
   },
@@ -144,9 +158,9 @@ function prepareQueryFunction(name: keyof typeof funcs) {
     let val = funcs[name];
     val = `${val}(${attachArrayWith.coma(params)})`;
     //@ts-ignore
-    functionHelperObj.addBase(this);
+    funcHelper.addBase(this);
     //@ts-ignore
-    return functionHelperObj.addMultiProperties(this, true, val);
+    return funcHelper.addMultiProperties(this, true, false, val);
   };
 }
 
@@ -154,9 +168,10 @@ function prepareQueryOperator(name: keyof typeof operator) {
   return function (param: Primitive) {
     const val = operator[name];
     param = toJsonStr(param);
-    return functionHelperObj.addMultiProperties(
+    return funcHelper.addMultiProperties(
       //@ts-ignore
       this,
+      false,
       false,
       ' ',
       val,
@@ -185,23 +200,37 @@ export class JPathBuilder {
     });
   }
 
-  #addMultiProperties(addDot: boolean, ...params: Primitive[]) {
-    //@ts-ignore
-    return functionHelperObj.addMultiProperties(this, addDot, ...params);
+  #addMultiProperties(
+    addDot: boolean,
+    isReplace: boolean,
+    ...params: Primitive[]
+  ) {
+    return funcHelper.addMultiProperties(this, addDot, isReplace, ...params);
   }
 
-  grpStart() {
-    return this.#addMultiProperties(false, constant.startBracket);
+  grpStart(key: string | number | null) {
+    let ref: JPathBuilder = this;
+    if (funcHelper.isInsideCtx(this)) {
+      funcHelper.addProperty(this, constant.startBracket, false, true);
+      ref = this.#addMultiProperties(false, false, constant.contextBase);
+    } else {
+      ref = this.#addMultiProperties(false, false, constant.startBracket);
+    }
+    if (isNonNullableValue(key)) {
+      this.key(key);
+    }
+    return ref;
   }
 
   grpEnd() {
-    return this.#addMultiProperties(false, constant.endBracket);
+    return this.#addMultiProperties(false, false, constant.endBracket);
   }
-  ctxStart(key: Primitive) {
+  ctxStart(key: string | number) {
     this.key(key);
-    functionHelperObj.changeBase(this, constant.contextBase);
-    functionHelperObj.startCtx(this);
+    funcHelper.changeBase(this, constant.contextBase);
+    funcHelper.startCtx(this);
     return this.#addMultiProperties(
+      false,
       false,
       ' ',
       constant.context,
@@ -212,71 +241,96 @@ export class JPathBuilder {
   }
 
   ctxEnd() {
-    functionHelperObj.endCtx(this);
-    functionHelperObj.changeBase(this, constant.base);
-    return this.#addMultiProperties(false, constant.endBracket);
+    funcHelper.endCtx(this);
+    funcHelper.changeBase(this, constant.base);
+    return this.#addMultiProperties(false, false, constant.endBracket);
   }
 
   wildcard() {
-    return this.#addMultiProperties(true, constant.wildcard);
+    return this.#addMultiProperties(true, false, constant.wildcard);
   }
 
   recursive() {
-    return this.#addMultiProperties(true, constant.recursive);
+    return this.#addMultiProperties(true, false, constant.recursive);
   }
 
-  key(key: Primitive): JPathBuilder {
-    const shouldAppendBase = key !== functionHelperObj.base(this);
-    key = typeof key === 'string' && shouldAppendBase ? toJsonStr(key) : key;
-    if (shouldAppendBase && !functionHelperObj.isInsideCtx(this)) {
-      functionHelperObj.addBase(this);
+  key(key: string | number): JPathBuilder {
+    if (isNullableValue(key)) {
+      return this;
     }
-    return this.#addMultiProperties(shouldAppendBase, key);
+    const shouldAppendBase = key !== funcHelper.base(this);
+    key = typeof key === 'string' && shouldAppendBase ? toJsonStr(key) : key;
+    if (shouldAppendBase && !funcHelper.isInsideCtx(this)) {
+      funcHelper.addBase(this);
+    }
+    return this.#addMultiProperties(shouldAppendBase, false, key);
   }
 
   asKey() {
-    return this.#addMultiProperties(true, constant.key);
+    return this.#addMultiProperties(true, false, constant.key);
   }
 
   asVal() {
-    return this.#addMultiProperties(true, constant.val);
+    return this.#addMultiProperties(true, false, constant.val);
   }
   not() {
-    return this.#addMultiProperties(false, constant.not);
+    return this.#addMultiProperties(false, false, constant.not);
   }
 
   at(index?: number) {
     let strIndex = typeof index === 'number' ? index : '*';
     strIndex = `[${strIndex}]`;
-    functionHelperObj.addBase(this);
-    return this.#addMultiProperties(false, strIndex);
+    if (!funcHelper.isInsideCtx(this)) {
+      funcHelper.addBase(this);
+    }
+    return this.#addMultiProperties(false, false, strIndex);
   }
   likeRegex(regex: string) {
     regex = toJsonStr(regex);
-    return this.#addMultiProperties(false, ' ', constant.likeRegex, ' ', regex);
+    return this.#addMultiProperties(
+      false,
+      false,
+      ' ',
+      constant.likeRegex,
+      ' ',
+      regex,
+    );
   }
 
   is(value: string) {
-    return this.#addMultiProperties(false, ' ', constant.is, ' ', value);
+    return this.#addMultiProperties(false, false, ' ', constant.is, ' ', value);
   }
 
   and() {
-    const ctxMaybe = functionHelperObj.isInsideCtx(this)
-      ? constant.contextBase
-      : '';
-    return this.#addMultiProperties(false, ' ', constant.and, ' ', ctxMaybe);
+    if (funcHelper.isInsideCtx(this)) {
+      return this.#addMultiProperties(
+        false,
+        false,
+        ' ',
+        constant.and,
+        ' ',
+        constant.contextBase,
+      );
+    }
+    return this.#addMultiProperties(false, false, ' ', constant.and, ' ');
   }
 
   or() {
-    const ctxMaybe = functionHelperObj.isInsideCtx(this)
-      ? constant.contextBase
-      : '';
-    return this.#addMultiProperties(false, ' ', constant.or, ' ', ctxMaybe);
+    if (funcHelper.isInsideCtx(this)) {
+      return this.#addMultiProperties(
+        false,
+        false,
+        ' ',
+        constant.or,
+        ' ',
+        constant.contextBase,
+      );
+    }
+    return this.#addMultiProperties(false, false, ' ', constant.or, ' ');
   }
 
   build() {
-    const ref = functionHelperObj.getValidRef(this);
-    console.log(attachArrayWith.noSpace(ref.queryStringArr, false));
+    const ref = funcHelper.getValidRef(this);
     if (ref.queryStringArr.length < 1) {
       return constant.base;
     }

@@ -48,7 +48,7 @@ export class DBQuery {
       const result = await query(findAllQuery, preparedValues.values);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {
-      return errorHandler(findAllQuery, error as Error);
+      return errorHandler(findAllQuery, preparedValues.values, error as Error);
     }
   }
 
@@ -83,7 +83,7 @@ export class DBQuery {
       const result = await query(createQry, preparedValues.values);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {
-      return errorHandler(createQry, error as Error);
+      return errorHandler(createQry, preparedValues.values, error as Error);
     }
   }
 
@@ -132,7 +132,7 @@ export class DBQuery {
       const result = await query(createQry, flatedValues);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {
-      return errorHandler(createQry, error as Error);
+      return errorHandler(createQry, flatedValues, error as Error);
     }
   }
 }
@@ -245,7 +245,7 @@ export class RawQueryHelper {
       const result = await query(rawQry, values);
       return { rows: result.rows, count: result.rowCount };
     } catch (error) {
-      return errorHandler(rawQry, error as Error);
+      return errorHandler(rawQry, values, error as Error);
     }
   }
 }
