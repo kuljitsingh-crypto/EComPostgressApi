@@ -36,6 +36,7 @@ export const DB_KEYWORDS = {
   and: 'AND',
   over: 'OVER',
   partitionBy: 'PARTITION BY',
+  not: 'NOT',
 } as const;
 
 export const WHERE_KEYWORD = 'where';

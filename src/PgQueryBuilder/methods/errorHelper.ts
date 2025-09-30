@@ -280,7 +280,7 @@ export const throwError = {
 
 export const errorHandler = (
   query: string,
-  flatedValues: Primitive[],
+  flatedValues: any,
   error: Error,
 ) => {
   const strValues = attachArrayWith.coma(flatedValues);

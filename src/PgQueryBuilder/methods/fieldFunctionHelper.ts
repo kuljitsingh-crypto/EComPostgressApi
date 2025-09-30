@@ -20,6 +20,11 @@ import {
   CURRENT_DATE_FIELD_OP,
   CaseOpKeys,
   CASE_FIELD_OP,
+  CustomFunctionKeys,
+  CUSTOM_FIELD_OP,
+  NOT_FIELD_OP,
+  ARRAY_INDEX_OP,
+  ARRAY_SLICE_OP,
 } from '../constants/fieldFunctions';
 import { Primitive } from '../globalTypes';
 import {
@@ -43,7 +48,20 @@ import {
   isValidObject,
 } from './helperFunction';
 
+type CustomFieldOptions = {
+  name: string;
+  callable: boolean;
+  suffix?: string;
+  prefix?: string;
+  inBetween?: boolean;
+};
+
 type CaseFieldOp = <Model>(...query: CaseSubquery<Model>[]) => CallableField;
+
+type CustomFieldOp = <Model>(
+  options: CustomFieldOptions,
+  ...args: Arg<Model>[]
+) => CallableField;
 
 type NoFieldOpCb = <Model>() => CallableField;
 
@@ -76,10 +94,12 @@ type Func = {
           ? TripleFieldOpCb
           : key extends CaseOpKeys
             ? CaseFieldOp
-            : MultipleFieldOpCb;
+            : key extends CustomFunctionKeys
+              ? CustomFieldOp
+              : MultipleFieldOpCb;
 };
 type OperandType = 'single' | 'double' | 'multiple' | 'triple' | 'noParam';
-type AttachType = 'opInBtw' | 'default' | 'custom';
+type AttachType = 'opInBtw' | 'default' | 'custom' | 'arrayOp';
 
 type CommonParamForOpGroup = {
   attachBy: AttachType;
@@ -122,10 +142,6 @@ type FieldOperatorCb<Model> = {
 
 interface FieldFunction extends Func {}
 
-// function isCombinedFn(fn: CallableField | CombinedFun): fn is CombinedFun {
-//   return fn.length === 0;
-// }
-
 const attachOperator = (
   isOpCallable: boolean,
   op: string,
@@ -139,7 +155,16 @@ const attachOpInBtwOperator = (
   isOpCallable: boolean,
   op: string,
   ...values: Primitive[]
-) => attachArrayWith.space([values[0], op, values[1]]);
+) => {
+  const arrWithOp = values.reduce((acc, val, index) => {
+    if (index > 0) {
+      acc.push(op);
+    }
+    acc.push(val);
+    return acc;
+  }, [] as Primitive[]);
+  return attachArrayWith.space(arrWithOp);
+};
 
 const customAttach =
   (attachCond: string[]) =>
@@ -153,6 +178,16 @@ const customAttach =
     }
     return attachOperator(isOpCallable, op, attachArrayWith.space(attachedVal));
   };
+
+const arrayAttach = (
+  isOpCallable: boolean,
+  op: string,
+  ...values: Primitive[]
+) => {
+  const [first, ...rest] = values;
+  const valuesStr = attachArrayWith.customSep(rest, ':');
+  return attachArrayWith.noSpace([first, '[', valuesStr, ']']);
+};
 
 const attachOp = (
   zeroArgAllowed: boolean,
@@ -179,6 +214,9 @@ const attachOp = (
       if (isValidArray(attachCond)) {
         opCb = customAttach(attachCond);
       }
+      break;
+    case 'arrayOp':
+      opCb = arrayAttach;
       break;
   }
 
@@ -312,6 +350,14 @@ const opGroups: OpGroup[] = [
     prefixRef: dateExtractFieldMapping,
   },
   {
+    set: NOT_FIELD_OP,
+    type: 'single',
+    attachBy: 'custom',
+    attachCond: [DB_KEYWORDS.not],
+    isOpCallable: false,
+  },
+
+  {
     set: TRIM_FIELD_OP,
     type: 'double',
     attachBy: 'custom',
@@ -339,6 +385,23 @@ const opGroups: OpGroup[] = [
     attachCond: [DB_KEYWORDS.in],
   },
   {
+    set: STR_IN_FIELD_OP,
+    type: 'double',
+    attachBy: 'custom',
+    attachCond: [DB_KEYWORDS.in],
+  },
+  {
+    set: STR_IN_FIELD_OP,
+    type: 'double',
+    attachBy: 'custom',
+    attachCond: [DB_KEYWORDS.in],
+  },
+  {
+    set: ARRAY_INDEX_OP,
+    type: 'double',
+    attachBy: 'arrayOp',
+  },
+  {
     set: TRIPLE_FIELD_OP,
     type: 'triple',
     attachBy: 'default',
@@ -348,6 +411,11 @@ const opGroups: OpGroup[] = [
     type: 'triple',
     attachBy: 'custom',
     attachCond: [DB_KEYWORDS.from, DB_KEYWORDS.for],
+  },
+  {
+    set: ARRAY_SLICE_OP,
+    type: 'triple',
+    attachBy: 'arrayOp',
   },
   {
     set: MULTIPLE_FIELD_OP,
@@ -362,6 +430,11 @@ const opGroups: OpGroup[] = [
     isOpCallable: false,
     suffixAllowed: true,
     suffixRef: { case: 'END' },
+  },
+  {
+    set: CUSTOM_FIELD_OP,
+    type: 'multiple',
+    attachBy: 'custom',
   },
 ] as const;
 
@@ -407,14 +480,64 @@ class FieldFunction {
     };
   };
 
-  #checkFunctionExecutionState() {
-    if (!this.#fieldFunc) {
-      return throwError.invalidFieldFuncCallType();
+  #prepareArgs<Model>(
+    operatorRef: Record<string, string>,
+    op: Ops,
+    fieldOptions: CommonParamForOpGroup,
+    ...operands: Arg<Model>[]
+  ): {
+    operator: Ops;
+    operatorRef: Record<string, string>;
+    operands: Arg<Model>[];
+    fieldOptions: CommonParamForOpGroup;
+  } {
+    if (op !== CUSTOM_FIELD_OP.custom) {
+      return { operator: op, operands, fieldOptions, operatorRef };
     }
+    const [options, ...rest] = operands as [CustomFieldOptions, Arg<Model>];
+    const {
+      name,
+      suffix,
+      prefix,
+      callable = true,
+      inBetween,
+      ...restOptions
+    } = options;
+    fieldOptions = {
+      ...fieldOptions,
+      ...restOptions,
+      attachBy: inBetween && !callable ? 'opInBtw' : 'custom',
+      attachCond: callable ? [] : [name],
+      ...(isNonEmptyString(suffix)
+        ? { suffixAllowed: true, suffixRef: { [name]: suffix } }
+        : {}),
+      ...(isNonEmptyString(prefix)
+        ? { prefixAllowed: true, prefixRef: { [name]: prefix } }
+        : {}),
+      isOpCallable: callable,
+    };
+    return {
+      operator: name as Ops,
+      operands: rest,
+      fieldOptions,
+      operatorRef: { [name]: name },
+    };
   }
 
   #operateOnFields<Model>(args: FieldOperatorCb<Model>) {
-    const { colAndOperands, op, operatorRef, isNullColAllowed, ...rest } = args;
+    const {
+      colAndOperands,
+      op,
+      operatorRef: ref,
+      isNullColAllowed,
+      ...rest
+    } = args;
+    const { operands, operator, operatorRef, fieldOptions } = this.#prepareArgs(
+      ref,
+      op,
+      rest,
+      ...colAndOperands,
+    );
     const callable = (options: CallableFieldParam) => {
       const { preparedValues, groupByFields, allowedFields } =
         getValidCallableFieldValues(
@@ -423,16 +546,16 @@ class FieldFunction {
           'groupByFields',
           'preparedValues',
         );
-      this.#checkFunctionExecutionState();
+
       const value = prepareFields<Model>({
-        colAndOperands,
-        operator: op,
+        colAndOperands: operands,
+        operator: operator,
         preparedValues,
         groupByFields,
         allowedFields,
         operatorRef,
         isNullColAllowed,
-        ...rest,
+        ...fieldOptions,
       });
       return {
         col: value,

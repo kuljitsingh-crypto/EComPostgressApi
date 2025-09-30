@@ -701,7 +701,7 @@ Order.init(
 //   console.dir({ ' Query Result->': res }, { depth: null });
 // });
 
-Employees.select({
+Company.select({
   columns: [
     // fn.jsonbSet(fn.col('data'), fn.jPath(['age']), 35),
     // fn.jsonbSet(
@@ -729,88 +729,92 @@ Employees.select({
     //     .build(),
     // ),
     // fn.jsonbPathQuery(fn.col('info'), fn.jQuery().s.build()),
-    fn.jsonbPathQuery(
-      fn.col('data'),
-      fn
-        .jQuery()
-        // .key('department')
-        // .eq('IT')
-        // .and()
-        // .key('salary')
-        // .gte(75000)
-        // .grpStart(null)
-        // .key('age')
-        // .gt(30)
-        // .grpEnd()
-        // .or()
-        // .grpStart(null)
-        // .key('salary')
-        // .lt(50000)
-        // .grpEnd()
-        .ctxStart('skills')
-        .at()
-        .eq('JS')
-        .ctxEnd()
-
-        // .keyvalue()
-        // .asKey()
-        // .ctxStart('$')
-        // .grpStart()
-        // .key('salary')
-        // .gt(65000)
-        // .and()
-        // .key('salary')
-        // .lte(75000)
-        // .grpEnd()
-        // .or()
-        // .key('age')
-        // .eq(28)
-        // .grpEnd()
-        // .ctxEnd()
-        // .or()
-        // .ctxStart('age')
-        // .eq(28)
-        // .ctxEnd()
-        // .grpEnd()
-        // .not()
-        // .grpStart(null)
-        // .grpStart('salary')
-        // .lt(75000)
-        // .and()
-        // .key('salary')
-        // .gt(60000)
-        // .grpEnd()
-        // .or()
-        // .grpStart('age')
-        // .gt(20)
-        // .grpEnd()
-        // .grpEnd()
-        .build(),
-    ),
+    // fn.jsonbPathQueryArray(
+    //   fn.col('data'),
+    //   fn
+    //     .jQuery()
+    //     // .key('department')
+    //     // .eq('IT')
+    //     // .and()
+    //     // .key('salary')
+    //     // .gte(75000)
+    //     // .grpStart(null)
+    //     // .key('age')
+    //     // .gt(30)
+    //     // .grpEnd()
+    //     // .or()
+    //     // .grpStart(null)
+    //     // .key('salary')
+    //     // .lt(50000)
+    //     // .grpEnd()
+    //     .ctxStart('skills', '*')
+    //     .likeRegex('^J')
+    //     .ctxEnd()
+    //     // .keyvalue()
+    //     // .asKey()
+    //     // .ctxStart('$')
+    //     // .grpStart()
+    //     // .key('salary')
+    //     // .gt(65000)
+    //     // .and()
+    //     // .key('salary')
+    //     // .lte(75000)
+    //     // .grpEnd()
+    //     // .or()
+    //     // .key('age')
+    //     // .eq(28)
+    //     // .grpEnd()
+    //     // .ctxEnd()
+    //     // .or()
+    //     // .ctxStart('age')
+    //     // .eq(28)
+    //     // .ctxEnd()
+    //     // .grpEnd()
+    //     // .not()
+    //     // .grpStart(null)
+    //     // .grpStart('salary')
+    //     // .lt(75000)
+    //     // .and()
+    //     // .key('salary')
+    //     // .gt(60000)
+    //     // .grpEnd()
+    //     // .or()
+    //     // .grpStart('age')
+    //     // .gt(20)
+    //     // .grpEnd()
+    //     // .grpEnd()
+    //     .build(),
+    // ),
+    // fn.custom({ name: 'va', isCallableOp: false }, 2, 3),
+    // fn.custom({ name: 'va', isCallableOp: false }, 2, 3),
+    // fn.add(fn.cast.int(1), 2),
+    // fn.custom({ name: 'NOT', callable: false }, fn.cast.boolean(true)),
+    // fn.not(false),
+    // fn.slice([1, 2, 3], 2, 3),
   ],
   // where: { id: 1 },
   where: {
-    data: {
-      //   jsonbMatch: fn
-      //     .jQuery()
-      //     .not()
-      //     .start()
-      //     .key('age')
-      //     .gt(25)
-      //     .and()
-      //     .key('age')
-      //     .lt(35)
-      //     .end()
-      //     .build(),
-      // jsonbMatch: fn
-      //   .jQuery()
-      //   .key('salary')
-      //   .filterStart()
-      //   .in([65000, 75000])
-      //   .filterEnd()
-      //   .build(),
-      // jsonbMatch: fn.jQuery().key('skills').at(0).neq('Python').build(),
-    },
+    // data: {
+    //   jsonbMatch: fn
+    //     .jQuery()
+    //     .not()
+    //     .start()
+    //     .key('age')
+    //     .gt(25)
+    //     .and()
+    //     .key('age')
+    //     .lt(35)
+    //     .end()
+    //     .build(),
+    // jsonbMatch: fn
+    //   .jQuery()
+    //   .key('salary')
+    //   .filterStart()
+    //   .in([65000, 75000])
+    //   .filterEnd()
+    //   .build(),
+    // jsonbMatch: fn.jQuery().key('skills').at(0).neq('Python').build(),
+    // },
   },
 }).then((res) => {
   console.dir({ ' Query Result->': res }, { depth: null });

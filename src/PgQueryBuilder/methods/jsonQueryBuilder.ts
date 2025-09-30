@@ -55,7 +55,7 @@ const constant = {
   is: 'is',
   contextBase: '@',
   context: '?',
-};
+} as const;
 
 const keysPrefixWithBase = new Set([constant.wildcard, constant.recursive]);
 
@@ -225,8 +225,11 @@ export class JPathBuilder {
   grpEnd() {
     return this.#addMultiProperties(false, false, constant.endBracket);
   }
-  ctxStart(key: string | number) {
+  ctxStart(key: string | number, at?: number | (typeof constant)['wildcard']) {
     this.key(key);
+    if (typeof at !== 'undefined') {
+      this.at(at as any);
+    }
     funcHelper.changeBase(this, constant.contextBase);
     funcHelper.startCtx(this);
     return this.#addMultiProperties(

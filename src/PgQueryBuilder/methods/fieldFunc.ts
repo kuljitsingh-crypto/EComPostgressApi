@@ -54,7 +54,7 @@ const prepareArrayData = (
   const strArr = arr.map((a) =>
     getFieldValue(key, a, preparedValues, groupByFields, allowedFields),
   );
-  return `${arrayKeyword}[${attachArrayWith.coma(strArr)}]::${type}[]`;
+  return `(${arrayKeyword}[${attachArrayWith.coma(strArr)}]::${type}[])`;
 };
 export const getFieldValue = <Model>(
   key: string | null,

@@ -164,8 +164,6 @@ export const SINGLE_FIELD_OP = {
   jsonbArrayLength: 'jsonb_array_length',
   jsonAgg: 'json_agg',
   jsonbAgg: 'jsonb_agg',
-  jsonTypeof: 'json_typeof',
-  jsonbTypeof: 'jsonb_typeof',
   toJson: 'to_json',
   toJsonb: 'to_jsonb',
   jsonbStripNulls: 'jsonb_strip_nulls',
@@ -173,12 +171,17 @@ export const SINGLE_FIELD_OP = {
   rowToJson: 'row_to_json',
   jsonValid: 'json_valid',
   jsonPretty: 'json_pretty',
+  unnest: 'UNNEST',
   // Needs further work
   // jsonbToRecord: 'jsonb_to_record',
   // jsonToRecord: 'json_to_record',
   // jsonbToRecordSet: 'jsonb_to_recordset',
   // jsonToRecordSet: 'json_to_recordset',
 } as const;
+
+export const NOT_FIELD_OP = {
+  not: 'NOT',
+};
 
 //====================================== Double Field Op ======================================//
 export const SYMBOL_FIELD_OP = {
@@ -191,6 +194,8 @@ export const SYMBOL_FIELD_OP = {
   jsonConcat: '||',
   jsonbOPPathExists: '@?',
   jsonbOPPathMatch: '@@',
+  and: 'AND',
+  or: 'OR',
 } as const;
 
 export const DOUBLE_FIELD_OP = {
@@ -210,6 +215,12 @@ export const DOUBLE_FIELD_OP = {
   coalesce: 'COALESCE',
   encode: 'ENCODE',
   decode: 'DECODE',
+  mod: 'MOD',
+  justifyInterval: 'JUSTIFY_INTERVAL',
+  justifyDays: 'JUSTIFY_DAYS',
+  justifyHours: 'JUSTIFY_HOURS',
+  arrayLength: 'ARRAY_LENGTH',
+  regexpMatches: 'REGEXP_MATCHES',
   jsonObjectAgg: 'json_object_agg',
   jsonbObjectAgg: 'jsonb_object_agg',
   jsonObject: 'json_object',
@@ -235,6 +246,10 @@ export const TRIM_FIELD_OP = {
 
 export const STR_IN_FIELD_OP = { position: 'POSITION' } as const;
 
+export const ARRAY_INDEX_OP = {
+  at: 'at',
+};
+
 //====================================== Triple Field Op ======================================//
 export const TRIPLE_FIELD_OP = {
   subStr: 'SUBSTR',
@@ -243,11 +258,16 @@ export const TRIPLE_FIELD_OP = {
   lPad: 'LPAD',
   rPad: 'RPAD',
   splitPart: 'SPLIT_PART',
+  regexpReplace: 'REGEXP_REPLACE',
 } as const;
 
 export const SUBSTRING_FIELD_OP = {
   substring: 'SUBSTRING',
 } as const;
+
+export const ARRAY_SLICE_OP = {
+  slice: 'slice',
+};
 
 //====================================== Multiple Field Op ======================================//
 export const MULTIPLE_FIELD_OP = {
@@ -255,6 +275,8 @@ export const MULTIPLE_FIELD_OP = {
   age: 'AGE',
   greatest: 'GREATEST',
   least: 'LEAST',
+  gcd: 'GCD',
+  lcm: 'LCM',
   jsonBuildArray: 'json_build_array',
   jsonbBuildArray: 'jsonb_build_array',
   jsonBuildObject: 'json_build_object',
@@ -266,6 +288,10 @@ export const MULTIPLE_FIELD_OP = {
 
 export const CASE_FIELD_OP = {
   case: 'CASE',
+} as const;
+
+export const CUSTOM_FIELD_OP = {
+  custom: 'custom',
 } as const;
 
 //====================================== Helper Constants ======================================//
@@ -292,30 +318,44 @@ type CurrentDateOpKeys = keyof typeof CURRENT_DATE_FIELD_OP;
 //====================================== Single Field Op ======================================//
 type SingleOpKeys = keyof typeof SINGLE_FIELD_OP;
 type DateExtractOpKeys = keyof typeof DATE_EXTRACT_FIELD_OP;
+type NotFieldKeys = keyof typeof NOT_FIELD_OP;
 
 //====================================== Double Field Op ======================================//
 type SymbolOpKeys = keyof typeof SYMBOL_FIELD_OP;
 type TrimFieldOpKeys = keyof typeof TRIM_FIELD_OP;
 type DoubleOpKeys = keyof typeof DOUBLE_FIELD_OP;
 type StrFieldOpKeys = keyof typeof STR_FIELD_OP | keyof typeof STR_IN_FIELD_OP;
+type ArrayIndexKeys = keyof typeof ARRAY_INDEX_OP;
 
 //====================================== Triple Field Op ======================================//
 type TripleOpKeys = keyof typeof TRIPLE_FIELD_OP;
 type SubstringFieldOpKeys = keyof typeof SUBSTRING_FIELD_OP;
+type ArraySliceKeys = keyof typeof ARRAY_SLICE_OP;
 
 //====================================== Multiple Field Op ======================================//
 type MultipleOpKeys = keyof typeof MULTIPLE_FIELD_OP;
 export type CaseOpKeys = keyof typeof CASE_FIELD_OP;
+export type CustomFunctionKeys = keyof typeof CUSTOM_FIELD_OP;
 
 export type NoPramFieldOpKeys = NoParamOpKeys | CurrentDateOpKeys;
-export type SingleFieldOpKeys = SingleOpKeys | DateExtractOpKeys;
+export type SingleFieldOpKeys = SingleOpKeys | DateExtractOpKeys | NotFieldKeys;
+
 export type DoubleFieldOpKeys =
   | DoubleOpKeys
   | TrimFieldOpKeys
   | StrFieldOpKeys
-  | SymbolOpKeys;
-export type TripleFieldOpKeys = TripleOpKeys | SubstringFieldOpKeys;
-export type MultipleFieldOpKeys = MultipleOpKeys | CaseOpKeys;
+  | SymbolOpKeys
+  | ArrayIndexKeys;
+
+export type TripleFieldOpKeys =
+  | TripleOpKeys
+  | SubstringFieldOpKeys
+  | ArraySliceKeys;
+
+export type MultipleFieldOpKeys =
+  | MultipleOpKeys
+  | CaseOpKeys
+  | CustomFunctionKeys;
 export type AggregateFunctionType = keyof typeof aggregateFunctionName;
 
 //==================================== Window Function Types========================================//
