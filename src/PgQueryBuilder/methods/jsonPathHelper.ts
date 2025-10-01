@@ -8,12 +8,14 @@ import {
   dynamicFieldQuote,
   getPreparedValues,
   getValidCallableFieldValues,
+  prepareFieldForJson,
+} from './helperFunction';
+import {
   isNonEmptyString,
   isValidArray,
   isValidBoolean,
   isValidNumber,
-  prepareFieldForJson,
-} from './helperFunction';
+} from './util';
 
 const filterOutValidData = (d: unknown) =>
   isNonEmptyString(d) || isValidBoolean(d) || isValidNumber(d);

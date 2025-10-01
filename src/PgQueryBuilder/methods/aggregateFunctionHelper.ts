@@ -21,11 +21,9 @@ import {
   attachArrayWith,
   getPreparedValues,
   getValidCallableFieldValues,
-  isNonEmptyString,
-  isNonNullableValue,
-  isValidArray,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
+import { isNonEmptyString, isNonNullableValue, isValidArray } from './util';
 
 type Options<Model> = {
   isDistinct?: boolean;

@@ -19,9 +19,8 @@ import {
   attachArrayWith,
   attachMethodToSymbolRegistry,
   getValidCallableFieldValues,
-  isNullableValue,
-  isValidArray,
 } from './helperFunction';
+import { isNullableValue, isValidArray } from './util';
 
 type ParamValue = {
   length: number;

@@ -13,7 +13,7 @@ Image.init(
       type: DataTypes.uuid,
       defaultValue: dbDefaultValue.uuidV4,
       notNull: true,
-      isPrimary: true,
+      primary: true,
     },
     type: {
       type: DataTypes.string(255),

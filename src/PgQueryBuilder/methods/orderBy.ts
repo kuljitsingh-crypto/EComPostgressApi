@@ -6,13 +6,8 @@ import {
   PreparedValues,
 } from '../internalTypes';
 import { getFieldValue } from './fieldFunc';
-import {
-  attachArrayWith,
-  ensureArray,
-  isNullableValue,
-  isValidArray,
-} from './helperFunction';
-import { QueryHelper } from './queryHelper';
+import { attachArrayWith } from './helperFunction';
+import { ensureArray, isNullableValue, isValidArray } from './util';
 
 export class OrderByQuery {
   static prepareOrderByQuery<Model>(

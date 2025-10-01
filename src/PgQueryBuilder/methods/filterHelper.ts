@@ -26,21 +26,22 @@ import { throwError } from './errorHelper';
 import {
   attachArrayWith,
   covertJSDataToSQLData,
-  ensureArray,
   getAllEntries,
   getPreparedValues,
-  isCallableColumn,
-  isNonEmptyObject,
-  isNonEmptyString,
-  isPrimitiveValue,
-  isValidArray,
-  isValidObject,
-  isValidSubQuery,
   prepareSQLDataType,
   validateColumn,
   validCallableColCtx,
 } from './helperFunction';
 import { QueryHelper } from './queryHelper';
+import {
+  ensureArray,
+  isCallableColumn,
+  isNonEmptyObject,
+  isNonEmptyString,
+  isPrimitiveValue,
+  isValidArray,
+  isValidSubQuery,
+} from './util';
 
 const checkPrimitiveValueForOp = (op: string, value: Primitive) => {
   if (!isPrimitiveValue(value)) {

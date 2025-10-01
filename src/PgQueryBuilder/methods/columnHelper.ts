@@ -8,14 +8,8 @@ import {
 } from '../internalTypes';
 import { throwError } from './errorHelper';
 import { getFieldValue } from './fieldFunc';
-import {
-  attachArrayWith,
-  dynamicFieldQuote,
-  fieldQuote,
-  isNonEmptyString,
-  isValidArray,
-  isColAliasNameArr,
-} from './helperFunction';
+import { attachArrayWith, fieldQuote } from './helperFunction';
+import { isColAliasNameArr, isNonEmptyString, isValidArray } from './util';
 
 const getColNameAndAlias = (
   col: FindQueryAttribute,

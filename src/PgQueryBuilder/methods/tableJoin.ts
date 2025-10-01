@@ -17,16 +17,18 @@ import { FieldHelper } from './fieldHelper';
 import {
   attachArrayWith,
   createNewObj,
-  ensureArray,
   fieldQuote,
   getJoinSubqueryFields,
+} from './helperFunction';
+import { QueryHelper } from './queryHelper';
+import {
+  ensureArray,
   isEmptyObject,
   isNonEmptyObject,
   isNonEmptyString,
   isValidSimpleModel,
   isValidSubQuery,
-} from './helperFunction';
-import { QueryHelper } from './queryHelper';
+} from './util';
 
 type UpdatedSelfJoin<Model> = SelfJoin<Model> & {
   type: 'selfJoin';

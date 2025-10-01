@@ -1,15 +1,15 @@
 import CurrentUser from './currentUser.model';
 import { DBModel } from '../PgQueryBuilder/model.helpers';
 import { modelTypes, roleType } from './modelConstants';
-import { PgDataType, PG_DEFAULT_VALUE } from '../PgQueryBuilder';
+import { PgDataType, PgSpecialValue } from '../PgQueryBuilder';
 
 class Role extends DBModel {}
 Role.init(
   {
     id: {
       type: PgDataType.uuid,
-      defaultValue: PG_DEFAULT_VALUE.uuidV4,
-      isPrimary: true,
+      defaultValue: PgSpecialValue.uuidV4,
+      primary: true,
     },
     type: {
       type: PgDataType.string(255),

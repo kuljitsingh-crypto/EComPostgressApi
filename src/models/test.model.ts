@@ -12,7 +12,7 @@ export class Order extends DBModel {}
 
 BasketA.init(
   {
-    a: { type: PgDataType.int, isPrimary: true },
+    a: { type: PgDataType.int, primary: true },
     fruit_a: { type: PgDataType.string(100), notNull: true },
   },
   { tableName: 'basket_a' },
@@ -20,7 +20,7 @@ BasketA.init(
 
 BasketB.init(
   {
-    b: { type: PgDataType.int, isPrimary: true },
+    b: { type: PgDataType.int, primary: true },
     fruit_b: { type: PgDataType.string(100), notNull: true },
   },
   { tableName: 'basket_b' },
@@ -28,7 +28,7 @@ BasketB.init(
 
 BasketC.init(
   {
-    c: { type: PgDataType.int, isPrimary: true },
+    c: { type: PgDataType.int, primary: true },
     fruit_c: { type: PgDataType.string(100), notNull: true },
   },
   { tableName: 'basket_c' },
@@ -36,7 +36,7 @@ BasketC.init(
 
 BasketD.init(
   {
-    d: { type: PgDataType.int, isPrimary: true },
+    d: { type: PgDataType.int, primary: true },
     fruit_d: { type: PgDataType.string(100), notNull: true },
   },
   { tableName: 'basket_d' },
@@ -44,8 +44,8 @@ BasketD.init(
 
 BasketE.init(
   {
-    d: { type: PgDataType.int, isPrimary: true },
-    e: { type: PgDataType.int, isPrimary: true },
+    d: { type: PgDataType.int, primary: true },
+    e: { type: PgDataType.int, primary: true },
     fruit_d: { type: PgDataType.string(100), notNull: true },
     fruit_e: { type: PgDataType.string(100), notNull: true },
   },
@@ -54,7 +54,7 @@ BasketE.init(
 
 Company.init(
   {
-    id: { type: PgDataType.serial, isPrimary: true },
+    id: { type: PgDataType.serial, primary: true },
     name: { type: PgDataType.text, notNull: true },
     founded: { type: PgDataType.date },
     is_public: { type: PgDataType.boolean },
@@ -68,7 +68,7 @@ Company.init(
 
 Examples.init(
   {
-    id: { type: PgDataType.serial, isPrimary: true },
+    id: { type: PgDataType.serial, primary: true },
     data: { type: PgDataType.jsonb },
   },
   { tableName: 'examples' },
@@ -76,7 +76,7 @@ Examples.init(
 
 Employees.init(
   {
-    id: { type: PgDataType.serial, isPrimary: true },
+    id: { type: PgDataType.serial, primary: true },
     data: { type: PgDataType.jsonb },
   },
   { tableName: 'employees' },
@@ -84,14 +84,15 @@ Employees.init(
 
 Employees.init(
   {
-    id: { type: PgDataType.serial, isPrimary: true },
+    id: { type: PgDataType.serial, primary: true },
     data: { type: PgDataType.jsonb },
+    status: { type: PgDataType.boolean },
   },
   { tableName: 'employees' },
 );
 Order.init(
   {
-    id: { type: PgDataType.serial, isPrimary: true },
+    id: { type: PgDataType.serial, primary: true },
     info: { type: PgDataType.jsonb },
   },
   { tableName: 'orders' },
@@ -701,150 +702,150 @@ Order.init(
 //   console.dir({ ' Query Result->': res }, { depth: null });
 // });
 
-Company.select({
-  columns: [
-    // fn.jsonbSet(fn.col('data'), fn.jPath(['age']), 35),
-    // fn.jsonbSet(
-    //   fn.col('data'),
-    //   fn.jPath(['address', 'country']),
-    //   fn.toJsonStr('india'),
-    //   true,
-    // ),
-    // fn.arrayToJson(
-    //   fn.array([fn.add(fn.cast.int(1), 32), 2, 3], { type: PgDataType.int }),
-    // ),
-    // fn.jsonConcat(fn.col('data'), fn.toJsonStr({ country: 'USA' })),
-    // fn.jsonbPathQuery(
-    //   fn.col('data'),
-    //   fn
-    //     .jQuery()
-    //     .start()
-    //     .key('skills')
-    //     .at(0)
-    //     .end()
-    //     .and()
-    //     .start()
-    //     .key('age')
-    //     .end()
-    //     .build(),
-    // ),
-    // fn.jsonbPathQuery(fn.col('info'), fn.jQuery().s.build()),
-    // fn.jsonbPathQueryArray(
-    //   fn.col('data'),
-    //   fn
-    //     .jQuery()
-    //     // .key('department')
-    //     // .eq('IT')
-    //     // .and()
-    //     // .key('salary')
-    //     // .gte(75000)
-    //     // .grpStart(null)
-    //     // .key('age')
-    //     // .gt(30)
-    //     // .grpEnd()
-    //     // .or()
-    //     // .grpStart(null)
-    //     // .key('salary')
-    //     // .lt(50000)
-    //     // .grpEnd()
-    //     .ctxStart('skills', '*')
-    //     .likeRegex('^J')
-    //     .ctxEnd()
-    //     // .keyvalue()
-    //     // .asKey()
-    //     // .ctxStart('$')
-    //     // .grpStart()
-    //     // .key('salary')
-    //     // .gt(65000)
-    //     // .and()
-    //     // .key('salary')
-    //     // .lte(75000)
-    //     // .grpEnd()
-    //     // .or()
-    //     // .key('age')
-    //     // .eq(28)
-    //     // .grpEnd()
-    //     // .ctxEnd()
-    //     // .or()
-    //     // .ctxStart('age')
-    //     // .eq(28)
-    //     // .ctxEnd()
-    //     // .grpEnd()
-    //     // .not()
-    //     // .grpStart(null)
-    //     // .grpStart('salary')
-    //     // .lt(75000)
-    //     // .and()
-    //     // .key('salary')
-    //     // .gt(60000)
-    //     // .grpEnd()
-    //     // .or()
-    //     // .grpStart('age')
-    //     // .gt(20)
-    //     // .grpEnd()
-    //     // .grpEnd()
-    //     .build(),
-    // ),
-    // fn.custom({ name: 'va', isCallableOp: false }, 2, 3),
-    // fn.custom({ name: 'va', isCallableOp: false }, 2, 3),
-    // fn.add(fn.cast.int(1), 2),
-    // fn.custom(
-    //   { name: 'AND', callable: false, attachMode: 'operatorBetween' },
-    //   fn.cast.boolean(true),
-    //   false,
-    // ),
-    // fn.custom({ name: 'ROUND' }, 4.67345, 2),
-    // fn.not(false),
-    // fn.slice([1, 2, 3], 2, 3),
-  ],
-  // where: { id: 1 },
-  where: {
-    // data: {
-    //   jsonbMatch: fn
-    //     .jQuery()
-    //     .not()
-    //     .start()
-    //     .key('age')
-    //     .gt(25)
-    //     .and()
-    //     .key('age')
-    //     .lt(35)
-    //     .end()
-    //     .build(),
-    // jsonbMatch: fn
-    //   .jQuery()
-    //   .key('salary')
-    //   .filterStart()
-    //   .in([65000, 75000])
-    //   .filterEnd()
-    //   .build(),
-    // jsonbMatch: fn.jQuery().key('skills').at(0).neq('Python').build(),
-    // },
-  },
-}).then((res) => {
-  console.dir({ ' Query Result->': res }, { depth: null });
-});
+// Company.select({
+//   columns: [
+//     // fn.jsonbSet(fn.col('data'), fn.jPath(['age']), 35),
+//     // fn.jsonbSet(
+//     //   fn.col('data'),
+//     //   fn.jPath(['address', 'country']),
+//     //   fn.toJsonStr('india'),
+//     //   true,
+//     // ),
+//     // fn.arrayToJson(
+//     //   fn.array([fn.add(fn.cast.int(1), 32), 2, 3], { type: PgDataType.int }),
+//     // ),
+//     // fn.jsonConcat(fn.col('data'), fn.toJsonStr({ country: 'USA' })),
+//     // fn.jsonbPathQuery(
+//     //   fn.col('data'),
+//     //   fn
+//     //     .jQuery()
+//     //     .start()
+//     //     .key('skills')
+//     //     .at(0)
+//     //     .end()
+//     //     .and()
+//     //     .start()
+//     //     .key('age')
+//     //     .end()
+//     //     .build(),
+//     // ),
+//     // fn.jsonbPathQuery(fn.col('info'), fn.jQuery().s.build()),
+//     // fn.jsonbPathQueryArray(
+//     //   fn.col('data'),
+//     //   fn
+//     //     .jQuery()
+//     //     // .key('department')
+//     //     // .eq('IT')
+//     //     // .and()
+//     //     // .key('salary')
+//     //     // .gte(75000)
+//     //     // .grpStart(null)
+//     //     // .key('age')
+//     //     // .gt(30)
+//     //     // .grpEnd()
+//     //     // .or()
+//     //     // .grpStart(null)
+//     //     // .key('salary')
+//     //     // .lt(50000)
+//     //     // .grpEnd()
+//     //     .ctxStart('skills', '*')
+//     //     .likeRegex('^J')
+//     //     .ctxEnd()
+//     //     // .keyvalue()
+//     //     // .asKey()
+//     //     // .ctxStart('$')
+//     //     // .grpStart()
+//     //     // .key('salary')
+//     //     // .gt(65000)
+//     //     // .and()
+//     //     // .key('salary')
+//     //     // .lte(75000)
+//     //     // .grpEnd()
+//     //     // .or()
+//     //     // .key('age')
+//     //     // .eq(28)
+//     //     // .grpEnd()
+//     //     // .ctxEnd()
+//     //     // .or()
+//     //     // .ctxStart('age')
+//     //     // .eq(28)
+//     //     // .ctxEnd()
+//     //     // .grpEnd()
+//     //     // .not()
+//     //     // .grpStart(null)
+//     //     // .grpStart('salary')
+//     //     // .lt(75000)
+//     //     // .and()
+//     //     // .key('salary')
+//     //     // .gt(60000)
+//     //     // .grpEnd()
+//     //     // .or()
+//     //     // .grpStart('age')
+//     //     // .gt(20)
+//     //     // .grpEnd()
+//     //     // .grpEnd()
+//     //     .build(),
+//     // ),
+//     // fn.custom({ name: 'va', isCallableOp: false }, 2, 3),
+//     // fn.custom({ name: 'va', isCallableOp: false }, 2, 3),
+//     // fn.add(fn.cast.int(1), 2),
+//     // fn.custom(
+//     //   { name: 'AND', callable: false, attachMode: 'operatorBetween' },
+//     //   fn.cast.boolean(true),
+//     //   false,
+//     // ),
+//     // fn.custom({ name: 'ROUND' }, 4.67345, 2),
+//     // fn.not(false),
+//     // fn.slice([1, 2, 3], 2, 3),
+//   ],
+//   // where: { id: 1 },
+//   where: {
+//     // data: {
+//     //   jsonbMatch: fn
+//     //     .jQuery()
+//     //     .not()
+//     //     .start()
+//     //     .key('age')
+//     //     .gt(25)
+//     //     .and()
+//     //     .key('age')
+//     //     .lt(35)
+//     //     .end()
+//     //     .build(),
+//     // jsonbMatch: fn
+//     //   .jQuery()
+//     //   .key('salary')
+//     //   .filterStart()
+//     //   .in([65000, 75000])
+//     //   .filterEnd()
+//     //   .build(),
+//     // jsonbMatch: fn.jQuery().key('skills').at(0).neq('Python').build(),
+//     // },
+//   },
+// }).then((res) => {
+//   console.dir({ ' Query Result->': res }, { depth: null });
+// });
 
-RawQuery.query(
-  'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM ((SELECT * FROM basket_b UNION SELECT * FROM basket_c) INTERSECT SELECT * FROM basket_d) AS y WHERE (b = t.a))',
-  // 'SELECT * FROM basket_a AS t WHERE EXISTS ((SELECT 1 FROM basket_b WHERE (b = t.a) UNION SELECT 1 FROM basket_c) INTERSECT SELECT 1 FROM basket_d)',
-  // 'SELECT * FROM ((SELECT * FROM basket_a UNION SELECT * FROM basket_b) UNION ALL SELECT * FROM basket_c) AS t',
-  // 'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM basket_b WHERE (b = t.a) UNION SELECT 1 FROM basket_c)',
-  // 'SELECT a,t.avg_a FROM basket_a CROSS JOIN (SELECT AVG(y.b::INTEGER) AS avg_a FROM (Select * from basket_b) as y) AS t',
-  // "SELECT (NOW() - '2023-12-25'::TIMESTAMP) - INTERVAL '30 days'  AS deviation FROM basket_a;",
-  // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
-  // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
-  // 'SELECT ABS((a>1) -5) AS deviation FROM basket_a;',
-  // 'SELECT NOW() - (INTERVAL $1::DATE) FROM basket_a',
-  // 'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t WHERE (ABS(a - t.avg_a)  > 2 );',
-  // 'SELECT a,ABS(a-AVG(a))  FROM basket_a',
-  // 'SELECT a,ABS(a - (SELECT AVG(ABS(b - AVG(b) OVER ())) FROM basket_b)) AS deviation FROM basket_a;',
-  // 'SELECT a, ABS(a - (SELECT AVG(b) FROM basket_b)) AS deviation FROM basket_a;',
-  // 'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
-  // ['30 days'],
-).then((res) => {
-  console.dir({ 'raw Query Result->': res }, { depth: null });
-});
+// RawQuery.query(
+//   'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM ((SELECT * FROM basket_b UNION SELECT * FROM basket_c) INTERSECT SELECT * FROM basket_d) AS y WHERE (b = t.a))',
+//   // 'SELECT * FROM basket_a AS t WHERE EXISTS ((SELECT 1 FROM basket_b WHERE (b = t.a) UNION SELECT 1 FROM basket_c) INTERSECT SELECT 1 FROM basket_d)',
+//   // 'SELECT * FROM ((SELECT * FROM basket_a UNION SELECT * FROM basket_b) UNION ALL SELECT * FROM basket_c) AS t',
+//   // 'SELECT * FROM basket_a AS t WHERE EXISTS (SELECT 1 FROM basket_b WHERE (b = t.a) UNION SELECT 1 FROM basket_c)',
+//   // 'SELECT a,t.avg_a FROM basket_a CROSS JOIN (SELECT AVG(y.b::INTEGER) AS avg_a FROM (Select * from basket_b) as y) AS t',
+//   // "SELECT (NOW() - '2023-12-25'::TIMESTAMP) - INTERVAL '30 days'  AS deviation FROM basket_a;",
+//   // "SELECT * FROM basket_a WHERE fruit_a ILIKE ANY (ARRAY['a%','O%']::TEXT[])",
+//   // 'SELECT AVg(a),ABS(Avg(a) -5) AS deviation FROM basket_a;',
+//   // 'SELECT ABS((a>1) -5) AS deviation FROM basket_a;',
+//   // 'SELECT NOW() - (INTERVAL $1::DATE) FROM basket_a',
+//   // 'SELECT a, ABS(a - t.avg_a) AS deviation FROM basket_a CROSS JOIN (SELECT AVG(a) AS avg_a FROM basket_a) As t WHERE (ABS(a - t.avg_a)  > 2 );',
+//   // 'SELECT a,ABS(a-AVG(a))  FROM basket_a',
+//   // 'SELECT a,ABS(a - (SELECT AVG(ABS(b - AVG(b) OVER ())) FROM basket_b)) AS deviation FROM basket_a;',
+//   // 'SELECT a, ABS(a - (SELECT AVG(b) FROM basket_b)) AS deviation FROM basket_a;',
+//   // 'SELECT (SELECT c FROM basket_c where c=3 ) + (SELECT b FROM basket_b where b=2 ) AS sum FROM basket_a',
+//   // ['30 days'],
+// ).then((res) => {
+//   console.dir({ 'raw Query Result->': res }, { depth: null });
+// });
 
 export function run() {
   console.log('test model running');

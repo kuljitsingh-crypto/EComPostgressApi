@@ -30,6 +30,15 @@ import {
   attachArrayWith,
   fieldQuote,
   getJoinSubqueryFields,
+  createNewObj,
+  getSetSubqueryFields,
+  repeatValInArrUpto,
+} from './helperFunction';
+import { OrderByQuery } from './orderBy';
+import { PaginationQuery } from './paginationQuery';
+import { TableJoin } from './tableJoin';
+import {
+  isEmptyArray,
   isNonEmptyString,
   isNonNullableValue,
   isNullableValue,
@@ -38,14 +47,7 @@ import {
   isValidSimpleModel,
   isValidSubQuery,
   isValidWhereQuery,
-  createNewObj,
-  getSetSubqueryFields,
-  isEmptyArray,
-  repeatValInArrUpto,
-} from './helperFunction';
-import { OrderByQuery } from './orderBy';
-import { PaginationQuery } from './paginationQuery';
-import { TableJoin } from './tableJoin';
+} from './util';
 
 const prepareFinalFindQry = (
   selectQry: string,

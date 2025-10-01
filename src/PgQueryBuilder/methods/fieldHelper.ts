@@ -8,6 +8,7 @@ import {
   OtherJoin,
 } from '../internalTypes';
 import { throwError } from './errorHelper';
+import { simpleFieldValidate } from './helperFunction';
 import {
   ensureArray,
   isNonEmptyObject,
@@ -17,8 +18,7 @@ import {
   isValidArray,
   isValidDerivedModel,
   isValidSimpleModel,
-  simpleFieldValidate,
-} from './helperFunction';
+} from './util';
 
 export class FieldHelper {
   static getAllowedFields<Model>(

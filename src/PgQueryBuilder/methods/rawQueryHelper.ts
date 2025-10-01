@@ -2,14 +2,8 @@ import { DB_KEYWORDS } from '../constants/dbkeywords';
 import { Primitive } from '../globalTypes';
 import { PreparedValues, RawQuery } from '../internalTypes';
 import { throwError } from './errorHelper';
-import {
-  attachArrayWith,
-  getPreparedValues,
-  isNonEmptyObject,
-  isNonEmptyString,
-  isNullableValue,
-  isValidArray,
-} from './helperFunction';
+import { attachArrayWith, getPreparedValues } from './helperFunction';
+import { isNonEmptyObject, isNonEmptyString, isValidArray } from './util';
 
 const checkAndAddQuery = (
   queries: string[],

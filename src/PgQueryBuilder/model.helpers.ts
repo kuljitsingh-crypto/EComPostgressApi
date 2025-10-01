@@ -1,7 +1,8 @@
 import { query } from '../models/db.config';
+import { Table, TableValues } from './constants/dataTypes';
 import { DB_KEYWORDS } from './constants/dbkeywords';
 import { ReferenceTable } from './constants/foreignkeyActions';
-import { Primitive, Table, TableValues } from './globalTypes';
+import { Primitive } from './globalTypes';
 import {
   AllowedFields,
   ExtraOptions,
@@ -190,7 +191,7 @@ export class DBModel extends DBQuery {
           }
           break;
         }
-        case 'isPrimary':
+        case 'primary':
           primaryKeys.push(columnName);
           break;
         case 'defaultValue':
@@ -201,9 +202,6 @@ export class DBModel extends DBQuery {
           break;
         case 'notNull':
           values.push(DB_KEYWORDS.notNull);
-          break;
-        case 'customDefaultValue':
-          values.push(`${DB_KEYWORDS.default} '${keyVale}'`);
           break;
         case 'check':
           values.push(`${DB_KEYWORDS.check} (${keyVale})`);

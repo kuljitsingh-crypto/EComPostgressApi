@@ -42,18 +42,20 @@ import {
   attachArrayWith,
   attachMethodToSymbolRegistry,
   getValidCallableFieldValues,
+} from './helperFunction';
+import {
   isNonEmptyString,
   isNonNullableValue,
   isValidArray,
   isValidObject,
-} from './helperFunction';
+} from './util';
 
 type CustomFieldOptions = {
   name: string;
   callable?: boolean;
   suffix?: string;
   prefix?: string;
-  attachMode?: AttachType;
+  attachMode?: AttachMode;
   conditions?: string[];
 };
 
@@ -100,17 +102,17 @@ type Func = {
               : MultipleFieldOpCb;
 };
 type OperandType = 'single' | 'double' | 'multiple' | 'triple' | 'noParam';
-type AttachType = 'operatorInBetween' | 'default' | 'custom' | 'arrayOperator';
+type AttachMode = 'operatorInBetween' | 'default' | 'custom' | 'arrayOperator';
 
 type CommonParamForOpGroup = {
-  attachBy: AttachType;
+  attachMode: AttachMode;
   attachCond?: string[];
   suffixAllowed?: boolean;
   prefixAllowed?: boolean;
   prefixRef?: Record<string, string>;
   suffixRef?: Record<string, string>;
   zeroArgAllowed?: boolean;
-  isOpCallable?: boolean;
+  callable?: boolean;
 };
 
 type OpGroup = CommonParamForOpGroup & {
@@ -144,16 +146,16 @@ type FieldOperatorCb<Model> = {
 interface FieldFunction extends Func {}
 
 const attachOperator = (
-  isOpCallable: boolean,
+  callable: boolean,
   op: string,
   ...values: Primitive[]
 ) =>
-  isOpCallable
+  callable
     ? attachArrayWith.customSep([op, `(${attachArrayWith.coma(values)})`], '')
     : attachArrayWith.space([op, attachArrayWith.coma(values)]);
 
 const attachOpInBtwOperator = (
-  isOpCallable: boolean,
+  callable: boolean,
   op: string,
   ...values: Primitive[]
 ) => {
@@ -169,7 +171,7 @@ const attachOpInBtwOperator = (
 
 const customAttach =
   (attachCond: string[]) =>
-  (isOpCallable: boolean, op: string, ...values: Primitive[]) => {
+  (callable: boolean, op: string, ...values: Primitive[]) => {
     const valuesLen = values.length;
     const lastAttachStr = attachCond[attachCond.length - 1] ?? '';
     const attachedVal: Primitive[] = [values[0] ?? ''];
@@ -177,14 +179,10 @@ const customAttach =
       const attachType = attachCond[i - 1] ?? lastAttachStr;
       attachedVal.push(attachType, values[i]);
     }
-    return attachOperator(isOpCallable, op, attachArrayWith.space(attachedVal));
+    return attachOperator(callable, op, attachArrayWith.space(attachedVal));
   };
 
-const arrayAttach = (
-  isOpCallable: boolean,
-  op: string,
-  ...values: Primitive[]
-) => {
+const arrayAttach = (callable: boolean, op: string, ...values: Primitive[]) => {
   const [first, ...rest] = values;
   const valuesStr = attachArrayWith.customSep(rest, ':');
   return attachArrayWith.noSpace([first, '[', valuesStr, ']']);
@@ -192,9 +190,9 @@ const arrayAttach = (
 
 const attachOp = (
   zeroArgAllowed: boolean,
-  isOpCallable: boolean,
+  callable: boolean,
   op: string,
-  attachBy: AttachType,
+  attachMode: AttachMode,
   attachCond: string[],
   ...values: Primitive[]
 ) => {
@@ -202,12 +200,9 @@ const attachOp = (
   if (values.length < 1 && !zeroArgAllowed) {
     return throwError.invalidOpDataType(op);
   }
-  let opCb: (
-    isOpCallable: boolean,
-    op: string,
-    ...values: Primitive[]
-  ) => string = attachOperator;
-  switch (attachBy) {
+  let opCb: (callable: boolean, op: string, ...values: Primitive[]) => string =
+    attachOperator;
+  switch (attachMode) {
     case 'operatorInBetween':
       opCb = attachOpInBtwOperator;
       break;
@@ -221,7 +216,7 @@ const attachOp = (
       break;
   }
 
-  return opCb(isOpCallable, op, ...values);
+  return opCb(callable, op, ...values);
 };
 
 const resolveOperand = <Model>(
@@ -260,7 +255,7 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
   const {
     colAndOperands,
     operator,
-    attachBy,
+    attachMode,
     operatorRef,
     preparedValues,
     groupByFields,
@@ -272,7 +267,7 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
     suffixAllowed = false,
     suffixRef = {},
     zeroArgAllowed = false,
-    isOpCallable = true,
+    callable = true,
   } = params;
   const op = operatorRef[operator];
   if (!op) {
@@ -294,9 +289,9 @@ const prepareFields = <Model>(params: PrepareCb<Model>) => {
   );
   return attachOp(
     zeroArgAllowed,
-    isOpCallable,
+    callable,
     op,
-    attachBy,
+    attachMode,
     attachCond,
     ...operands,
   );
@@ -326,26 +321,26 @@ const opGroups: OpGroup[] = [
   {
     set: NO_PRAM_FIELD_OP,
     type: 'noParam',
-    attachBy: 'default',
+    attachMode: 'default',
     zeroArgAllowed: true,
   },
   {
     set: CURRENT_DATE_FIELD_OP,
     type: 'noParam',
-    attachBy: 'default',
+    attachMode: 'default',
     zeroArgAllowed: true,
-    isOpCallable: false,
+    callable: false,
   },
   {
     set: SINGLE_FIELD_OP,
     type: 'single',
-    attachBy: 'default',
+    attachMode: 'default',
   },
 
   {
     set: DATE_EXTRACT_FIELD_OP,
     type: 'single',
-    attachBy: 'custom',
+    attachMode: 'custom',
     attachCond: [DB_KEYWORDS.from],
     prefixAllowed: true,
     prefixRef: dateExtractFieldMapping,
@@ -353,89 +348,89 @@ const opGroups: OpGroup[] = [
   {
     set: NOT_FIELD_OP,
     type: 'single',
-    attachBy: 'custom',
+    attachMode: 'custom',
     attachCond: [DB_KEYWORDS.not],
-    isOpCallable: false,
+    callable: false,
   },
 
   {
     set: TRIM_FIELD_OP,
     type: 'double',
-    attachBy: 'custom',
+    attachMode: 'custom',
     attachCond: [DB_KEYWORDS.from],
   },
   {
     set: SYMBOL_FIELD_OP,
     type: 'double',
-    attachBy: 'operatorInBetween',
+    attachMode: 'operatorInBetween',
   },
   {
     set: DOUBLE_FIELD_OP,
     type: 'double',
-    attachBy: 'default',
+    attachMode: 'default',
   },
   {
     set: STR_FIELD_OP,
     type: 'double',
-    attachBy: 'default',
+    attachMode: 'default',
   },
   {
     set: STR_IN_FIELD_OP,
     type: 'double',
-    attachBy: 'custom',
+    attachMode: 'custom',
     attachCond: [DB_KEYWORDS.in],
   },
   {
     set: STR_IN_FIELD_OP,
     type: 'double',
-    attachBy: 'custom',
+    attachMode: 'custom',
     attachCond: [DB_KEYWORDS.in],
   },
   {
     set: STR_IN_FIELD_OP,
     type: 'double',
-    attachBy: 'custom',
+    attachMode: 'custom',
     attachCond: [DB_KEYWORDS.in],
   },
   {
     set: ARRAY_INDEX_OP,
     type: 'double',
-    attachBy: 'arrayOperator',
+    attachMode: 'arrayOperator',
   },
   {
     set: TRIPLE_FIELD_OP,
     type: 'triple',
-    attachBy: 'default',
+    attachMode: 'default',
   },
   {
     set: SUBSTRING_FIELD_OP,
     type: 'triple',
-    attachBy: 'custom',
+    attachMode: 'custom',
     attachCond: [DB_KEYWORDS.from, DB_KEYWORDS.for],
   },
   {
     set: ARRAY_SLICE_OP,
     type: 'triple',
-    attachBy: 'arrayOperator',
+    attachMode: 'arrayOperator',
   },
   {
     set: MULTIPLE_FIELD_OP,
     type: 'multiple',
-    attachBy: 'default',
+    attachMode: 'default',
   },
   {
     set: CASE_FIELD_OP,
     type: 'multiple',
-    attachBy: 'custom',
+    attachMode: 'custom',
     attachCond: [''],
-    isOpCallable: false,
+    callable: false,
     suffixAllowed: true,
     suffixRef: { case: 'END' },
   },
   {
     set: CUSTOM_FIELD_OP,
     type: 'multiple',
-    attachBy: 'custom',
+    attachMode: 'custom',
   },
 ] as const;
 
@@ -506,7 +501,7 @@ class FieldFunction {
     } = options;
     fieldOptions = {
       ...fieldOptions,
-      attachBy: attachMode,
+      attachMode,
       attachCond: conditions ?? (callable ? [] : [name]),
       ...(isNonEmptyString(suffix)
         ? { suffixAllowed: true, suffixRef: { [name]: suffix } }
@@ -514,7 +509,7 @@ class FieldFunction {
       ...(isNonEmptyString(prefix)
         ? { prefixAllowed: true, prefixRef: { [name]: prefix } }
         : {}),
-      isOpCallable: callable,
+      callable,
     };
     return {
       operator: name as Ops,

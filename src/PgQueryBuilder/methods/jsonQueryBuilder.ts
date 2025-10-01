@@ -1,11 +1,8 @@
 import { Primitive } from '../globalTypes';
 import { throwError } from './errorHelper';
-import {
-  attachArrayWith,
-  isNonNullableValue,
-  isNullableValue,
-} from './helperFunction';
+import { attachArrayWith } from './helperFunction';
 import { toJsonStr } from './jsonFunctionHelepr';
+import { isNonNullableValue, isNullableValue } from './util';
 
 const funcs = {
   type: 'type',

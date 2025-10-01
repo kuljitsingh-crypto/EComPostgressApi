@@ -16,6 +16,10 @@ import {
   covertJSDataToSQLData,
   fieldQuote,
   getPreparedValues,
+  validCallableColCtx,
+} from './helperFunction';
+import { QueryHelper } from './queryHelper';
+import {
   isCallableColumn,
   isColAliasNameArr,
   isNonEmptyString,
@@ -24,9 +28,7 @@ import {
   isValidCaseQuery,
   isValidSubQuery,
   isValidWhereQuery,
-  validCallableColCtx,
-} from './helperFunction';
-import { QueryHelper } from './queryHelper';
+} from './util';
 
 export type ArrayArg<P, Model> =
   | P

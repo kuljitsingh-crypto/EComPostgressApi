@@ -1,15 +1,7 @@
 import { Primitive } from '../globalTypes';
+import { filterOutValidDbData } from '../methods/util';
 
-const filterOutValidDbData = (a: Primitive) => {
-  if (a === null || typeof a === 'boolean' || typeof a === 'number') {
-    return true;
-  } else if (typeof a == 'string' && a.trim().length > 0) {
-    return true;
-  }
-  return false;
-};
-
-export const PgDataType = {
+const simpleDataType = {
   boolean: 'BOOLEAN',
   true: 'TRUE',
   false: 'FALSE',
@@ -19,6 +11,11 @@ export const PgDataType = {
   int: 'INTEGER',
   bigInt: 'BIGINT',
   serial: 'SERIAL',
+  bigSerial: 'BIGSERIAL',
+  smallSerial: 'SMALLSERIAL',
+  double: 'DOUBLE PRECISION',
+  float: 'FLOAT',
+  float8: 'FLOAT8',
   date: 'DATE',
   timestamp: 'TIMESTAMP',
   timestamptz: 'TIMESTAMPTZ',
@@ -27,11 +24,6 @@ export const PgDataType = {
   jsonb: 'JSONB',
   uuid: 'UUID',
   null: 'NULL',
-  bigint: 'BIGINT',
-  smallint: 'SMALLINT',
-  double: 'DOUBLE PRECISION',
-  bigSerial: 'BIGSERIAL',
-  smallSerial: 'SMALLSERIAL',
   bytea: 'BYTEA',
   inet: 'INET',
   cidr: 'CIDR',
@@ -51,24 +43,54 @@ export const PgDataType = {
   tsRange: 'TSRANGE',
   tstzRange: 'TSTZRANGE',
   dateRange: 'DATERANGE',
-  string(n: number) {
+} as const;
+
+export const PgDataType = {
+  ...simpleDataType,
+  string(n: number): any {
     return `VARCHAR(${n})`;
   },
-  numeric(precision: number, scale = 0) {
+  char(n: number): any {
+    return `CHAR(${n})`;
+  },
+  numeric(precision: number, scale = 0): any {
     return `NUMERIC(${precision}, ${scale})`;
   },
-  enum(values: string[]) {
+  decimal(precision: number, scale = 0): any {
+    return `DECIMAL(${precision}, ${scale})`;
+  },
+  // array(
+  //   type: (typeof simpleDataType)[keyof typeof simpleDataType],
+  //   dimension: number,
+  // ) {},
+  enum(values: string[]): any {
     const valueStr = values
-      .filter(filterOutValidDbData)
+      .filter(filterOutValidDbData())
       .map((v) => `'${v}'`)
       .join(',');
     return `ENUM(${valueStr})`;
   },
 } as const;
 
-export const PG_DEFAULT_VALUE = {
+export const PgSpecialValue = {
   currentDate: 'CURRENT_DATE',
   currentTimestamp: 'CURRENT_TIMESTAMP',
   currentTime: 'CURRENT_TIME',
   uuidV4: 'gen_random_uuid()',
+  NaN: 'NaN',
+  infinity: 'Infinity',
+  negInfinity: '-Infinity',
 };
+
+export type Table<T extends string = string> = {
+  [key in T]: {
+    type: (typeof PgDataType)[keyof typeof PgDataType];
+    primary?: boolean;
+    defaultValue?: Primitive;
+    unique?: boolean;
+    notNull?: boolean;
+    check?: string;
+  };
+};
+
+export type TableValues = Table[keyof Table];

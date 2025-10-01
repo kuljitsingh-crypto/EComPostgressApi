@@ -26,12 +26,10 @@ import {
   attachArrayWith,
   attachMethodToSymbolRegistry,
   getValidCallableFieldValues,
-  isNonEmptyObject,
-  isNonEmptyString,
-  isNullableValue,
   prepareMultipleValues,
 } from './helperFunction';
 import { OrderByQuery } from './orderBy';
+import { isNonEmptyObject, isNonEmptyString, isNullableValue } from './util';
 
 const frameFunction = {
   rows: 'ROWS',

@@ -11,7 +11,7 @@ CurrentUser.init(
   {
     id: {
       type: DataTypes.uuid,
-      isPrimary: true,
+      primary: true,
       defaultValue: dbDefaultValue.uuidV4,
       notNull: true,
     },
